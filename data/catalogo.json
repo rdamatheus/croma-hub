@@ -1,0 +1,69 @@
+{
+  "categorias": ["Todos", "Comunicação Visual", "Gráfica", "Papelaria", "Digital"],
+  "itens": [
+    {
+      "id": "banner-lona",
+      "nome": "Banner em Lona",
+      "categoria": "Comunicação Visual",
+      "descricao": "Impressão em lona para divulgação, eventos, lojas e sinalização.",
+      "icone": "▰",
+      "destaques": ["Uso interno ou externo", "Diversos tamanhos", "Acabamentos sob consulta"]
+    },
+    {
+      "id": "adesivos",
+      "nome": "Adesivos Personalizados",
+      "categoria": "Comunicação Visual",
+      "descricao": "Adesivos para vitrines, embalagens, garrafas, sinalização e campanhas.",
+      "icone": "◉",
+      "destaques": ["Recorte especial", "Aplicação comercial", "Diversos materiais"]
+    },
+    {
+      "id": "placas-acm",
+      "nome": "Placas e ACM",
+      "categoria": "Comunicação Visual",
+      "descricao": "Soluções para fachadas, placas informativas e comunicação de ambientes.",
+      "icone": "◆",
+      "destaques": ["Projetos sob medida", "Acabamento profissional", "Uso corporativo"]
+    },
+    {
+      "id": "cartoes",
+      "nome": "Cartões de Visita",
+      "categoria": "Gráfica",
+      "descricao": "Cartões profissionais com opções de laminação, verniz e acabamentos especiais.",
+      "icone": "▣",
+      "destaques": ["Diversos papéis", "Verniz localizado", "Hot stamping"]
+    },
+    {
+      "id": "folders",
+      "nome": "Folders e Panfletos",
+      "categoria": "Gráfica",
+      "descricao": "Materiais promocionais e informativos para campanhas, empresas e eventos.",
+      "icone": "▤",
+      "destaques": ["Frente e verso", "Dobras sob consulta", "Tiragens variadas"]
+    },
+    {
+      "id": "blocos",
+      "nome": "Blocos e Receituários",
+      "categoria": "Gráfica",
+      "descricao": "Blocos personalizados para empresas, profissionais e uso administrativo.",
+      "icone": "▥",
+      "destaques": ["Timbrados", "Diversos formatos", "Personalização completa"]
+    },
+    {
+      "id": "papelaria-personalizada",
+      "nome": "Papelaria Personalizada",
+      "categoria": "Papelaria",
+      "descricao": "Itens personalizados para marcas, eventos, presentes e comunicação institucional.",
+      "icone": "✦",
+      "destaques": ["Projetos personalizados", "Identidade visual", "Aplicações diversas"]
+    },
+    {
+      "id": "sites-catalogos",
+      "nome": "Sites e Catálogos Digitais",
+      "categoria": "Digital",
+      "descricao": "Miniaplicações, landing pages e catálogos digitais focados em apresentação e vendas.",
+      "icone": "⌘",
+      "destaques": ["Responsivos", "Leves", "Preparados para evolução"]
+    }
+  ]
+}
