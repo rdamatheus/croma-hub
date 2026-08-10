@@ -1,0 +1,65 @@
+/* Correção de exibição da marca Croma no cabeçalho e rodapé */
+.site-header .brand,
+.footer .brand {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: visible;
+}
+
+.site-header .brand img,
+.footer .brand img {
+  display: block !important;
+  width: 220px !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: 58px !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  clip-path: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+.site-header .brand-tag {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.footer .brand img {
+  width: 190px !important;
+  max-height: 52px !important;
+}
+
+@media (max-width: 900px) {
+  .site-header .brand img {
+    width: 190px !important;
+    max-height: 50px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .site-header .brand img,
+  .footer .brand img {
+    width: min(178px, 48vw) !important;
+    height: auto !important;
+    max-height: 46px !important;
+    max-width: none !important;
+  }
+
+  .site-header .brand-tag {
+    margin-left: 8px;
+    padding-left: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .site-header .brand img,
+  .footer .brand img {
+    width: min(158px, 46vw) !important;
+    max-height: 42px !important;
+  }
+}
