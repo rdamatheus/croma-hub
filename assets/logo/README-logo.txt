@@ -1,0 +1,1 @@
+Logo horizontal oficial da Croma obtida do Google Drive. A imagem web é derivada do arquivo oficial e deve ser usada no cabeçalho e rodapé.
