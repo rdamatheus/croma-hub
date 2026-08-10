@@ -13,4 +13,6 @@ search.addEventListener("input",e=>{state.termo=e.target.value;renderCatalog()})
 if(modal&&modalClose)modalClose.addEventListener("click",()=>modal.close());
 if(whatsappCta)whatsappCta.addEventListener("click",e=>{e.preventDefault();window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`,"_blank","noopener,noreferrer")});
 if(whatsappFloat&&whatsappClose){const hiddenUntil=Number(localStorage.getItem("cromaWhatsappHiddenUntil")||0);if(hiddenUntil>Date.now())whatsappFloat.hidden=true;whatsappClose.addEventListener("click",()=>{whatsappFloat.hidden=true;localStorage.setItem("cromaWhatsappHiddenUntil",String(Date.now()+86400000))})}
+const servicesNav=document.querySelector('.nav a[href="#servicos"]');if(servicesNav)servicesNav.href="servicos/";
+document.querySelectorAll('.service-card').forEach(card=>{card.style.cursor='pointer';card.setAttribute('tabindex','0');const go=()=>location.href='servicos/';card.addEventListener('click',go);card.addEventListener('keydown',e=>{if(e.key==='Enter'){go()}})});
 async function init(){state.data=await carregarCatalogo();renderFilters();renderCatalog()}init();
