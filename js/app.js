@@ -6,6 +6,9 @@ const state = {
   termo: ""
 };
 
+const WHATSAPP_NUMBER = "553230253588";
+const WHATSAPP_MESSAGE = "Olá! Vim pelo Croma Hub e gostaria de solicitar um orçamento.";
+
 const grid = document.querySelector("#catalogGrid");
 const filters = document.querySelector("#catalogFilters");
 const search = document.querySelector("#catalogSearch");
@@ -13,6 +16,8 @@ const modal = document.querySelector("#productModal");
 const modalContent = document.querySelector("#modalContent");
 const modalClose = document.querySelector("#modalClose");
 const whatsappCta = document.querySelector("#whatsappCta");
+const whatsappFloat = document.querySelector("#whatsappFloat");
+const whatsappClose = document.querySelector("#whatsappClose");
 
 function normalizar(texto = "") {
   return texto
@@ -79,6 +84,11 @@ function abrirProduto(id) {
   modal.showModal();
 }
 
+function abrirWhatsApp() {
+  const mensagem = encodeURIComponent(WHATSAPP_MESSAGE);
+  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensagem}`, "_blank", "noopener,noreferrer");
+}
+
 filters.addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (!button) return;
@@ -112,9 +122,18 @@ modal.addEventListener("click", (event) => {
 
 whatsappCta.addEventListener("click", (event) => {
   event.preventDefault();
-  const mensagem = encodeURIComponent("Olá! Vim pelo Croma Hub e gostaria de solicitar um orçamento.");
-  window.open(`https://wa.me/?text=${mensagem}`, "_blank", "noopener,noreferrer");
+  abrirWhatsApp();
 });
+
+if (whatsappFloat && whatsappClose) {
+  const hiddenUntil = Number(localStorage.getItem("cromaWhatsappHiddenUntil") || 0);
+  if (hiddenUntil > Date.now()) whatsappFloat.hidden = true;
+
+  whatsappClose.addEventListener("click", () => {
+    whatsappFloat.hidden = true;
+    localStorage.setItem("cromaWhatsappHiddenUntil", String(Date.now() + 24 * 60 * 60 * 1000));
+  });
+}
 
 async function init() {
   state.data = await carregarCatalogo();
