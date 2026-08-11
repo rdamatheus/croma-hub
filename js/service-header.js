@@ -59,4 +59,49 @@
   mobileNav.querySelectorAll('a').forEach(link => link.addEventListener('click', close));
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   window.addEventListener('resize', () => { if (window.innerWidth > 760) close(); });
+
+  function setupStickerQuotationFlow() {
+    if (!location.pathname.includes('/servicos/adesivos/')) return;
+    const finish = document.querySelector('#finish');
+    const continueButton = document.querySelector('#continue');
+    if (!finish || !continueButton) return;
+
+    finish.innerHTML = `
+      <option value="meio-corte">Meio corte — recorta apenas o adesivo, sem recortar o liner</option>
+      <option value="stick">Stick — corte inteiro do adesivo e do liner no formato desejado</option>`;
+
+    const finishLabel = finish.closest('label');
+    if (finishLabel) {
+      finishLabel.childNodes[0].textContent = 'Tipo de corte';
+      const help = document.createElement('small');
+      help.className = 'finish-help';
+      help.textContent = 'O formato já foi definido acima. Aqui você escolhe apenas como o adesivo será entregue no liner.';
+      finishLabel.appendChild(help);
+    }
+
+    const goToQuotation = () => {
+      const product = document.querySelector('.sticker-card.selected')?.dataset.product || '';
+      const w = document.querySelector('#w')?.value || '';
+      const h = document.querySelector('#h')?.value || '';
+      const q = document.querySelector('#q')?.value || '';
+      const format = document.querySelector('.format-option.active')?.dataset.format || 'personalizado';
+      const cut = finish.value;
+      const status = document.querySelector('#status');
+
+      if (!product || !Number(w) || !Number(h) || !Number(q)) {
+        if (status) status.textContent = 'Preencha largura, altura e quantidade para continuar.';
+        return;
+      }
+
+      const params = new URLSearchParams({ produto: product, formato: format, largura: w, altura: h, quantidade: q, corte: cut });
+      sessionStorage.setItem('cromaStickerQuote', JSON.stringify(Object.fromEntries(params.entries())));
+      location.href = `/servicos/adesivos/cotacao/?${params.toString()}`;
+    };
+
+    const replacement = continueButton.cloneNode(true);
+    continueButton.replaceWith(replacement);
+    replacement.addEventListener('click', goToQuotation);
+  }
+
+  setupStickerQuotationFlow();
 })();
