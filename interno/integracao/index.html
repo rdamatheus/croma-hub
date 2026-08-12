@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#30297F">
+  <title>Integração de Funcionários | Croma</title>
+  <style>
+    :root{--navy:#30297F;--deep:#211c5c;--magenta:#C30079;--green:#80B03D;--yellow:#FFEC00;--blue:#009CDF;--ink:#28263a;--muted:#6f6c7e;--line:#e6e4ee;--paper:#f6f6fb;--white:#fff}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--paper);color:var(--ink)}button,input,textarea{font:inherit}.top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:13px max(16px,4vw);display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit}.brand img{height:42px;width:auto;max-width:210px;object-fit:contain}.tag{font-size:.62rem;font-weight:900;letter-spacing:.22em;color:var(--navy);border-left:1px solid var(--line);padding-left:10px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:12px;padding:11px 14px;font-weight:850;cursor:pointer;background:var(--navy);color:#fff}.btn.alt{background:#efeff8;color:var(--deep)}.shell{max-width:1080px;margin:auto;padding:30px 18px 70px}.hero{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:22px}.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;font-weight:900;color:var(--navy)}h1{font-size:clamp(2rem,5vw,3.8rem);line-height:1;margin:8px 0 10px;color:var(--deep)}.lead{margin:0;color:var(--muted);line-height:1.6;max-width:760px}.progress{min-width:220px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px}.progress strong{font-size:1.5rem;color:var(--deep)}.bar{height:9px;background:#ecebf3;border-radius:999px;margin-top:10px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--magenta),var(--blue));transition:.2s}.meta{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:18px}.field label{display:block;font-size:.76rem;font-weight:900;color:var(--deep);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}.field input,.field textarea{width:100%;border:1px solid #d8d6e4;border-radius:11px;padding:11px;background:#fff;color:var(--ink)}.field textarea{min-height:100px;resize:vertical}.section{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px;margin-top:14px}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}.section h2{margin:0;color:var(--deep);font-size:1.18rem}.section p{margin:5px 0 0;color:var(--muted);font-size:.9rem;line-height:1.5}.checklist{display:grid;gap:8px}.item{display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:flex-start;padding:11px 12px;border:1px solid #eceaf3;border-radius:14px;background:#fff}.item input{width:19px;height:19px;margin-top:1px;accent-color:var(--navy)}.item strong{display:block;color:var(--ink);font-size:.94rem}.item small{display:block;margin-top:3px;color:var(--muted);line-height:1.45}.item:has(input:checked){background:#f7fbf3;border-color:#dfead4}.callout{margin-top:12px;padding:12px 14px;border-radius:14px;background:#fff8d8;color:#625600;font-size:.86rem;line-height:1.5}.notes{margin-top:14px}.footer-note{margin-top:20px;color:var(--muted);font-size:.8rem;line-height:1.5}.print-title{display:none}
+    @media(max-width:760px){.hero{grid-template-columns:1fr}.progress{min-width:0}.meta{grid-template-columns:1fr}.top{align-items:flex-start}.actions{justify-content:flex-end}.brand img{height:35px;max-width:165px}.tag{display:none}}
+    @media print{body{background:#fff}.top,.actions,.bar,.footer-note{display:none!important}.shell{max-width:none;padding:0}.hero{display:block;margin-bottom:12px}.progress{border:0;padding:0;margin-top:8px}.progress strong{font-size:1rem}.meta,.section{box-shadow:none;break-inside:avoid;border-color:#bbb}.section{margin-top:10px;padding:14px}.item{padding:8px 9px;break-inside:avoid}.item small{font-size:.78rem}.print-title{display:block;font-weight:800;margin-bottom:8px;color:var(--deep)}h1{font-size:2rem}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/" aria-label="Croma Hub"><img src="/assets/logo/croma-horizontal-web.png" alt="Croma"><span class="tag">INTERNO</span></a>
+    <div class="actions"><button class="btn alt" id="reset">Limpar</button><button class="btn alt" id="exportDoc">Exportar DOC</button><button class="btn" id="print">Imprimir / PDF</button></div>
+  </header>
+
+  <main class="shell" id="documentArea">
+    <div class="print-title">Croma — Checklist de Integração | Primeiro Dia</div>
+    <section class="hero">
+      <div><span class="eyebrow">Pessoas & Operação</span><h1>Checklist do primeiro dia</h1><p class="lead">Roteiro de integração para apresentar a loja, alinhar postura e rotina, preparar a funcionária para cobrir atendimentos e introduzir organização sem transformar o dia em uma jornada de limpeza.</p></div>
+      <div class="progress"><span class="eyebrow">Progresso</span><div><strong id="percent">0%</strong> <span id="count">0 de 0</span></div><div class="bar"><i id="bar"></i></div></div>
+    </section>
+
+    <section class="meta">
+      <div class="field"><label>Funcionária</label><input id="employee" placeholder="Nome da funcionária"></div>
+      <div class="field"><label>Data</label><input id="date" type="date"></div>
+      <div class="field"><label>Responsável</label><input id="responsible" placeholder="Quem fez a integração"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>1. Recepção e documentação</h2><p>Começar o vínculo com clareza, organização e acolhimento profissional.</p></div></div>
+      <div class="checklist">
+        <label class="item"><input type="checkbox" data-key="doc1"><span><strong>Receber e conferir os documentos pessoais solicitados</strong><small>Registrar apenas a entrega/conferência. Não anotar números de documentos neste checklist.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="doc2"><span><strong>Confirmar dados básicos de contato e emergência</strong><small>Orientar onde essas informações serão mantidas com segurança.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="doc3"><span><strong>Entregar o uniforme</strong><small>Confirmar tamanho, conservação e expectativa de uso.</small></span></label>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>2. Apresentação e padrão de vestimenta</h2><p>Explicar como a Croma espera que a equipe se apresente e se comporte no ambiente de loja.</p></div></div>
+      <div class="checklist">
+        <label class="item"><input type="checkbox" data-key="pres1"><span><strong>Explicar o padrão de uniforme e apresentação pessoal</strong><small>Uniforme limpo e adequado, cuidado pessoal e aparência compatível com atendimento ao público.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="pres2"><span><strong>Explicar postura profissional</strong><small>Educação, prontidão, discrição, respeito e atenção ao cliente e à equipe.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="pres3"><span><strong>Apresentar brevemente a Croma</strong><small>O que a loja oferece, perfil dos clientes e importância de atendimento próximo e resolutivo.</small></span></label>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>3. Tour pelos setores da loja</h2><p>Dar mapa mental da operação para ela saber onde encontrar produtos, materiais e apoio.</p></div></div>
+      <div class="checklist">
+        <label class="item"><input type="checkbox" data-key="tour1"><span><strong>Mostrar balcão e área de atendimento</strong><small>Onde receber cliente, identificar necessidade e quando chamar você.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="tour2"><span><strong>Mostrar setores de papelaria, presentes e personalizados</strong><small>Destacar os grupos de produtos mais procurados e como localizar itens rapidamente.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="tour3"><span><strong>Mostrar área gráfica / produção e limites de acesso</strong><small>Explicar o que ela pode acompanhar, o que não deve operar sem treinamento e quem acionar.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="tour4"><span><strong>Mostrar estoque, materiais de apoio, embalagem e reposição</strong><small>Explicar o padrão de devolução: usou, devolve ao lugar correto.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="tour5"><span><strong>Mostrar banheiro, copa, lixo e materiais de limpeza</strong><small>Explicar uso responsável e rotina de manutenção do espaço comum.</small></span></label>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>4. Base de atendimento para cobrir você</h2><p>Objetivo do primeiro dia: conseguir sustentar atendimentos simples e te chamar quando passar do limite dela.</p></div></div>
+      <div class="checklist">
+        <label class="item"><input type="checkbox" data-key="at1"><span><strong>Explicar como abordar o cliente</strong><small>Cumprimentar, perguntar o que precisa e ouvir antes de oferecer solução.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="at2"><span><strong>Ensinar a identificar atendimentos simples x atendimentos que precisam de você</strong><small>Produto de prateleira e informação básica: ela conduz. Orçamento técnico, produção, prazo especial ou dúvida: chama você.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="at3"><span><strong>Mostrar produtos e serviços mais perguntados</strong><small>Ensinar primeiro o que mais aparece no balcão, sem tentar explicar o catálogo inteiro no primeiro dia.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="at4"><span><strong>Fazer 2 ou 3 atendimentos demonstrativos com ela observando</strong><small>Explicar depois o raciocínio usado em cada atendimento.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="at5"><span><strong>Deixar ela conduzir pelo menos 1 atendimento simples com supervisão</strong><small>Você acompanha e só entra se necessário.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="at6"><span><strong>Alinhar a regra do primeiro dia</strong><small>“Hoje você observa e me cobre quando eu pedir. Se tiver dúvida, me chama antes de prometer preço, prazo ou produção.”</small></span></label>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>5. Organização e limpeza como parte da rotina</h2><p>Apresentar padrão de cuidado da loja sem colocar a funcionária presa à limpeza o dia inteiro.</p></div></div>
+      <div class="checklist">
+        <label class="item"><input type="checkbox" data-key="org1"><span><strong>Explicar o princípio: viu fora do lugar, organiza</strong><small>Pequenas correções durante o dia evitam acumular bagunça.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="org2"><span><strong>Mostrar padrão de balcão e área de atendimento</strong><small>Superfície livre, materiais guardados, lixeira controlada e produtos apresentados com cuidado.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="org3"><span><strong>Explicar reposição e organização de prateleiras</strong><small>Repor quando houver oportunidade, sem abandonar cliente ou prioridade operacional.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="org4"><span><strong>Definir limpeza rápida de manutenção</strong><small>Balcão, pontos visivelmente sujos, lixo e organização básica em momentos de baixa.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="org5"><span><strong>Deixar claro que atendimento e operação têm prioridade</strong><small>A limpeza faz parte do trabalho, mas não deve ocupar o dia todo nem impedir que ela aprenda e cubra o atendimento.</small></span></label>
+      </div>
+      <div class="callout"><strong>Regra prática:</strong> usar períodos sem cliente para manutenção leve. Se entrar cliente ou surgir demanda operacional, a prioridade muda imediatamente para atendimento e suporte.</div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>6. Rotinas e segurança operacional</h2><p>Evitar promessas erradas, perda de material e decisões acima do nível de treinamento.</p></div></div>
+      <div class="checklist">
+        <label class="item"><input type="checkbox" data-key="rot1"><span><strong>Explicar o que ela pode decidir sozinha neste primeiro momento</strong><small>Atendimento básico, localização de produtos, organização e apoio.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="rot2"><span><strong>Explicar o que exige autorização</strong><small>Desconto, prazo especial, produção, alteração de arte, uso de máquinas e qualquer promessa fora do padrão.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="rot3"><span><strong>Orientar sobre uso do celular e conversas pessoais no horário</strong><small>Definir o padrão esperado de forma objetiva e igual para toda a equipe.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="rot4"><span><strong>Explicar cuidado com dados e informações de clientes</strong><small>Não fotografar, compartilhar ou expor pedidos, arquivos e dados de clientes sem necessidade.</small></span></label>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>7. Fechamento do primeiro dia</h2><p>Checar aprendizado e transformar dúvidas em plano para o segundo dia.</p></div></div>
+      <div class="checklist">
+        <label class="item"><input type="checkbox" data-key="fim1"><span><strong>Fazer uma conversa de 10 minutos no final do turno</strong><small>Perguntar o que ficou claro, o que gerou dúvida e onde ela se sentiu insegura.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="fim2"><span><strong>Reforçar 3 prioridades para o próximo dia</strong><small>Atendimento, localização dos setores/produtos e rotina de organização.</small></span></label>
+        <label class="item"><input type="checkbox" data-key="fim3"><span><strong>Registrar pontos que precisam de treinamento</strong><small>Usar as observações abaixo para orientar o segundo dia.</small></span></label>
+      </div>
+      <div class="field notes"><label>Observações do primeiro dia</label><textarea id="notes" placeholder="Dúvidas, pontos fortes, situações que precisam de acompanhamento, treinamento para amanhã..."></textarea></div>
+    </section>
+
+    <p class="footer-note">Módulo interno do MVP Croma. Os dados deste checklist ficam salvos somente neste navegador via localStorage. Não preencha números de documentos pessoais neste formulário.</p>
+  </main>
+
+  <script>
+    const STORAGE='cromaOnboardingDay1V1';
+    const checks=[...document.querySelectorAll('input[type="checkbox"][data-key]')];
+    const fields=['employee','date','responsible','notes'];
+    const $=id=>document.getElementById(id);
+    function load(){let s={};try{s=JSON.parse(localStorage.getItem(STORAGE)||'{}')}catch(_){};checks.forEach(c=>c.checked=!!s[c.dataset.key]);fields.forEach(id=>{if(s[id]!=null)$(id).value=s[id]});if(!$('date').value)$('date').value=new Date().toISOString().slice(0,10);update()}
+    function save(){const s={};checks.forEach(c=>s[c.dataset.key]=c.checked);fields.forEach(id=>s[id]=$(id).value);localStorage.setItem(STORAGE,JSON.stringify(s));update()}
+    function update(){const done=checks.filter(c=>c.checked).length,total=checks.length,p=total?Math.round(done/total*100):0;$('percent').textContent=p+'%';$('count').textContent=`${done} de ${total}`;$('bar').style.width=p+'%'}
+    checks.forEach(c=>c.addEventListener('change',save));fields.forEach(id=>$(id).addEventListener('input',save));
+    $('print').onclick=()=>window.print();
+    $('reset').onclick=()=>{if(confirm('Limpar todos os dados e marcações deste checklist?')){localStorage.removeItem(STORAGE);checks.forEach(c=>c.checked=false);fields.forEach(id=>$(id).value='');$('date').value=new Date().toISOString().slice(0,10);save()}};
+    $('exportDoc').onclick=()=>{
+      const clone=$('documentArea').cloneNode(true);clone.querySelectorAll('input[type="checkbox"]').forEach((c,i)=>{const mark=document.createElement('span');mark.textContent=checks[i].checked?'☒':'☐';mark.style.marginRight='8px';c.replaceWith(mark)});
+      clone.querySelectorAll('input:not([type="checkbox"])').forEach(c=>{const span=document.createElement('span');span.textContent=c.value||'—';c.replaceWith(span)});
+      clone.querySelectorAll('textarea').forEach(c=>{const div=document.createElement('div');div.textContent=c.value||'—';c.replaceWith(div)});
+      clone.querySelectorAll('.bar,.footer-note').forEach(n=>n.remove());
+      const html=`<!doctype html><html><head><meta charset="utf-8"><title>Checklist Primeiro Dia - Croma</title><style>body{font-family:Arial,sans-serif;color:#28263a;line-height:1.45;padding:28px}h1,h2{color:#30297F}.section{margin:18px 0}.item{margin:7px 0}.item small{display:block;color:#666;margin-left:24px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:bold;color:#30297F}.progress{margin:12px 0}.meta{margin:16px 0}.field{margin:8px 0}.field label{font-weight:bold;margin-right:6px}</style></head><body>${clone.innerHTML}</body></html>`;
+      const blob=new Blob(['\ufeff',html],{type:'application/msword'});const url=URL.createObjectURL(blob);const a=document.createElement('a');const name=($('employee').value||'funcionaria').trim().replace(/[^a-z0-9_-]+/gi,'-');a.href=url;a.download=`checklist-primeiro-dia-${name}.doc`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)
+    };
+    load();
+  </script>
+</body>
+</html>
