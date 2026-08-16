@@ -1,0 +1,28 @@
+.hero-slider{position:relative;overflow:hidden;background:#211c5c;color:#fff;min-height:clamp(460px,58vw,650px)}
+.hero-slider-track{position:relative;min-height:inherit}
+.hero-slide{position:absolute;inset:0;display:flex;align-items:center;padding:clamp(48px,7vw,92px) clamp(52px,7vw,112px) clamp(72px,8vw,104px);background-size:cover;background-position:center;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .65s ease,visibility .65s ease;isolation:isolate}
+.hero-slide::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(24,19,74,.94) 0%,rgba(24,19,74,.82) 38%,rgba(24,19,74,.32) 64%,rgba(24,19,74,.04) 100%)}
+.hero-slide.active{position:relative;opacity:1;visibility:visible;pointer-events:auto}
+.hero-slide-content{width:min(720px,60vw);position:relative;z-index:2}
+.hero-slide-kicker{display:inline-flex;align-items:center;gap:8px;margin-bottom:14px;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);font-size:.72rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#ffec00;backdrop-filter:blur(7px)}
+.hero-slide h1,.hero-slide h2{margin:0 0 18px;max-width:750px;color:#fff;font-size:clamp(2.4rem,5vw,5.25rem);line-height:.96;letter-spacing:-.05em;text-wrap:balance}
+.hero-slide h2{font-size:clamp(2.25rem,4.5vw,4.7rem)}
+.hero-slide p{margin:0 0 28px;max-width:690px;color:rgba(255,255,255,.9);font-size:clamp(1rem,1.45vw,1.18rem);line-height:1.55}
+.hero-slide-actions{display:flex;gap:12px;flex-wrap:wrap}
+.hero-slide .btn{background:#fff;color:#30297f;box-shadow:0 14px 30px rgba(12,10,44,.2)}
+.hero-slide .btn:hover{background:#f4f2fb;color:#211c5c}
+.hero-slide .btn-ghost-light{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.4);box-shadow:none}
+.hero-slide .btn-ghost-light:hover{background:rgba(255,255,255,.16);color:#fff}
+.hero-slider-arrow{position:absolute;top:50%;z-index:7;display:grid;place-items:center;width:46px;height:46px;padding:0;border:1px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(27,22,81,.44);color:#fff;font-size:2rem;line-height:1;cursor:pointer;transform:translateY(-50%);backdrop-filter:blur(8px);transition:.2s ease}
+.hero-slider-arrow:hover{background:rgba(255,255,255,.2);transform:translateY(-50%) scale(1.04)}
+.hero-slider-arrow.prev{left:16px}.hero-slider-arrow.next{right:16px}
+.hero-slider-dots{position:absolute;left:50%;bottom:24px;z-index:8;display:flex;align-items:center;gap:9px;transform:translateX(-50%)}
+.hero-slider-dot{width:10px;height:10px;padding:0;border:0;border-radius:99px;background:rgba(255,255,255,.48);cursor:pointer;transition:.25s ease}
+.hero-slider-dot.active{width:30px;background:#fff}
+.hero-slider-progress{position:absolute;left:0;right:0;bottom:0;height:4px;z-index:9;background:rgba(255,255,255,.12)}
+.hero-slider-progress span{display:block;width:0;height:100%;background:linear-gradient(90deg,#c30079,#ffec00,#80b03d,#009cdf)}
+.hero-slider-progress span.running{animation:heroProgress 6s linear forwards}
+@keyframes heroProgress{from{width:0}to{width:100%}}
+@media (prefers-reduced-motion:reduce){.hero-slide{transition:none}.hero-slider-progress{display:none}}
+@media (max-width:820px){.hero-slider{min-height:560px}.hero-slide{align-items:flex-end;padding:54px 20px 78px;background-position:64% center}.hero-slide::before{background:linear-gradient(0deg,rgba(24,19,74,.97) 0%,rgba(24,19,74,.8) 46%,rgba(24,19,74,.18) 100%)}.hero-slide-content{width:100%;max-width:680px}.hero-slide h1,.hero-slide h2{font-size:clamp(2rem,9vw,3.35rem);max-width:620px}.hero-slide p{font-size:.98rem;max-width:620px;margin-bottom:22px}.hero-slider-arrow{width:40px;height:40px;top:42%;font-size:1.65rem}.hero-slider-arrow.prev{left:10px}.hero-slider-arrow.next{right:10px}}
+@media (max-width:520px){.hero-slider{min-height:590px}.hero-slide{background-position:68% center}.hero-slide-kicker{font-size:.62rem;letter-spacing:.1em}.hero-slide-actions{gap:9px}.hero-slide-actions .btn{width:100%;padding:12px 16px}.hero-slider-arrow{top:34%}.hero-slider-dots{bottom:18px}}
