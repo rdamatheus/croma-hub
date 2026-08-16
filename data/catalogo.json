@@ -1,5 +1,5 @@
 {
-  "categorias": ["Todos", "Comunicação Visual", "Gráfica", "Papelaria", "Digital"],
+  "categorias": ["Todos", "Comunicação Visual", "Gráfica", "Eventos", "Papelaria", "Digital"],
   "itens": [
     {"id":"banner-lona","nome":"Banner em Lona","categoria":"Comunicação Visual","descricao":"Impressão em lona para divulgação, eventos, lojas e sinalização.","icone":"🖼️","href":"servicos/banner-lona/","destaques":["Uso interno ou externo","Diversos tamanhos","Acabamentos sob consulta"]},
     {"id":"adesivos","nome":"Adesivos Personalizados","categoria":"Comunicação Visual","descricao":"Adesivos para vitrines, embalagens, garrafas, sinalização e campanhas.","icone":"🏷️","href":"servicos/adesivos/","destaques":["Recorte especial","Aplicação comercial","Diversos materiais"]},
@@ -8,6 +8,9 @@
     {"id":"folders","nome":"Folders e Panfletos","categoria":"Gráfica","descricao":"Materiais promocionais e informativos para campanhas, empresas e eventos.","icone":"📄","href":"servicos/folders/","destaques":["Frente e verso","Dobras sob consulta","Tiragens variadas"]},
     {"id":"blocos","nome":"Blocos e Receituários","categoria":"Gráfica","descricao":"Blocos personalizados para empresas, profissionais e uso administrativo.","icone":"🗒️","href":"servicos/blocos/","destaques":["Timbrados","Diversos formatos","Personalização completa"]},
     {"id":"papelaria-personalizada","nome":"Papelaria Personalizada","categoria":"Papelaria","descricao":"Itens personalizados para marcas, eventos, presentes e comunicação institucional.","icone":"🎁","href":"servicos/papelaria-personalizada/","destaques":["Projetos personalizados","Identidade visual","Aplicações diversas"]},
-    {"id":"sites-catalogos","nome":"Sites e Catálogos Digitais","categoria":"Digital","descricao":"Miniaplicações, landing pages e catálogos digitais focados em apresentação e vendas.","icone":"💻","href":"servicos/sites-catalogos/","destaques":["Responsivos","Leves","Preparados para evolução"]}
+    {"id":"sites-catalogos","nome":"Sites e Catálogos Digitais","categoria":"Digital","descricao":"Miniaplicações, landing pages e catálogos digitais focados em apresentação e vendas.","icone":"💻","href":"servicos/sites-catalogos/","destaques":["Responsivos","Leves","Preparados para evolução"]},
+    {"id":"convite-classico","nome":"Convite Clássico","categoria":"Eventos","descricao":"Convite com corte elegante, fechamento próprio e impressão colorida frente e verso.","icone":"✉️","href":"servicos/convites/classico.html","destaques":["Formato final 215 × 300 mm","Impressão 4x4","Cinco opções de papel"]},
+    {"id":"convite-imperial","nome":"Convite Imperial","categoria":"Eventos","descricao":"Convite com abertura em formato de janela para eventos que pedem uma apresentação marcante.","icone":"💌","href":"servicos/convites/imperial.html","destaques":["Formato final 215 × 300 mm","Impressão 4x4","Acabamentos opcionais"]},
+    {"id":"convite-luxo","nome":"Convite Luxo","categoria":"Eventos","descricao":"Modelo com dobras laterais e efeito moderno, diferenciado e sofisticado.","icone":"✨","href":"servicos/convites/luxo.html","destaques":["Formato final 215 × 300 mm","Impressão 4x4","Papéis especiais"]}
   ]
 }
