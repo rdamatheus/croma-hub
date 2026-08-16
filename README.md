@@ -1,23 +1,25 @@
 # Croma Hub
 
-MVP local-first e static-first da Croma, preparado para evoluir de uma landing page pública para catálogo, portfólio, orçamento e futuras ferramentas digitais.
+Site e área interna da Croma.
 
-## Estrutura
+## Área interna
 
-- `index.html` — página principal
-- `css/styles.css` — identidade visual e responsividade
-- `js/app.js` — comportamento da interface
-- `js/data-service.js` — camada de acesso aos dados
-- `data/catalogo.json` — catálogo inicial desacoplado da interface
+O Croma Hub organiza funções operacionais sem substituir o ERP/sistema de vendas.
 
-## Princípios
+### Centro de Operações
 
-- HTML, CSS e JavaScript sem framework
-- sem backend obrigatório
-- dados separados da interface
-- compatível com GitHub Pages
-- preparado para futura troca de JSON por API/Supabase
+Rota: `interno/gestao/`
 
-## Publicação
+Funções principais:
+- quadro de tarefas no estilo Kanban: A fazer, Em andamento e Concluído;
+- checklist diário e indicação da próxima função;
+- calendário mensal;
+- rotinas recorrentes pré-cadastradas;
+- tarefas pontuais;
+- categorias Comercial, Administrativo, Financeiro, Marketing e Postagens, Limpeza e Organização, Estoque e Compras, Produção e Operação e Pessoas e RH.
 
-Ative o GitHub Pages em **Settings → Pages → Deploy from a branch → main / root**.
+A versão atual persiste dados no `localStorage`, mas o modelo já usa campos compatíveis com uma futura migração para Supabase: `id`, `title`, `category`, `date`, `time`, `priority`, `status`, `routineId` e `notes`.
+
+## Autenticação
+
+A proteção atual da área interna é provisória e executada no navegador. Deve ser substituída por autenticação real, preferencialmente Supabase Auth, antes de armazenar dados sensíveis ou liberar múltiplos usuários.
