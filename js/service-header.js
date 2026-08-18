@@ -1,4 +1,11 @@
 (() => {
+  if (!window.CromaCart && !document.querySelector('script[data-croma-cart]')) {
+    const s = document.createElement('script');
+    s.src = '/js/cart.js?v=20260817-2';
+    s.dataset.cromaCart = '1';
+    document.head.appendChild(s);
+  }
+
   const header = document.querySelector('.topbar');
   if (!header) return;
 
@@ -9,9 +16,8 @@
       <span class="service-brand-tag">HUB</span>
     </a>
     <nav class="service-desktop-nav" aria-label="Navegação principal">
-      <a href="/#ambientes">Ambientes</a>
+      <a href="/#catalogo">Produtos</a>
       <a href="/servicos/">Serviços</a>
-      <a href="/#catalogo">Catálogo</a>
       <a href="/#portfolio">Portfólio</a>
       <a href="/#sobre">Sobre</a>
     </nav>
@@ -20,10 +26,12 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="service-mobile-nav" id="serviceMobileNav" aria-label="Navegação mobile">
-      <a href="/#ambientes">Ambientes</a>
+      <a href="/#catalogo">Produtos</a>
       <details>
         <summary>Serviços <span aria-hidden="true">⌄</span></summary>
         <div class="service-mobile-submenu">
+          <a href="/servicos/impressoes-copias/">Impressão digital e documentos</a>
+          <a href="/servicos/foto-produtos/">Foto Produtos</a>
           <a href="/servicos/adesivos/">Adesivos personalizados</a>
           <a href="/servicos/banner-lona/">Banner em lona</a>
           <a href="/servicos/placas-acm/">Placas e ACM</a>
@@ -35,7 +43,6 @@
           <a class="service-mobile-all" href="/servicos/">Ver todos os serviços →</a>
         </div>
       </details>
-      <a href="/#catalogo">Catálogo</a>
       <a href="/#portfolio">Portfólio</a>
       <a href="/#sobre">Sobre</a>
       <a class="service-mobile-cta" href="/#orcamento">Pedir orçamento</a>
