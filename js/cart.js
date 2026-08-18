@@ -121,16 +121,16 @@
     if(!uploadListEl) return;
     const list=window.CromaUpload.getForCurrentPage();
     uploadListEl.innerHTML=list.map(x=>`<div class="croma-upload-file"><span>${esc(x.name)} · ${(x.size/1024/1024).toFixed(2)} MB</span><button type="button" data-upload-remove="${esc(x.id)}">Remover</button></div>`).join('');
-    if(uploadStatusEl) uploadStatusEl.textContent=list.length?`${list.length} arquivo(s) preparado(s) neste navegador.`:'Nenhum arquivo selecionado.';
+    if(uploadStatusEl) uploadStatusEl.textContent=list.length?`${list.length} arquivo(s) selecionado(s).`:'Nenhum arquivo selecionado.';
   }
   if(shouldInjectUploader()){
     const main=document.querySelector('main');
     if(main){
       const card=document.createElement('section'); card.className='croma-upload-card';
-      card.innerHTML=`<h2>Envie seu arquivo</h2><p>Anexe a arte, PDF ou documento do serviço. Nesta fase, o arquivo fica armazenado provisoriamente neste navegador e já recebe uma referência compatível com a futura migração para o Supabase.</p><div class="croma-upload-row"><label class="croma-upload-label">📎 Selecionar arquivo(s)<input type="file" id="cromaUploadInput" multiple></label><span class="croma-upload-status" id="cromaUploadStatus"></span></div><div class="croma-upload-files" id="cromaUploadFiles"></div>`;
+      card.innerHTML=`<h2>Envie seu arquivo</h2><p>Anexe a arte, PDF, imagem ou documento necessário para produzir este serviço.</p><div class="croma-upload-row"><label class="croma-upload-label">📎 Selecionar arquivo(s)<input type="file" id="cromaUploadInput" multiple></label><span class="croma-upload-status" id="cromaUploadStatus"></span></div><div class="croma-upload-files" id="cromaUploadFiles"></div>`;
       main.appendChild(card);
       uploadListEl=card.querySelector('#cromaUploadFiles'); uploadStatusEl=card.querySelector('#cromaUploadStatus');
-      card.querySelector('#cromaUploadInput').addEventListener('change', async e=>{ const fs=[...e.target.files]; if(!fs.length)return; uploadStatusEl.textContent='Salvando localmente...'; try{await window.CromaUpload.stage(fs); uploadStatusEl.classList.add('croma-upload-ok');}catch(err){uploadStatusEl.textContent='Não foi possível armazenar o arquivo neste navegador.';} e.target.value=''; });
+      card.querySelector('#cromaUploadInput').addEventListener('change', async e=>{ const fs=[...e.target.files]; if(!fs.length)return; uploadStatusEl.textContent='Adicionando arquivo...'; try{await window.CromaUpload.stage(fs); uploadStatusEl.classList.add('croma-upload-ok');}catch(err){uploadStatusEl.textContent='Não foi possível adicionar o arquivo. Tente novamente.';} e.target.value=''; });
       card.addEventListener('click',e=>{const b=e.target.closest('[data-upload-remove]');if(b)window.CromaUpload.remove(b.dataset.uploadRemove)});
       renderUploadList();
     }
