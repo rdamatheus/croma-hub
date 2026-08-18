@@ -1,6 +1,13 @@
 import { renderProductVisual } from "./product-visual.js";
 import { carregarCatalogo } from "./data-service.js";
 
+if(!document.querySelector('script[data-croma-cart]')){
+  const s=document.createElement('script');
+  s.src='/js/cart.js?v=20260817-2';
+  s.dataset.cromaCart='1';
+  document.head.appendChild(s);
+}
+
 const state={data:null,categoria:"Todos",termo:""};
 const WHATSAPP_NUMBER="553230253588";
 const WHATSAPP_MESSAGE="Olá! Vim pelo Croma Hub e gostaria de solicitar um orçamento.";
@@ -11,12 +18,18 @@ const CATEGORY_ORDER=["Todos","Comunicação Visual","Gráfica","Eventos","Papel
 function categoriasDisponiveis(){const available=new Set([...(state.data.categorias||[]),...(state.data.itens||[]).map(item=>item.categoria).filter(Boolean)]);return CATEGORY_ORDER.filter(c=>available.has(c)).concat([...available].filter(c=>!CATEGORY_ORDER.includes(c)))}
 function renderFilters(){if(!filters||!state.data)return;filters.innerHTML=categoriasDisponiveis().map(c=>`<button class="filter-btn ${c===state.categoria?"active":""}" data-category="${c}">${c}</button>`).join("")}
 function moeda(v){return Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
-function renderCatalog(){if(!grid)return;const itens=itensFiltrados();if(!itens.length){grid.innerHTML='<div class="empty-state">Nenhum item encontrado. Tente outra busca ou categoria.</div>';return}grid.innerHTML=itens.map(item=>`<a class="product-card" href="${item.href||'#'}" aria-label="Ver ${item.nome}">${renderProductVisual(item)}<div class="product-body"><span class="product-category">${item.categoria}</span><h3>${item.nome}</h3><p>${item.descricao}</p>${item.precoVenda?`<div class="catalog-price"><small>${item.quantidadePreco||1} unidades a partir de</small><strong>${moeda(item.precoVenda)}</strong></div>`:''}<span class="product-more">Ver opções →</span></div></a>`).join("")}
+function renderCatalog(){if(!grid)return;const itens=itensFiltrados();if(!itens.length){grid.innerHTML='<div class="empty-state">Nenhum item encontrado. Tente outra busca ou categoria.</div>';return}grid.innerHTML=itens.map(item=>`<a class="product-card" href="${item.href||'#'}" aria-label="Ver ${item.nome}">${renderProductVisual(item)}<div class="product-body"><span class="product-category">${item.categoria}</span><h3>${item.nome}</h3><p>${item.descricao}</p>${item.precoVenda?`<div class="catalog-price"><small>${item.quantidadePreco||1} unidades a partir de</small><strong>${moeda(item.precoVenda)}</strong></div>`:''}<span class="product-more">Conhecer →</span></div></a>`).join("")}
 if(filters)filters.addEventListener("click",e=>{const b=e.target.closest("[data-category]");if(!b)return;state.categoria=b.dataset.category;renderFilters();renderCatalog()});
 if(search)search.addEventListener("input",e=>{state.termo=e.target.value;renderCatalog()});
 if(modal&&modalClose)modalClose.addEventListener("click",()=>modal.close());
 if(whatsappCta)whatsappCta.addEventListener("click",e=>{e.preventDefault();window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`,"_blank","noopener,noreferrer")});
 if(whatsappFloat&&whatsappClose){const hiddenUntil=Number(localStorage.getItem("cromaWhatsappHiddenUntil")||0);if(hiddenUntil>Date.now())whatsappFloat.hidden=true;whatsappClose.addEventListener("click",()=>{whatsappFloat.hidden=true;localStorage.setItem("cromaWhatsappHiddenUntil",String(Date.now()+86400000))})}
+
+function adjustDesktopNavigation(){
+  const nav=document.querySelector('.site-header>.nav');
+  if(!nav)return;
+  nav.innerHTML=`<a href="#catalogo">Produtos</a><a href="servicos/">Serviços</a><a href="#portfolio">Portfólio</a><a href="#sobre">Sobre</a>`;
+}
 
 function injectMobileMenuStyles(){
   if(document.querySelector('#cromaMobileMenuStyles'))return;
@@ -68,10 +81,12 @@ function setupMobileMenu(){
   nav.id='mobileMainNav';
   nav.setAttribute('aria-label','Navegação mobile');
   nav.innerHTML=`
-    <a class="mobile-nav-link" href="#ambientes">Ambientes</a>
+    <a class="mobile-nav-link" href="#catalogo">Produtos</a>
     <details class="mobile-nav-group">
       <summary class="mobile-nav-trigger">Serviços <span aria-hidden="true">⌄</span></summary>
       <div class="mobile-submenu">
+        <a href="servicos/impressoes-copias/">Impressão digital e documentos</a>
+        <a href="servicos/foto-produtos/">Foto Produtos</a>
         <a href="servicos/adesivos/">Adesivos personalizados</a>
         <a href="servicos/banner-lona/">Banner em lona</a>
         <a href="servicos/placas-acm/">Placas e ACM</a>
@@ -83,7 +98,6 @@ function setupMobileMenu(){
         <a class="mobile-submenu-all" href="servicos/">Ver todos os serviços →</a>
       </div>
     </details>
-    <a class="mobile-nav-link" href="#catalogo">Catálogo</a>
     <a class="mobile-nav-link" href="#portfolio">Portfólio</a>
     <a class="mobile-nav-link" href="#sobre">Sobre</a>
     <a class="mobile-nav-cta" href="#orcamento">Pedir orçamento</a>`;
@@ -95,6 +109,7 @@ function setupMobileMenu(){
   document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
   window.addEventListener('resize',()=>{if(window.innerWidth>760)close()});
 }
+adjustDesktopNavigation();
 setupMobileMenu();
 
 document.querySelectorAll('.service-card').forEach(card=>{card.style.cursor='pointer';card.setAttribute('tabindex','0');const go=()=>location.href='servicos/';card.addEventListener('click',go);card.addEventListener('keydown',e=>{if(e.key==='Enter'){go()}})});
