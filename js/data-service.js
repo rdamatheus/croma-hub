@@ -1,5 +1,5 @@
 const FALLBACK_DATA = {
-  categorias: ["Todos", "Comunicação Visual", "Gráfica", "Papelaria", "Digital"],
+  categorias: ["Todos", "Comunicação Visual", "Gráfica", "Eventos", "Papelaria", "Presentes", "Eletrônicos", "Digital"],
   itens: []
 };
 
