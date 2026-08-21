@@ -3,7 +3,7 @@ import { carregarCatalogo } from "./data-service.js";
 
 if(!document.querySelector('script[data-croma-cart]')){
   const s=document.createElement('script');
-  s.src='/js/cart.js?v=20260821-1';
+  s.src='/js/cart.js?v=20260821-2';
   s.dataset.cromaCart='1';
   document.head.appendChild(s);
 }
@@ -100,7 +100,7 @@ function setupMobileMenu(){
     </details>
     <a class="mobile-nav-link" href="#portfolio">Portfólio</a>
     <a class="mobile-nav-link" href="#sobre">Sobre</a>
-    <a class="mobile-nav-cta" href="#orcamento">Pedir orçamento</a>`;
+    <a class="mobile-nav-cta" href="/conta/">Minha conta</a>`;
 
   header.append(toggle,nav);
   const close=()=>{header.classList.remove('mobile-menu-open');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Abrir menu')};
