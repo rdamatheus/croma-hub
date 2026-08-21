@@ -1,7 +1,7 @@
 (() => {
   if (!window.CromaCart && !document.querySelector('script[data-croma-cart]')) {
     const s = document.createElement('script');
-    s.src = '/js/cart.js?v=20260821-1';
+    s.src = '/js/cart.js?v=20260821-2';
     s.dataset.cromaCart = '1';
     document.head.appendChild(s);
   }
@@ -21,7 +21,7 @@
       <a href="/#portfolio">Portfólio</a>
       <a href="/#sobre">Sobre</a>
     </nav>
-    <a class="service-quote" href="/#orcamento">Pedir orçamento</a>
+    <a class="service-quote" href="/conta/">Minha conta</a>
     <button class="service-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="serviceMobileNav">
       <span></span><span></span><span></span>
     </button>
@@ -45,7 +45,7 @@
       </details>
       <a href="/#portfolio">Portfólio</a>
       <a href="/#sobre">Sobre</a>
-      <a class="service-mobile-cta" href="/#orcamento">Pedir orçamento</a>
+      <a class="service-mobile-cta" href="/conta/">Minha conta</a>
     </nav>`;
 
   const toggle = header.querySelector('.service-menu-toggle');
