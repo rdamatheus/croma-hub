@@ -2,15 +2,30 @@
   if (window.CromaCart) return;
 
   const CART_KEY = 'croma_cart_v1';
-  const UPLOAD_MAP_KEY = 'croma_upload_map_v1';
-  const DB_NAME = 'cromaHubFiles';
-  const DB_STORE = 'files';
+  const UPLOAD_MAP_KEY = 'croma_upload_map_v2';
+  const ORDER_REF_KEY = 'croma_upload_order_ref_v1';
+  const SUPABASE_URL = 'https://tocoxxfnqauvsviapzet.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_mssN4XTkXNg3kEjsusNXuw_9peKSMAi';
+  const SUPABASE_BUCKET = 'croma-arquivos';
+  const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
   const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;' }[m]));
   const uid = () => `ci_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
   const loadCart = () => { try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch { return []; } };
-  const saveCart = items => { localStorage.setItem(CART_KEY, JSON.stringify(items)); render(); window.dispatchEvent(new CustomEvent('croma:cartchange', { detail: items })); };
+  const saveCart = next => { localStorage.setItem(CART_KEY, JSON.stringify(next)); render(); window.dispatchEvent(new CustomEvent('croma:cartchange', { detail: next })); };
   let items = loadCart();
+
+  function orderRef(){
+    let ref = localStorage.getItem(ORDER_REF_KEY);
+    if (ref) return ref;
+    const now = new Date();
+    const d = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    const rand = (crypto.randomUUID ? crypto.randomUUID().replaceAll('-','') : Math.random().toString(36).slice(2)).slice(0,6).toUpperCase();
+    ref = `CR-${d}-${rand}`;
+    localStorage.setItem(ORDER_REF_KEY, ref);
+    return ref;
+  }
 
   const style = document.createElement('style');
   style.id = 'cromaCartStyles';
@@ -21,7 +36,7 @@
     .croma-cart-total{font-size:.88rem}.croma-cart-pop{position:absolute;top:calc(100% + 9px);right:0;width:min(390px,calc(100vw - 24px));background:#fff;border:1px solid #e6e4ee;border-radius:18px;box-shadow:0 24px 65px rgba(33,28,92,.2);padding:14px;opacity:0;visibility:hidden;transform:translateY(-5px);transition:.16s ease}
     .croma-cart-shell:hover .croma-cart-pop,.croma-cart-shell.open .croma-cart-pop{opacity:1;visibility:visible;transform:none}.croma-cart-pop h3{margin:0 0 10px;color:#211c5c;font-size:1rem}.croma-cart-list{display:grid;gap:8px;max-height:330px;overflow:auto}.croma-cart-item{display:grid;grid-template-columns:1fr auto;gap:9px;padding:10px;border:1px solid #eeecf4;border-radius:12px}.croma-cart-item strong{display:block;color:#29263b;font-size:.88rem}.croma-cart-item small{display:block;color:#706d80;line-height:1.35;margin-top:3px}.croma-cart-item-price{text-align:right;font-size:.84rem;font-weight:900;color:#211c5c}.croma-cart-remove{border:0;background:transparent;color:#a83a3a;padding:4px 0;cursor:pointer;font-size:.72rem;font-weight:850}
     .croma-cart-foot{border-top:1px solid #eceaf3;margin-top:10px;padding-top:11px}.croma-cart-sum{display:flex;justify-content:space-between;gap:12px;color:#211c5c;font-weight:900}.croma-cart-actions{display:flex;gap:7px;margin-top:10px}.croma-cart-actions button,.croma-cart-actions a{flex:1;text-align:center;border:0;border-radius:10px;padding:9px 10px;font-weight:900;text-decoration:none;cursor:pointer}.croma-cart-clear{background:#fff;color:#a83a3a;border:1px solid #efd0d0!important}.croma-cart-checkout{background:#30297F;color:#fff}
-    .croma-upload-card{margin:24px auto 10px;max-width:1120px;background:#fff;border:1px solid #e6e4ee;border-radius:20px;padding:18px}.croma-upload-card h2{margin:0 0 6px;color:#211c5c}.croma-upload-card p{margin:0 0 12px;color:#706d80;line-height:1.45}.croma-upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.croma-upload-label{display:inline-flex;align-items:center;gap:8px;border:1px dashed #aaa6c4;border-radius:12px;padding:11px 13px;color:#30297F;font-weight:900;cursor:pointer;background:#fafafe}.croma-upload-label input{display:none}.croma-upload-files{display:grid;gap:7px;margin-top:12px}.croma-upload-file{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;border-radius:11px;background:#f6f6fb;font-size:.83rem}.croma-upload-file span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.croma-upload-file button{border:0;background:transparent;color:#a83a3a;font-weight:900;cursor:pointer}.croma-upload-status{font-size:.78rem;color:#706d80;margin-top:8px}.croma-upload-ok{color:#567d25}
+    .croma-upload-card{margin:24px auto 10px;max-width:1120px;background:#fff;border:1px solid #e6e4ee;border-radius:20px;padding:18px}.croma-upload-card h2{margin:0 0 6px;color:#211c5c}.croma-upload-card p{margin:0 0 12px;color:#706d80;line-height:1.45}.croma-upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.croma-upload-label{display:inline-flex;align-items:center;gap:8px;border:1px dashed #aaa6c4;border-radius:12px;padding:11px 13px;color:#30297F;font-weight:900;cursor:pointer;background:#fafafe}.croma-upload-label input{display:none}.croma-upload-label.busy{opacity:.55;pointer-events:none}.croma-upload-files{display:grid;gap:7px;margin-top:12px}.croma-upload-file{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;border-radius:11px;background:#f6f6fb;font-size:.83rem}.croma-upload-file span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.croma-upload-file button{border:0;background:transparent;color:#a83a3a;font-weight:900;cursor:pointer}.croma-upload-status{font-size:.78rem;color:#706d80;margin-top:8px}.croma-upload-ok{color:#567d25}.croma-upload-error{color:#a83a3a}
     @media(max-width:760px){.croma-cart-shell{top:auto;bottom:18px;right:14px}.croma-cart-pop{bottom:calc(100% + 9px);top:auto}.croma-cart-total{display:none}}
   `;
   document.head.appendChild(style);
@@ -55,7 +70,9 @@
     document.getElementById('cromaCartSum').textContent = brl(total);
     document.getElementById('cromaCartList').innerHTML = items.map(x => `<div class="croma-cart-item"><div><strong>${esc(x.name)}</strong><small>${esc(optionsText(x.options))}</small>${x.fileNames?.length ? `<small>Arquivo: ${esc(x.fileNames.join(', '))}</small>` : ''}<button class="croma-cart-remove" type="button" data-remove="${esc(x.cartId)}">Remover</button></div><div class="croma-cart-item-price">${x.qty || 1} × ${brl(x.unitPrice)}<br>${brl(x.total ?? (Number(x.qty || 1)*Number(x.unitPrice || 0)))}</div></div>`).join('');
     const msg = items.map(x => `${x.qty || 1}x ${x.name} — ${brl(x.total ?? (Number(x.qty || 1)*Number(x.unitPrice || 0)))}`).join('\n');
-    document.getElementById('cromaCartCheckout').href = `https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Quero finalizar este pedido da Croma:\n${msg}\n\nTotal estimado: ${brl(total)}`)}`;
+    const hasFiles = items.some(x => x.filePaths?.length || x.fileNames?.length);
+    const refLine = hasFiles ? `\nReferência dos arquivos: ${orderRef()}` : '';
+    document.getElementById('cromaCartCheckout').href = `https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Quero finalizar este pedido da Croma:\n${msg}\n\nTotal estimado: ${brl(total)}${refLine}`)}`;
   }
   document.getElementById('cromaCartBtn').addEventListener('click', () => shell.classList.toggle('open'));
   document.getElementById('cromaCartClear').addEventListener('click', () => { if (confirm('Esvaziar o carrinho?')) { items = []; saveCart(items); } });
@@ -66,7 +83,7 @@
     add(item){
       const qty = Math.max(1, Number(item.qty || 1));
       const unitPrice = Number(item.unitPrice || 0);
-      const entry = { ...item, cartId: uid(), qty, unitPrice, total: item.total != null ? Number(item.total) : qty * unitPrice, addedAt: new Date().toISOString() };
+      const entry = { ...item, cartId: uid(), qty, unitPrice, total: item.total != null ? Number(item.total) : qty * unitPrice, addedAt: new Date().toISOString(), uploadRef:item.uploadRef || (item.filePaths?.length ? orderRef() : null) };
       items.push(entry); saveCart(items); shell.classList.add('open'); return entry;
     },
     remove(cartId){ items = items.filter(x => x.cartId !== cartId); saveCart(items); },
@@ -75,53 +92,61 @@
     getTotal(){ return items.reduce((a,x) => a + Number(x.total || 0), 0); }
   };
 
-  function openDb(){
-    return new Promise((resolve,reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => { const db=req.result; if(!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE,{keyPath:'id'}); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-  async function putFile(file){
-    const db = await openDb();
-    const id = `up_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g,'-');
-    const rec = { id, name:file.name, type:file.type, size:file.size, addedAt:new Date().toISOString(), virtualPath:`lib/uploads/${id}-${safeName}`, blob:file };
-    await new Promise((resolve,reject)=>{ const tx=db.transaction(DB_STORE,'readwrite'); tx.objectStore(DB_STORE).put(rec); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); });
-    db.close();
-    return { id:rec.id, name:rec.name, type:rec.type, size:rec.size, addedAt:rec.addedAt, virtualPath:rec.virtualPath };
-  }
-  async function deleteFile(id){
-    const db = await openDb();
-    await new Promise((resolve,reject)=>{ const tx=db.transaction(DB_STORE,'readwrite'); tx.objectStore(DB_STORE).delete(id); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); });
-    db.close();
-  }
   const loadMap = () => { try { return JSON.parse(localStorage.getItem(UPLOAD_MAP_KEY)||'{}'); } catch { return {}; } };
   const saveMap = m => localStorage.setItem(UPLOAD_MAP_KEY, JSON.stringify(m));
   const pageKey = () => location.pathname.replace(/\/+$/,'/') || '/';
+  const safeName = name => String(name || 'arquivo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(-120) || 'arquivo';
+  const encodeObjectPath = path => path.split('/').map(encodeURIComponent).join('/');
+
+  async function uploadFile(file){
+    if (!(file instanceof File)) throw new Error('Arquivo inválido.');
+    if (file.size <= 0) throw new Error(`O arquivo ${file.name} está vazio.`);
+    if (file.size > MAX_FILE_SIZE) throw new Error(`O arquivo ${file.name} ultrapassa o limite de 50 MB.`);
+    const ref = orderRef();
+    const random = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`).replaceAll('-','');
+    const objectPath = `pedidos/${ref}/${Date.now()}-${random.slice(0,8)}-${safeName(file.name)}`;
+    const url = `${SUPABASE_URL}/storage/v1/object/${encodeURIComponent(SUPABASE_BUCKET)}/${encodeObjectPath(objectPath)}`;
+    const response = await fetch(url, {
+      method:'POST',
+      headers:{
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-upsert':'false',
+        'cache-control':'3600'
+      },
+      body:file
+    });
+    if(!response.ok){
+      let detail='';
+      try{const body=await response.json(); detail=body.message||body.error||body.statusCode||''}catch{}
+      throw new Error(detail ? `Falha no envio: ${detail}` : `Falha no envio (${response.status}).`);
+    }
+    return { id:`up_${random.slice(0,12)}`, name:file.name, type:file.type, size:file.size, uploadedAt:new Date().toISOString(), bucket:SUPABASE_BUCKET, path:objectPath, orderRef:ref };
+  }
 
   window.CromaUpload = {
     async stage(files){
-      const metas = [];
-      for (const f of files) metas.push(await putFile(f));
+      const metas=[];
+      for(const f of files) metas.push(await uploadFile(f));
       const map=loadMap(), key=pageKey(); map[key]=[...(map[key]||[]),...metas]; saveMap(map); renderUploadList(); return metas;
     },
     getForCurrentPage(){ const map=loadMap(); return [...(map[pageKey()]||[])]; },
-    async remove(id){ const map=loadMap(), key=pageKey(); map[key]=(map[key]||[]).filter(x=>x.id!==id); saveMap(map); try{await deleteFile(id)}catch{} renderUploadList(); },
-    clearCurrent(){ const map=loadMap(); delete map[pageKey()]; saveMap(map); renderUploadList(); }
+    remove(id){ const map=loadMap(), key=pageKey(); map[key]=(map[key]||[]).filter(x=>x.id!==id); saveMap(map); renderUploadList(); },
+    clearCurrent(){ const map=loadMap(); delete map[pageKey()]; saveMap(map); renderUploadList(); },
+    getOrderRef(){ return orderRef(); }
   };
 
   function shouldInjectUploader(){
     const p=location.pathname.replace(/\/+$/,'/');
     return p.startsWith('/servicos/') && p !== '/servicos/';
   }
-  let uploadListEl=null, uploadStatusEl=null;
+  let uploadListEl=null, uploadStatusEl=null, uploadLabelEl=null;
   function renderUploadList(){
     if(!uploadListEl) return;
     const list=window.CromaUpload.getForCurrentPage();
-    uploadListEl.innerHTML=list.map(x=>`<div class="croma-upload-file"><span>${esc(x.name)} · ${(x.size/1024/1024).toFixed(2)} MB</span><button type="button" data-upload-remove="${esc(x.id)}">Remover</button></div>`).join('');
-    if(uploadStatusEl) uploadStatusEl.textContent=list.length?`${list.length} arquivo(s) selecionado(s).`:'Nenhum arquivo selecionado.';
+    uploadListEl.innerHTML=list.map(x=>`<div class="croma-upload-file"><span>✓ ${esc(x.name)} · ${(x.size/1024/1024).toFixed(2)} MB</span><button type="button" data-upload-remove="${esc(x.id)}">Remover</button></div>`).join('');
+    if(uploadStatusEl){uploadStatusEl.classList.remove('croma-upload-error');if(list.length){uploadStatusEl.classList.add('croma-upload-ok');uploadStatusEl.textContent=`${list.length} arquivo(s) enviado(s) com sucesso.`}else{uploadStatusEl.classList.remove('croma-upload-ok');uploadStatusEl.textContent='Nenhum arquivo enviado.'}}
   }
   if(shouldInjectUploader()){
     const main=document.querySelector('main');
@@ -129,8 +154,14 @@
       const card=document.createElement('section'); card.className='croma-upload-card';
       card.innerHTML=`<h2>Envie seu arquivo</h2><p>Anexe a arte, PDF, imagem ou documento necessário para produzir este serviço.</p><div class="croma-upload-row"><label class="croma-upload-label">📎 Selecionar arquivo(s)<input type="file" id="cromaUploadInput" multiple></label><span class="croma-upload-status" id="cromaUploadStatus"></span></div><div class="croma-upload-files" id="cromaUploadFiles"></div>`;
       main.appendChild(card);
-      uploadListEl=card.querySelector('#cromaUploadFiles'); uploadStatusEl=card.querySelector('#cromaUploadStatus');
-      card.querySelector('#cromaUploadInput').addEventListener('change', async e=>{ const fs=[...e.target.files]; if(!fs.length)return; uploadStatusEl.textContent='Adicionando arquivo...'; try{await window.CromaUpload.stage(fs); uploadStatusEl.classList.add('croma-upload-ok');}catch(err){uploadStatusEl.textContent='Não foi possível adicionar o arquivo. Tente novamente.';} e.target.value=''; });
+      uploadListEl=card.querySelector('#cromaUploadFiles'); uploadStatusEl=card.querySelector('#cromaUploadStatus'); uploadLabelEl=card.querySelector('.croma-upload-label');
+      card.querySelector('#cromaUploadInput').addEventListener('change', async e=>{
+        const fs=[...e.target.files]; if(!fs.length)return;
+        uploadLabelEl.classList.add('busy'); uploadStatusEl.classList.remove('croma-upload-ok','croma-upload-error'); uploadStatusEl.textContent=fs.length>1?`Enviando ${fs.length} arquivos...`:'Enviando arquivo...';
+        try{await window.CromaUpload.stage(fs);}
+        catch(err){uploadStatusEl.classList.add('croma-upload-error');uploadStatusEl.textContent=err?.message||'Não foi possível enviar o arquivo. Tente novamente.';}
+        finally{uploadLabelEl.classList.remove('busy');e.target.value='';}
+      });
       card.addEventListener('click',e=>{const b=e.target.closest('[data-upload-remove]');if(b)window.CromaUpload.remove(b.dataset.uploadRemove)});
       renderUploadList();
     }
