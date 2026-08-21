@@ -3,7 +3,7 @@ import { carregarCatalogo } from "./data-service.js";
 
 if(!document.querySelector('script[data-croma-cart]')){
   const s=document.createElement('script');
-  s.src='/js/cart.js?v=20260817-2';
+  s.src='/js/cart.js?v=20260821-1';
   s.dataset.cromaCart='1';
   document.head.appendChild(s);
 }
