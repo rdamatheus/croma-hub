@@ -10,11 +10,16 @@
   const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
   const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;' }[m]));
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
   const uid = () => `ci_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
   const loadCart = () => { try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch { return []; } };
   const saveCart = next => { localStorage.setItem(CART_KEY, JSON.stringify(next)); render(); window.dispatchEvent(new CustomEvent('croma:cartchange', { detail: next })); };
   let items = loadCart();
+
+  const supabaseClientPromise = import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
+    .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    }));
 
   function orderRef(){
     let ref = localStorage.getItem(ORDER_REF_KEY);
@@ -96,7 +101,6 @@
   const saveMap = m => localStorage.setItem(UPLOAD_MAP_KEY, JSON.stringify(m));
   const pageKey = () => location.pathname.replace(/\/+$/,'/') || '/';
   const safeName = name => String(name || 'arquivo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(-120) || 'arquivo';
-  const encodeObjectPath = path => path.split('/').map(encodeURIComponent).join('/');
 
   async function uploadFile(file){
     if (!(file instanceof File)) throw new Error('Arquivo inválido.');
@@ -105,24 +109,16 @@
     const ref = orderRef();
     const random = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`).replaceAll('-','');
     const objectPath = `pedidos/${ref}/${Date.now()}-${random.slice(0,8)}-${safeName(file.name)}`;
-    const url = `${SUPABASE_URL}/storage/v1/object/${encodeURIComponent(SUPABASE_BUCKET)}/${encodeObjectPath(objectPath)}`;
-    const response = await fetch(url, {
-      method:'POST',
-      headers:{
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-        'Content-Type': file.type || 'application/octet-stream',
-        'x-upsert':'false',
-        'cache-control':'3600'
-      },
-      body:file
+    let client;
+    try { client = await supabaseClientPromise; }
+    catch { throw new Error('Não foi possível iniciar o envio. Atualize a página e tente novamente.'); }
+    const { data, error } = await client.storage.from(SUPABASE_BUCKET).upload(objectPath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || 'application/octet-stream'
     });
-    if(!response.ok){
-      let detail='';
-      try{const body=await response.json(); detail=body.message||body.error||body.statusCode||''}catch{}
-      throw new Error(detail ? `Falha no envio: ${detail}` : `Falha no envio (${response.status}).`);
-    }
-    return { id:`up_${random.slice(0,12)}`, name:file.name, type:file.type, size:file.size, uploadedAt:new Date().toISOString(), bucket:SUPABASE_BUCKET, path:objectPath, orderRef:ref };
+    if (error) throw new Error(error.message || 'Não foi possível enviar o arquivo.');
+    return { id:`up_${random.slice(0,12)}`, name:file.name, type:file.type, size:file.size, uploadedAt:new Date().toISOString(), bucket:SUPABASE_BUCKET, path:data?.path || objectPath, orderRef:ref };
   }
 
   window.CromaUpload = {
