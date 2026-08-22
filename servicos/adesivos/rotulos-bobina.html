@@ -1,1 +1,109 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rótulos em Bobina | Croma</title><link rel="stylesheet" href="../../css/service-pages.css?v=20260811-3"><style>body{background:#f7f7fb}.page{max-width:1180px;margin:28px auto;padding:0 20px}.product{display:grid;grid-template-columns:420px 1fr;gap:32px;background:#fff;border:1px solid #e7e5ef;border-radius:24px;padding:28px}.photo{background:#faf9fd;border-radius:18px;overflow:hidden;min-height:360px;display:grid;place-items:center}.photo img{width:100%;height:100%;object-fit:cover}.eyebrow{font-size:.78rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#5b279b}.summary{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:22px 0}.summary div{background:#f7f6fb;border-radius:14px;padding:14px}.summary small{display:block;color:#777;margin-bottom:4px}.actions{display:flex;gap:10px;flex-wrap:wrap}.btn{display:inline-block;background:#5b279b;color:#fff;text-decoration:none;border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer}.btn.alt{background:#fff;color:#5b279b;border:1px solid #5b279b}.edit{display:none;margin-top:18px;padding:18px;background:#f7f6fb;border-radius:14px}.edit.open{display:block}.fields{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.fields input,.fields select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #ddd;border-radius:9px;margin-top:5px}.specs{margin-top:22px;background:#fff;border-radius:20px;padding:22px;border:1px solid #e7e5ef}.specs ul{line-height:1.8}@media(max-width:760px){.product{grid-template-columns:1fr}.summary,.fields{grid-template-columns:1fr}.photo{min-height:280px}}</style></head><body><main class="page"><div class="crumb"><a href="./">Adesivos</a> › Rótulos em Bobina</div><section class="product"><div class="photo"><img id="productImg" alt="Rótulos em bobina"></div><div><span class="eyebrow">Confira seu produto</span><h1>Rótulos em Bobina</h1><p>Aqui você confere tudo o que escolheu. Se quiser, pode editar qualquer detalhe antes de seguir com o pedido.</p><div class="summary"><div><small>Formato</small><strong id="sFormat">—</strong></div><div><small>Medida</small><strong id="sSize">—</strong></div><div><small>Quantidade</small><strong id="sQty">—</strong></div><div><small>Acabamento</small><strong id="sFinish">—</strong></div></div><div class="actions"><button class="btn alt" id="editBtn">Editar configuração</button><a class="btn" id="nextBtn" href="#">Seguir com o pedido</a></div><div class="edit" id="editBox"><div class="fields"><label>Formato<select id="format"><option>Meu formato desejado</option><option>Redondo</option><option>Retangular</option></select></label><label>Largura (cm)<input id="w" type="number" step="0.01"></label><label>Altura (cm)<input id="h" type="number" step="0.01"></label><label>Quantidade<input id="q" type="number"></label></div><div style="margin-top:12px"><label>Acabamento<select id="finish"><option>Meio corte personalizado</option><option>Retangular</option><option>Circular</option><option>Sem corte</option></select></label></div><button class="btn" id="saveBtn" style="margin-top:12px">Salvar alterações</button></div></div></section><section class="specs"><h2>Especificações do produto</h2><ul><li>Indicado para embalagens, potes, frascos e produtos com aplicação frequente.</li><li>Produção em bobina para facilitar armazenamento e aplicação.</li><li>Disponível em formatos personalizados, redondos e retangulares.</li><li>As opções finais de material e acabamento são confirmadas conforme medida e quantidade.</li></ul></section></main><script>const img='data:image/jpeg;base64,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';productImg.src=img;const p=new URLSearchParams(location.search);const state={format:p.get('format')||'Meu formato desejado',w:p.get('w')||'',h:p.get('h')||'',q:p.get('q')||'',finish:p.get('finish')||'Meio corte personalizado'};function render(){sFormat.textContent=state.format;sSize.textContent=(state.w&&state.h)?`${state.w} × ${state.h} cm`:'Não informado';sQty.textContent=state.q?`${state.q} unidades`:'Não informada';sFinish.textContent=state.finish;format.value=state.format;w.value=state.w;h.value=state.h;q.value=state.q;finish.value=state.finish;const msg=encodeURIComponent(`Olá! Quero seguir com meu pedido de Rótulos em Bobina.\nFormato: ${state.format}\nMedida: ${state.w} x ${state.h} cm\nQuantidade: ${state.q}\nAcabamento: ${state.finish}`);nextBtn.href=`https://wa.me/553230253588?text=${msg}`;}editBtn.onclick=()=>editBox.classList.toggle('open');saveBtn.onclick=()=>{state.format=format.value;state.w=w.value;state.h=h.value;state.q=q.value;state.finish=finish.value;render();editBox.classList.remove('open')};render();</script><script src="../../js/service-header.js?v=20260811-1" defer></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rótulos e Etiquetas | Croma</title>
+  <link rel="stylesheet" href="../../css/service-pages.css?v=20260811-3">
+  <style>
+    body{background:#f7f7fb}.page{max-width:1180px;margin:28px auto;padding:0 20px 70px}.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:28px;align-items:stretch}.visual,.config{background:#fff;border:1px solid #e7e5ef;border-radius:26px;padding:26px}.visual{position:relative;overflow:hidden;min-height:520px;background:linear-gradient(145deg,#f2f0fb,#fff 55%,#f8eef6)}.eyebrow{font-size:.76rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:#30297F}.visual h1{font-size:clamp(2.4rem,5vw,4.5rem);line-height:.96;margin:10px 0 16px;color:#211c5c}.visual p{color:#69657b;line-height:1.55;max-width:520px}.sticker{position:absolute;border-radius:999px;padding:13px 18px;font-weight:900;box-shadow:0 12px 30px #30297f18;transform:rotate(-6deg)}.s1{right:24px;top:34px;background:#ffec00;color:#30297f}.s2{right:42px;bottom:102px;background:#c30079;color:#fff;transform:rotate(7deg)}.s3{left:34px;bottom:34px;background:#80b03d;color:#fff;transform:rotate(-3deg)}.sheet-demo{margin:40px auto 90px;width:min(330px,80%);aspect-ratio:297/420;background:#fff;border:10px solid #fff;box-shadow:0 24px 60px #30297f22;border-radius:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:18px;transform:rotate(4deg)}.sheet-demo i{display:block;background:linear-gradient(135deg,#30297f,#c30079);border-radius:10px}.config h2{margin:4px 0 8px;color:#211c5c}.config>p{color:#6f6c7e;line-height:1.5}.choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}.choice label{position:relative}.choice input{position:absolute;opacity:0;pointer-events:none}.choice span{display:block;border:1px solid #ddd9e7;border-radius:16px;padding:16px;cursor:pointer;background:#fff}.choice strong{display:block;color:#211c5c}.choice small{display:block;color:#767285;margin-top:4px}.choice input:checked+span{border:2px solid #30297f;background:#f7f6fc}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:.73rem;font-weight:900;color:#30297f;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}.field input,.field select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #d9d6e4;border-radius:11px;background:#fff;font:inherit}.format-switch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0;padding:12px 14px;border:1px solid #e8e6ef;border-radius:14px;background:#faf9fd}.format-switch button{border:1px solid #d7d4e1;background:#fff;color:#30297f;border-radius:999px;padding:8px 12px;font-weight:900;cursor:pointer}.result{margin-top:18px;border-radius:18px;padding:18px;background:#211c5c;color:#fff}.result small{color:#d7d3ef}.result strong{display:block;font-size:1.7rem;margin:5px 0}.result .details{font-size:.86rem;color:#e7e5f3;line-height:1.5}.warning{margin-top:12px;padding:12px 14px;border-radius:13px;background:#fff4d9;color:#745800;font-size:.85rem;line-height:1.45}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:0;border-radius:11px;padding:12px 16px;background:#30297f;color:#fff;font-weight:900;cursor:pointer}.btn.alt{background:#fff;color:#30297f;border:1px solid #30297f}.how{margin-top:28px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.how article{background:#fff;border:1px solid #e7e5ef;border-radius:18px;padding:18px}.how strong{color:#211c5c}.how p{color:#706d80;font-size:.9rem;line-height:1.45}.bobina-box{margin-top:14px;padding:15px;border-radius:14px;background:#f4f3fa;color:#5f5b73;line-height:1.5}.hidden{display:none!important}@media(max-width:900px){.hero{grid-template-columns:1fr}.visual{min-height:440px}.how{grid-template-columns:1fr 1fr}}@media(max-width:560px){.fields,.choice,.how{grid-template-columns:1fr}.visual{min-height:400px}.sheet-demo{margin-top:20px}.sticker{font-size:.78rem;padding:10px 13px}}
+  </style>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="../../">Croma Gráfica</a><nav><a href="./">Adesivos</a></nav></header>
+<main class="page">
+  <div class="crumb"><a href="./">Adesivos</a> › Rótulos e Etiquetas</div>
+  <section class="hero">
+    <article class="visual">
+      <span class="eyebrow">Adesivos › Rótulos e Etiquetas</span>
+      <h1>Rótulos e Etiquetas</h1>
+      <p>Informe só o essencial. A Croma calcula o melhor aproveitamento e mostra quantas cartelas você precisa.</p>
+      <div class="sheet-demo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <span class="sticker s1">Para embalagens</span>
+      <span class="sticker s2">Recorte personalizado</span>
+      <span class="sticker s3">Produção sob medida</span>
+    </article>
+
+    <article class="config">
+      <span class="eyebrow">Monte do seu jeito</span>
+      <h2>Como você quer receber?</h2>
+      <p>Escolha só o formato de entrega. O restante a gente apresenta para você.</p>
+      <div class="choice">
+        <label><input type="radio" name="mode" value="cartela" checked><span><strong>Em cartela</strong><small>Ideal para destacar e retirar os adesivos manualmente.</small></span></label>
+        <label><input type="radio" name="mode" value="bobina"><span><strong>Em bobina</strong><small>Melhor para aplicações frequentes e produção em volume.</small></span></label>
+      </div>
+
+      <div id="commonFields" class="fields">
+        <div class="field"><label for="widthCm">Largura do adesivo (cm)</label><input id="widthCm" type="number" min="0.1" step="0.1" placeholder="Ex.: 5"></div>
+        <div class="field"><label for="heightCm">Altura do adesivo (cm)</label><input id="heightCm" type="number" min="0.1" step="0.1" placeholder="Ex.: 3"></div>
+        <div class="field"><label for="quantity">Quantidade</label><input id="quantity" type="number" min="1" step="1" placeholder="Ex.: 200"></div>
+      </div>
+
+      <div id="sheetArea">
+        <div class="format-switch"><div><small>Cartela sugerida</small><strong id="sheetLabel">A3</strong></div><button id="toggleSheet" type="button">Trocar para A4</button></div>
+        <div class="result" id="result"><small>Recomendação automática</small><strong>Informe tamanho e quantidade</strong><div class="details">O sistema calcula o aproveitamento considerando margem técnica e espaçamento entre os adesivos.</div></div>
+        <div class="warning hidden" id="warning"></div>
+      </div>
+
+      <div id="rollArea" class="bobina-box hidden">Para bobina, informe o tamanho e a quantidade. A largura da bobina e o aproveitamento final são definidos automaticamente conforme o material e o acabamento escolhidos na sequência.</div>
+
+      <div class="actions"><a class="btn" id="continueBtn" href="/servicos/adesivos/cotacao/">Continuar para orçamento</a><a class="btn alt" href="./">Ver outros adesivos</a></div>
+    </article>
+  </section>
+
+  <section class="how">
+    <article><strong>Você informa o adesivo</strong><p>Largura, altura e quantidade. Só isso para começar.</p></article>
+    <article><strong>A gente calcula a cartela</strong><p>A3 já vem sugerida. Se quiser, você troca para A4 com um toque.</p></article>
+    <article><strong>Regras técnicas ficam por trás</strong><p>Margens, espaçamento, rotação e redução para peças pequenas são aplicados automaticamente.</p></article>
+  </section>
+</main>
+<script type="module">
+  import { loadLabelRules, calculateSheetLayout } from '/js/production-rules.js?v=20260822-1';
+
+  const $=id=>document.getElementById(id);
+  const width=$('widthCm'),height=$('heightCm'),quantity=$('quantity'),result=$('result'),warning=$('warning'),sheetLabel=$('sheetLabel'),toggleSheet=$('toggleSheet'),sheetArea=$('sheetArea'),rollArea=$('rollArea'),continueBtn=$('continueBtn');
+  const modeInputs=[...document.querySelectorAll('input[name="mode"]')];
+  let rules=await loadLabelRules();
+  let sheet=rules.sheet_default || 'A3';
+
+  function mode(){return modeInputs.find(x=>x.checked)?.value || 'cartela'}
+  function syncSheet(){sheetLabel.textContent=sheet;toggleSheet.textContent=sheet==='A3'?'Trocar para A4':'Trocar para A3'}
+
+  function updateLink(){
+    const params=new URLSearchParams({tipo:mode(),largura:width.value,altura:height.value,quantidade:quantity.value});
+    if(mode()==='cartela') params.set('cartela',sheet);
+    continueBtn.href='/servicos/adesivos/cotacao/?'+params.toString();
+  }
+
+  function render(){
+    const currentMode=mode();
+    sheetArea.classList.toggle('hidden',currentMode!=='cartela');
+    rollArea.classList.toggle('hidden',currentMode!=='bobina');
+    updateLink();
+    if(currentMode==='bobina') return;
+
+    const w=Number(width.value)*10,h=Number(height.value)*10,q=Number(quantity.value);
+    warning.classList.add('hidden');warning.textContent='';
+    if(!(w>0&&h>0&&q>0)){
+      result.innerHTML='<small>Recomendação automática</small><strong>Informe tamanho e quantidade</strong><div class="details">O sistema calcula o aproveitamento considerando margem técnica e espaçamento entre os adesivos.</div>';
+      return;
+    }
+    try{
+      const layout=calculateSheetLayout({widthMm:w,heightMm:h,quantity:q,sheet,rules});
+      if(!layout.effectiveCapacity){
+        result.innerHTML='<small>Recomendação automática</small><strong>Esse tamanho não cabe nesta cartela</strong><div class="details">Troque o formato da cartela ou fale com a Croma para avaliarmos outra forma de produção.</div>';
+        return;
+      }
+      result.innerHTML=`<small>Para ${layout.requestedQuantity} adesivos de ${width.value} × ${height.value} cm</small><strong>${layout.sheetsNeeded} cartela${layout.sheetsNeeded===1?'':'s'} ${layout.sheet}</strong><div class="details">Aproveitamento técnico: ${layout.effectiveCapacity} unidades por cartela.${layout.rotated?' A arte foi girada automaticamente para caber melhor.':''}${layout.smallItemAdjustment?' Como a peça tem menos de '+(rules.small_item_threshold_mm/10)+' cm em um dos lados, o aproveitamento foi reduzido para '+Math.round(layout.capacityFactor*100)+'% por segurança de produção.':''}</div>`;
+      if(layout.minimumWarning){warning.textContent=`Atenção: um dos lados está abaixo do mínimo recomendado de ${layout.minCutMm/10} cm para recorte. A produção pode exigir avaliação técnica.`;warning.classList.remove('hidden')}
+    }catch(error){result.innerHTML=`<small>Recomendação automática</small><strong>Não foi possível calcular</strong><div class="details">${error.message}</div>`}
+  }
+
+  toggleSheet.onclick=()=>{sheet=sheet==='A3'?'A4':'A3';syncSheet();render()};
+  modeInputs.forEach(input=>input.addEventListener('change',render));
+  [width,height,quantity].forEach(input=>input.addEventListener('input',render));
+  syncSheet();render();
+</script>
+<script src="../../js/service-header.js?v=20260821-1" defer></script>
+</body>
+</html>
