@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Regras de Produção | Croma Interno</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <style>
+    .rules-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}.card{background:#fff;border:1px solid var(--croma-line);border-radius:20px;padding:20px}.card h2{margin:0 0 8px;color:var(--croma-deep)}.card p{color:var(--croma-muted);line-height:1.5}.fields{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.full{grid-column:1/-1}.hint{font-size:.82rem;color:var(--croma-muted);line-height:1.45}.preview{margin-top:18px;padding:16px;border-radius:16px;background:#f4f3fa;border:1px solid var(--croma-line)}.preview strong{color:var(--croma-deep)}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.ok{color:#537b23;font-weight:850}.error{color:#a63838;font-weight:850}.format-box{display:grid;grid-template-columns:1fr 1fr;gap:12px}.format-box .card{padding:14px}.switch{display:flex;align-items:center;gap:8px}.switch input{width:18px;height:18px}@media(max-width:850px){.rules-grid{grid-template-columns:1fr}.fields,.format-box{grid-template-columns:1fr}.full{grid-column:auto}}
+  </style>
+</head>
+<body hidden>
+<header class="internal-header"><a href="/interno/">← Croma Interno</a><strong>Regras de Produção</strong></header>
+<main class="internal-shell">
+  <span class="internal-eyebrow">Configuração técnica centralizada</span>
+  <h1 class="internal-title">Produção · Plotter de recorte</h1>
+  <p class="internal-lead">Estas regras alimentam os configuradores do site. Alterar aqui muda o cálculo apresentado ao cliente sem precisar editar código.</p>
+
+  <section class="rules-grid">
+    <article class="card">
+      <h2>Margens e espaçamento</h2>
+      <p>Área técnica reservada na folha e distância entre uma arte e outra.</p>
+      <div class="fields">
+        <div class="internal-field"><label for="marginMm">Margem da folha (mm)</label><input id="marginMm" type="number" min="0" step="0.5"></div>
+        <div class="internal-field"><label for="gapMm">Espaçamento entre adesivos (mm)</label><input id="gapMm" type="number" min="0" step="0.5"></div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2>Limite de recorte</h2>
+      <p>O sistema não bloqueia automaticamente tamanhos menores, mas alerta o cliente.</p>
+      <div class="internal-field"><label for="minCutMm">Tamanho mínimo recomendado (mm)</label><input id="minCutMm" type="number" min="1" step="1"></div>
+      <p class="hint">Ex.: 15 significa recomendação mínima de 15 × 15 mm.</p>
+    </article>
+
+    <article class="card">
+      <h2>Adesivos pequenos</h2>
+      <p>Reduza o aproveitamento teórico quando o recorte fica pequeno demais para ocupar a cartela inteira.</p>
+      <div class="fields">
+        <div class="internal-field"><label for="smallThresholdMm">Abaixo de (mm)</label><input id="smallThresholdMm" type="number" min="1" step="1"></div>
+        <div class="internal-field"><label for="smallFactor">Aproveitamento (%)</label><input id="smallFactor" type="number" min="1" max="100" step="1"></div>
+      </div>
+      <p class="hint">Regra atual combinada: abaixo de 30 mm em qualquer lado, usar 50% da capacidade calculada.</p>
+    </article>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>Cartelas</h2>
+    <div class="fields">
+      <div class="internal-field"><label for="sheetDefault">Formato sugerido ao cliente</label><select id="sheetDefault"><option>A3</option><option>A4</option></select></div>
+      <label class="switch"><input id="allowRotation" type="checkbox"> Permitir rotação automática para melhorar o aproveitamento</label>
+    </div>
+    <div class="format-box" style="margin-top:14px">
+      <div class="card"><strong>A3</strong><div class="fields" style="margin-top:10px"><div class="internal-field"><label>Largura (mm)</label><input id="a3w" type="number" min="1"></div><div class="internal-field"><label>Altura (mm)</label><input id="a3h" type="number" min="1"></div></div></div>
+      <div class="card"><strong>A4</strong><div class="fields" style="margin-top:10px"><div class="internal-field"><label>Largura (mm)</label><input id="a4w" type="number" min="1"></div><div class="internal-field"><label>Altura (mm)</label><input id="a4h" type="number" min="1"></div></div></div>
+    </div>
+  </section>
+
+  <section class="preview" id="preview">Carregando configuração…</section>
+  <div class="actions"><button class="internal-btn" id="saveBtn">Salvar regras</button><button class="internal-btn secondary" id="restoreBtn">Restaurar padrão</button><a class="internal-btn secondary" href="/servicos/adesivos/rotulos-bobina.html" target="_blank">Testar Rótulos e Etiquetas</a></div>
+  <p id="status"></p>
+</main>
+<script type="module">
+  import { supabase } from '/js/croma-supabase.js?v=20260822-1';
+  import { protectInternalPage } from '/js/interno-auth.js?v=20260822-1';
+  import { LABEL_RULE_KEY, DEFAULT_LABEL_RULES, normalizeLabelRules, loadLabelRules, calculateSheetLayout } from '/js/production-rules.js?v=20260822-1';
+
+  const session=await protectInternalPage({roles:['owner','manager']});
+  if(!session) throw new Error('Acesso não autorizado.');
+
+  const $=id=>document.getElementById(id);
+  let rules=await loadLabelRules();
+
+  function fill(cfg){
+    rules=normalizeLabelRules(cfg);
+    $('marginMm').value=rules.margin_mm;
+    $('gapMm').value=rules.gap_mm;
+    $('minCutMm').value=rules.min_cut_mm;
+    $('smallThresholdMm').value=rules.small_item_threshold_mm;
+    $('smallFactor').value=Math.round(Number(rules.small_item_capacity_factor)*100);
+    $('sheetDefault').value=rules.sheet_default;
+    $('allowRotation').checked=!!rules.allow_rotation;
+    $('a3w').value=rules.sheet_formats.A3.width_mm;
+    $('a3h').value=rules.sheet_formats.A3.height_mm;
+    $('a4w').value=rules.sheet_formats.A4.width_mm;
+    $('a4h').value=rules.sheet_formats.A4.height_mm;
+    updatePreview();
+  }
+
+  function collect(){
+    return normalizeLabelRules({
+      ...rules,
+      margin_mm:Number($('marginMm').value||0),
+      gap_mm:Number($('gapMm').value||0),
+      min_cut_mm:Number($('minCutMm').value||15),
+      small_item_threshold_mm:Number($('smallThresholdMm').value||30),
+      small_item_capacity_factor:Number($('smallFactor').value||50)/100,
+      sheet_default:$('sheetDefault').value,
+      allow_rotation:$('allowRotation').checked,
+      sheet_formats:{
+        A3:{width_mm:Number($('a3w').value||297),height_mm:Number($('a3h').value||420)},
+        A4:{width_mm:Number($('a4w').value||210),height_mm:Number($('a4h').value||297)}
+      }
+    });
+  }
+
+  function updatePreview(){
+    try{
+      const cfg=collect();
+      const sample=calculateSheetLayout({widthMm:50,heightMm:30,quantity:200,sheet:cfg.sheet_default,rules:cfg});
+      $('preview').innerHTML=`<strong>Exemplo automático:</strong> adesivo 50 × 30 mm, 200 unidades → ${sample.effectiveCapacity} por cartela ${sample.sheet}, ${sample.sheetsNeeded} cartela(s). ${sample.rotated?'O sistema girou a arte para aproveitar melhor a folha.':''}`;
+    }catch(error){$('preview').textContent=error.message}
+  }
+
+  document.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',updatePreview));
+
+  $('saveBtn').onclick=async()=>{
+    $('status').className='';$('status').textContent='Salvando…';
+    const data=collect();
+    const { error }=await supabase.from('public_config').upsert({config_key:LABEL_RULE_KEY,data,updated_by:session.user.id},{onConflict:'config_key'});
+    if(error){$('status').className='error';$('status').textContent='Não foi possível salvar: '+error.message;return}
+    rules=data;$('status').className='ok';$('status').textContent='Regras salvas. Os configuradores já passam a usar esta configuração.';
+  };
+
+  $('restoreBtn').onclick=()=>{if(confirm('Restaurar os valores padrão deste módulo?'))fill(DEFAULT_LABEL_RULES)};
+  fill(rules);
+</script>
+</body>
+</html>
