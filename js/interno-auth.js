@@ -29,6 +29,12 @@ export async function requireStaff(options={}){
   return null;
 }
 
+export async function protectInternalPage(options={}){
+  const session = await requireStaff(options);
+  if(session) document.body.hidden=false;
+  return session;
+}
+
 export async function signInStaff(email,password){
   const { error } = await supabase.auth.signInWithPassword({ email:email.trim(), password });
   if(error) throw error;
