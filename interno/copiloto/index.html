@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Copiloto Croma | Base de Conhecimento</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <style>
+    .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.kpi{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:16px}.kpi small{color:var(--croma-muted);font-weight:800}.kpi strong{display:block;font-size:1.8rem;color:var(--croma-deep);margin-top:6px}.layout{display:grid;grid-template-columns:minmax(310px,.8fr) minmax(0,1.5fr);gap:18px;align-items:start}.sticky{position:sticky;top:78px}.card{background:#fff;border:1px solid var(--croma-line);border-radius:20px;padding:20px}.card h2{margin:0 0 8px;color:var(--croma-deep)}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}.form-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}.filters{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:8px;margin-bottom:12px}.filters input,.filters select{width:100%;padding:10px 11px;border:1px solid #d8d6e4;border-radius:10px;background:#fff;font:inherit}.entries{display:grid;gap:12px}.kb-entry{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:17px}.kb-entry.is-archived{opacity:.62}.kb-entry-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.kb-entry h3{margin:8px 0;color:var(--croma-deep)}.kb-entry p{color:#4f4b61;line-height:1.55;margin:8px 0 12px}.kb-entry-head>small{color:var(--croma-muted);white-space:nowrap}.kb-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--croma-muted);font-size:.78rem}.kb-tags{display:flex;gap:6px;flex-wrap:wrap}.kb-tag{font-size:.72rem;font-weight:850;background:#f1f0f8;color:var(--croma-purple);border-radius:999px;padding:5px 8px}.kb-entry-foot{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:13px;padding-top:12px;border-top:1px solid #efedf4}.kb-entry-foot small{color:var(--croma-muted)}.kb-actions{display:flex;gap:6px;flex-wrap:wrap}.principle{margin:18px 0;background:linear-gradient(135deg,var(--croma-deep),var(--croma-purple));color:#fff;border-radius:20px;padding:18px}.principle strong{display:block;font-size:1.05rem;margin-bottom:5px}.principle p{margin:0;color:#e1def3;line-height:1.5}.hint{color:var(--croma-muted);font-size:.82rem;line-height:1.45}.status{min-height:20px;color:#537b23;font-size:.85rem}@media(max-width:950px){.layout{grid-template-columns:1fr}.sticky{position:static}.filters{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}}@media(max-width:560px){.form-grid,.filters,.kpis{grid-template-columns:1fr}.full{grid-column:auto}.kb-entry-head,.kb-entry-foot{display:block}.kb-actions{margin-top:10px}}
+  </style>
+</head>
+<body hidden>
+<header class="internal-header">
+  <a href="/interno/">← Croma Interno</a>
+  <div class="internal-header-actions"><span id="who" class="internal-muted"></span><a class="internal-btn secondary" href="/interno/">Painel</a></div>
+</header>
+<main class="internal-shell">
+  <span class="internal-eyebrow">Memória viva da empresa</span>
+  <h1 class="internal-title">Copiloto Croma</h1>
+  <p class="internal-lead">Aqui ficam ideias, decisões, tarefas, aprendizados e próximos passos que o Copiloto deve consultar antes de sugerir novas ações. É a memória operacional fora das conversas.</p>
+
+  <section class="principle"><strong>Regra do sistema</strong><p>Conversa gera contexto. O que for relevante vira registro. Registro aprovado vira referência para as próximas decisões.</p></section>
+
+  <section class="kpis">
+    <div class="kpi"><small>Insights ativos</small><strong id="kInsights">0</strong></div>
+    <div class="kpi"><small>Decisões</small><strong id="kDecisions">0</strong></div>
+    <div class="kpi"><small>Roadmap e tarefas</small><strong id="kRoadmap">0</strong></div>
+    <div class="kpi"><small>Aguardando revisão</small><strong id="kReview">0</strong></div>
+  </section>
+
+  <section class="layout">
+    <aside class="sticky">
+      <form class="card" id="entryForm">
+        <h2 id="formTitle">Registrar novo conhecimento</h2>
+        <p class="hint">Use para guardar algo que não deve se perder quando a conversa terminar.</p>
+        <div class="form-grid">
+          <div class="internal-field"><label>Tipo</label><select id="entryType"><option value="insight">Insight</option><option value="decision">Decisão</option><option value="roadmap">Roadmap</option><option value="task">Tarefa</option><option value="learning">Aprendizado</option><option value="question">Pergunta</option></select></div>
+          <div class="internal-field"><label>Status</label><select id="entryStatus"><option value="captured">Capturado</option><option value="review">Revisar</option><option value="approved">Aprovado</option><option value="done">Concluído</option><option value="archived">Arquivado</option></select></div>
+          <div class="internal-field"><label>Área</label><input id="entryArea" placeholder="Ex.: copiloto, produção, comercial"></div>
+          <div class="internal-field"><label>Prioridade</label><select id="entryPriority"><option value="low">Baixa</option><option value="medium">Média</option><option value="high">Alta</option><option value="critical">Crítica</option></select></div>
+          <div class="internal-field full"><label>Título</label><input id="entryTitle" required placeholder="Resumo em uma frase"></div>
+          <div class="internal-field full"><label>Conteúdo</label><textarea id="entryContent" rows="7" placeholder="Contexto, decisão, hipótese ou próximos passos..."></textarea></div>
+          <div class="internal-field full"><label>Tags</label><input id="entryTags" placeholder="ia, copiloto, atendimento"></div>
+          <div class="internal-field"><label>Origem</label><input id="entrySource" placeholder="conversation, screen, manual"></div>
+          <div class="internal-field"><label>Referência</label><input id="entrySourceRef" placeholder="Chat, tela, pedido, URL..."></div>
+          <div class="internal-field full"><label>Prazo, se houver</label><input id="entryDue" type="date"></div>
+        </div>
+        <div class="form-actions"><button class="internal-btn" id="saveBtn" type="submit">Salvar registro</button><button class="internal-btn secondary" id="cancelEdit" type="button" hidden>Cancelar edição</button></div>
+        <div id="formStatus" class="status"></div>
+      </form>
+    </aside>
+
+    <section>
+      <div class="filters">
+        <input id="search" placeholder="Buscar na memória da Croma...">
+        <select id="filterType"><option value="">Todos os tipos</option><option value="insight">Insights</option><option value="decision">Decisões</option><option value="roadmap">Roadmap</option><option value="task">Tarefas</option><option value="learning">Aprendizados</option><option value="question">Perguntas</option></select>
+        <select id="filterStatus"><option value="">Todos os status</option><option value="captured">Capturados</option><option value="review">Revisar</option><option value="approved">Aprovados</option><option value="done">Concluídos</option><option value="archived">Arquivados</option></select>
+        <select id="filterArea"><option value="">Todas as áreas</option></select>
+      </div>
+      <div class="hero-actions"><button class="internal-btn secondary" id="refreshBtn">Atualizar</button></div>
+      <div class="entries" id="entryList"></div>
+    </section>
+  </section>
+</main>
+<script type="module" src="/js/copiloto-knowledge.js?v=20260825-1"></script>
+</body>
+</html>
