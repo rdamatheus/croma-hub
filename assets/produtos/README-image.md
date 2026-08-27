@@ -1,0 +1,1 @@
+A imagem `impressao-pb-perfil.jpg` é a referência visual aprovada para variações em preto e branco.
