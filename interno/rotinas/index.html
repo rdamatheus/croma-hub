@@ -1,1 +1,398 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Centro Operacional | Croma</title><link rel="stylesheet" href="/css/interno-base.css?v=20260822-1"><style>.shell{max-width:1240px;margin:auto;padding:26px 16px 70px}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.kpi,.card{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:17px}.kpi small{color:var(--croma-muted);font-weight:800}.kpi strong{display:block;font-size:1.8rem;margin-top:7px;color:var(--croma-deep)}.next{background:linear-gradient(135deg,var(--croma-deep),var(--croma-purple));color:#fff;border-radius:22px;padding:20px;margin-bottom:18px}.next small{color:#dedcf2;font-weight:800}.next h2{margin:7px 0 4px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.tab{border:1px solid var(--croma-line);background:#fff;color:var(--croma-purple);border-radius:999px;padding:9px 13px;font-weight:900;cursor:pointer}.tab.active{background:var(--croma-purple);color:#fff}.panel{display:none}.panel.active{display:block}.board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.col{background:#eeeff6;border-radius:18px;padding:12px;min-height:300px}.col h3{margin:4px 3px 10px;color:var(--croma-deep)}.task{background:#fff;border:1px solid var(--croma-line);border-radius:14px;padding:12px;margin:8px 0}.task strong{display:block}.task small{display:block;color:var(--croma-muted);margin-top:4px;line-height:1.4}.meta,.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.pill{padding:4px 7px;border-radius:999px;background:#efeff8;color:var(--croma-purple);font-size:.68rem;font-weight:900}.pill.late{background:#fdeaea;color:#b73a3a}.pill.ok{background:#edf7e7;color:#567d25}.pill.warn{background:#fff4d9;color:#a97200}.btn{border:0;background:var(--croma-purple);color:#fff;border-radius:9px;padding:8px 10px;font-weight:850;cursor:pointer}.btn.alt{background:#fff;color:var(--croma-purple);border:1px solid var(--croma-line)}.btn.danger{background:#fff;color:#b73a3a;border:1px solid #efd0d0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.field label{display:block;font-size:.72rem;font-weight:900;color:var(--croma-purple);text-transform:uppercase;margin-bottom:5px}.field input,.field select{width:100%;border:1px solid #d7d5e2;border-radius:10px;padding:10px;background:#fff}.calendar-head{display:flex;align-items:center;justify-content:space-between}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px}.dow{text-align:center;font-size:.72rem;font-weight:900;color:var(--croma-muted);padding:6px}.day{min-height:108px;background:#fff;border:1px solid var(--croma-line);border-radius:12px;padding:7px}.day.today{outline:2px solid var(--croma-purple)}.day.muted{opacity:.42}.event{font-size:.65rem;background:#efeff8;color:var(--croma-purple);border-radius:6px;padding:3px 5px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.routine-grid,.cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.routine,.cat{border:1px solid var(--croma-line);border-radius:14px;padding:13px;background:#fff}.routine p,.cat p{font-size:.84rem;color:var(--croma-muted);line-height:1.45;margin:6px 0}.note{margin-top:16px;background:#f0eff9;border-radius:14px;padding:12px;color:#514c70;font-size:.86rem;line-height:1.5}@media(max-width:900px){.kpis,.board{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.kpis,.board,.grid,.routine-grid,.cat-grid{grid-template-columns:1fr}.day{min-height:78px}.event{font-size:.56rem}}</style></head><body hidden><header class="internal-header"><a href="../">← Painel interno</a><strong>Centro Operacional</strong></header><main class="shell"><span class="internal-eyebrow">Rotina prática</span><h1 class="internal-title" style="font-size:clamp(2rem,4vw,3.4rem)">Organização do dia</h1><p class="internal-lead">Painel para tarefas, rotinas, lembretes e calendário. Os registros são compartilhados entre os aparelhos da equipe autorizada.</p><section class="kpis"><div class="kpi"><small>Hoje</small><strong id="kToday">0</strong></div><div class="kpi"><small>Concluídas</small><strong id="kDone">0</strong></div><div class="kpi"><small>Pendentes</small><strong id="kOpen">0</strong></div><div class="kpi"><small>Atrasadas</small><strong id="kLate">0</strong></div></section><section class="next"><small>PRÓXIMA FUNÇÃO</small><h2 id="nextTitle">Nenhuma tarefa pendente</h2><div id="nextMeta">O dia está em dia.</div></section><div class="tabs"><button class="tab active" data-tab="board">Painel do dia</button><button class="tab" data-tab="calendar">Calendário</button><button class="tab" data-tab="routines">Rotinas fixas</button><button class="tab" data-tab="add">Adicionar tarefa</button><button class="tab" data-tab="cats">Categorias</button></div><section id="board" class="panel active"><div class="board"><div class="col"><h3>📌 A fazer</h3><div id="todo"></div></div><div class="col"><h3>⚡ Em andamento</h3><div id="doing"></div></div><div class="col"><h3>✅ Concluído</h3><div id="done"></div></div></div></section><section id="calendar" class="panel"><div class="card"><div class="calendar-head"><button class="btn alt" id="prev">←</button><h2 id="monthTitle"></h2><button class="btn alt" id="next">→</button></div><div class="calendar"><div class="dow">Dom</div><div class="dow">Seg</div><div class="dow">Ter</div><div class="dow">Qua</div><div class="dow">Qui</div><div class="dow">Sex</div><div class="dow">Sáb</div></div><div class="calendar" id="cal"></div></div></section><section id="routines" class="panel"><div class="card"><h2>Rotinas pré-cadastradas</h2><p class="internal-muted">As rotinas geram tarefas automaticamente e podem ser pausadas.</p><div id="routineGrid" class="routine-grid"></div></div></section><section id="add" class="panel"><div class="card"><h2>Nova tarefa pontual</h2><div class="grid"><div class="field"><label>Tarefa</label><input id="tTitle"></div><div class="field"><label>Categoria</label><select id="tCat"></select></div><div class="field"><label>Data</label><input id="tDate" type="date"></div><div class="field"><label>Horário</label><input id="tTime" type="time"></div></div><div class="grid" style="margin-top:10px"><div class="field"><label>Prioridade</label><select id="tPri"><option>Alta</option><option selected>Média</option><option>Baixa</option></select></div><div class="field" style="grid-column:span 3"><label>Observação</label><input id="tObs"></div></div><div class="actions"><button class="btn" id="addTask">Adicionar</button></div></div></section><section id="cats" class="panel"><div class="card"><h2>Categorias</h2><div id="catGrid" class="cat-grid"></div></div></section><div class="note"><strong>Dados centralizados:</strong> tarefas e rotinas agora são salvas no Supabase. Dados antigos deste navegador são importados automaticamente na primeira abertura autorizada.</div></main><script type="module" src="/js/interno-rotinas.js?v=20260822-1"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Centro Operacional | Croma</title>
+    <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1" />
+    <style>
+      .shell {
+        max-width: 1240px;
+        margin: auto;
+        padding: 26px 16px 70px;
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 22px 0;
+      }
+      .kpi,
+      .card {
+        background: #fff;
+        border: 1px solid var(--croma-line);
+        border-radius: 18px;
+        padding: 17px;
+      }
+      .kpi small {
+        color: var(--croma-muted);
+        font-weight: 800;
+      }
+      .kpi strong {
+        display: block;
+        font-size: 1.8rem;
+        margin-top: 7px;
+        color: var(--croma-deep);
+      }
+      .next {
+        background: linear-gradient(
+          135deg,
+          var(--croma-deep),
+          var(--croma-purple)
+        );
+        color: #fff;
+        border-radius: 22px;
+        padding: 20px;
+        margin-bottom: 18px;
+      }
+      .next small {
+        color: #dedcf2;
+        font-weight: 800;
+      }
+      .next h2 {
+        margin: 7px 0 4px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 16px 0;
+      }
+      .tab {
+        border: 1px solid var(--croma-line);
+        background: #fff;
+        color: var(--croma-purple);
+        border-radius: 999px;
+        padding: 9px 13px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .tab.active {
+        background: var(--croma-purple);
+        color: #fff;
+      }
+      .panel {
+        display: none;
+      }
+      .panel.active {
+        display: block;
+      }
+      .board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .col {
+        background: #eeeff6;
+        border-radius: 18px;
+        padding: 12px;
+        min-height: 300px;
+      }
+      .col h3 {
+        margin: 4px 3px 10px;
+        color: var(--croma-deep);
+      }
+      .task {
+        background: #fff;
+        border: 1px solid var(--croma-line);
+        border-radius: 14px;
+        padding: 12px;
+        margin: 8px 0;
+      }
+      .task strong {
+        display: block;
+      }
+      .task small {
+        display: block;
+        color: var(--croma-muted);
+        margin-top: 4px;
+        line-height: 1.4;
+      }
+      .meta,
+      .actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .pill {
+        padding: 4px 7px;
+        border-radius: 999px;
+        background: #efeff8;
+        color: var(--croma-purple);
+        font-size: 0.68rem;
+        font-weight: 900;
+      }
+      .pill.late {
+        background: #fdeaea;
+        color: #b73a3a;
+      }
+      .pill.ok {
+        background: #edf7e7;
+        color: #567d25;
+      }
+      .pill.warn {
+        background: #fff4d9;
+        color: #a97200;
+      }
+      .btn {
+        border: 0;
+        background: var(--croma-purple);
+        color: #fff;
+        border-radius: 9px;
+        padding: 8px 10px;
+        font-weight: 850;
+        cursor: pointer;
+      }
+      .btn.alt {
+        background: #fff;
+        color: var(--croma-purple);
+        border: 1px solid var(--croma-line);
+      }
+      .btn.danger {
+        background: #fff;
+        color: #b73a3a;
+        border: 1px solid #efd0d0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+      .field label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 900;
+        color: var(--croma-purple);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        border: 1px solid #d7d5e2;
+        border-radius: 10px;
+        padding: 10px;
+        background: #fff;
+      }
+      .calendar-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .calendar {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        margin-top: 10px;
+      }
+      .dow {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 900;
+        color: var(--croma-muted);
+        padding: 6px;
+      }
+      .day {
+        min-height: 108px;
+        background: #fff;
+        border: 1px solid var(--croma-line);
+        border-radius: 12px;
+        padding: 7px;
+      }
+      .day.today {
+        outline: 2px solid var(--croma-purple);
+      }
+      .day.muted {
+        opacity: 0.42;
+      }
+      .event {
+        font-size: 0.65rem;
+        background: #efeff8;
+        color: var(--croma-purple);
+        border-radius: 6px;
+        padding: 3px 5px;
+        margin-top: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .routine-grid,
+      .cat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      .routine,
+      .cat {
+        border: 1px solid var(--croma-line);
+        border-radius: 14px;
+        padding: 13px;
+        background: #fff;
+      }
+      .routine p,
+      .cat p {
+        font-size: 0.84rem;
+        color: var(--croma-muted);
+        line-height: 1.45;
+        margin: 6px 0;
+      }
+      .note {
+        margin-top: 16px;
+        background: #f0eff9;
+        border-radius: 14px;
+        padding: 12px;
+        color: #514c70;
+        font-size: 0.86rem;
+        line-height: 1.5;
+      }
+      @media (max-width: 900px) {
+        .kpis,
+        .board {
+          grid-template-columns: 1fr 1fr;
+        }
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 620px) {
+        .kpis,
+        .board,
+        .grid,
+        .routine-grid,
+        .cat-grid {
+          grid-template-columns: 1fr;
+        }
+        .day {
+          min-height: 78px;
+        }
+        .event {
+          font-size: 0.56rem;
+        }
+      }
+    </style>
+  </head>
+  <body hidden>
+    <header class="internal-header">
+      <a href="../">← Painel interno</a><strong>Centro Operacional</strong>
+    </header>
+    <main class="shell">
+      <span class="internal-eyebrow">Rotina prática</span>
+      <h1 class="internal-title" style="font-size: clamp(2rem, 4vw, 3.4rem)">
+        Organização do dia
+      </h1>
+      <p class="internal-lead">
+        Painel para tarefas, rotinas, lembretes e calendário. Os registros são
+        compartilhados entre os aparelhos da equipe autorizada.
+      </p>
+      <section class="kpis">
+        <div class="kpi"><small>Hoje</small><strong id="kToday">0</strong></div>
+        <div class="kpi">
+          <small>Concluídas</small><strong id="kDone">0</strong>
+        </div>
+        <div class="kpi">
+          <small>Pendentes</small><strong id="kOpen">0</strong>
+        </div>
+        <div class="kpi">
+          <small>Atrasadas</small><strong id="kLate">0</strong>
+        </div>
+      </section>
+      <section class="next">
+        <small>PRÓXIMA FUNÇÃO</small>
+        <h2 id="nextTitle">Nenhuma tarefa pendente</h2>
+        <div id="nextMeta">O dia está em dia.</div>
+      </section>
+      <div class="tabs">
+        <button class="tab active" data-tab="board">Painel do dia</button
+        ><button class="tab" data-tab="calendar">Calendário</button
+        ><button class="tab" data-tab="routines">Rotinas fixas</button
+        ><button class="tab" data-tab="add">Adicionar tarefa</button
+        ><button class="tab" data-tab="cats">Categorias</button>
+      </div>
+      <section id="board" class="panel active">
+        <div class="board">
+          <div class="col">
+            <h3>📌 A fazer</h3>
+            <div id="todo"></div>
+          </div>
+          <div class="col">
+            <h3>⚡ Em andamento</h3>
+            <div id="doing"></div>
+          </div>
+          <div class="col">
+            <h3>✅ Concluído</h3>
+            <div id="done"></div>
+          </div>
+        </div>
+      </section>
+      <section id="calendar" class="panel">
+        <div class="card">
+          <div class="calendar-head">
+            <button class="btn alt" id="prev">←</button>
+            <h2 id="monthTitle"></h2>
+            <button class="btn alt" id="next">→</button>
+          </div>
+          <div class="calendar">
+            <div class="dow">Dom</div>
+            <div class="dow">Seg</div>
+            <div class="dow">Ter</div>
+            <div class="dow">Qua</div>
+            <div class="dow">Qui</div>
+            <div class="dow">Sex</div>
+            <div class="dow">Sáb</div>
+          </div>
+          <div class="calendar" id="cal"></div>
+        </div>
+      </section>
+      <section id="routines" class="panel">
+        <div class="card">
+          <h2>Rotinas pré-cadastradas</h2>
+          <p class="internal-muted">
+            As rotinas geram tarefas automaticamente e podem ser pausadas.
+          </p>
+          <div id="routineGrid" class="routine-grid"></div>
+        </div>
+      </section>
+      <section id="add" class="panel">
+        <div class="card">
+          <h2>Nova tarefa pontual</h2>
+          <div class="grid">
+            <div class="field"><label>Tarefa</label><input id="tTitle" /></div>
+            <div class="field"><label>Setor</label><select id="tDepartment"></select></div>
+            <div class="field"><label>Responsável</label><select id="tResponsible"></select></div>
+            <div class="field"><label>Data limite</label><input id="tDate" type="date" /></div>
+          </div>
+          <div class="grid" style="margin-top: 10px">
+            <div class="field">
+              <label>Prioridade</label
+              ><select id="tPri">
+                <option value="critica">Crítica</option>
+                <option value="alta">Alta</option>
+                <option value="normal" selected>Média</option>
+                <option value="baixa">Baixa</option>
+              </select>
+            </div>
+            <div class="field"><label>Visibilidade</label><select id="tVisibility"><option value="all_staff">Toda a equipe</option><option value="assignee">Somente responsável</option><option value="management">Gerência</option><option value="owner">Somente owner</option></select></div>
+            <div class="field" style="grid-column: span 2">
+              <label>Observação</label><input id="tObs" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="addTask">Adicionar</button>
+          </div>
+        </div>
+      </section>
+      <section id="cats" class="panel">
+        <div class="card">
+          <h2>Categorias</h2>
+          <div id="catGrid" class="cat-grid"></div>
+        </div>
+      </section>
+      <div class="note">
+        <strong>Dados centralizados:</strong> tarefas, níveis de visibilidade,
+        responsáveis e setores são consultados diretamente no Supabase.
+      </div>
+    </main>
+    <script type="module" src="/js/interno-rotinas.js?v=20260827-1"></script>
+  </body>
+</html>

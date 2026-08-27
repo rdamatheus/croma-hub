@@ -1,21 +1,272 @@
-import { protectInternalPage } from './interno-auth.js';
-import { migrateLocalState, saveModuleState } from './interno-store.js';
+import { supabase } from "./croma-supabase.js";
+import { protectInternalPage } from "./interno-auth.js";
 
-const session=await protectInternalPage();if(!session)throw new Error('auth');
-const CATS=[['Comercial','Atendimento, retornos, prospecção e oportunidades.'],['Administrativo','Controles internos, documentos e organização gerencial.'],['Financeiro','Conferências, compromissos e acompanhamento financeiro.'],['Marketing e Postagens','Conteúdo, fotos, vídeos, campanhas e publicações.'],['Limpeza e Organização','Balcão, vitrines, copa, banheiro e organização visual.'],['Estoque e Compras','Reposição, mínimos, conferência e compras.'],['Produção e Operação','Prazos, produção, retirada, abertura e fechamento.'],['Pessoas e RH','Integração, treinamento, documentos e feedbacks.']];
-const R0=[['Abertura da loja','Produção e Operação','08:00',[1,2,3,4,5],'Abrir sistemas, conferir ambiente, equipamentos e prioridades.'],['Revisar prioridades do dia','Administrativo','08:15',[1,2,3,4,5],'Conferir tarefas, compromissos e pendências críticas.'],['Organizar balcão e atendimento','Limpeza e Organização','08:30',[1,2,3,4,5],'Deixar atendimento limpo, abastecido e organizado.'],['Retornos comerciais','Comercial','09:30',[1,2,3,4,5],'Responder clientes e orçamentos aguardando retorno.'],['Conferir produção e prazos','Produção e Operação','11:00',[1,2,3,4,5],'Checar pedidos com prazo, arte, material e etapa.'],['Conferência rápida de caixa','Financeiro','12:00',[1,2,3,4,5],'Verificar recebimentos e divergências importantes.'],['Conteúdo / postagem','Marketing e Postagens','14:00',[1,3,5],'Produzir, programar ou publicar conteúdo do dia.'],['Checar estoque crítico','Estoque e Compras','15:00',[2,4],'Verificar materiais de giro e necessidade de compra.'],['Organização final da loja','Limpeza e Organização','17:15',[1,2,3,4,5],'Reorganizar balcão, materiais e áreas compartilhadas.'],['Fechamento operacional','Produção e Operação','17:30',[1,2,3,4,5],'Registrar pendências e preparar o próximo dia.'],['Planejamento comercial semanal','Comercial','08:45',[1],'Definir prospecções e retornos prioritários da semana.'],['Planejamento de conteúdo semanal','Marketing e Postagens','10:00',[1],'Definir pautas e materiais da semana.'],['Revisão financeira semanal','Financeiro','16:00',[5],'Revisar compromissos, contas e pendências da próxima semana.'],['Revisão de estoque e compras','Estoque e Compras','15:00',[5],'Consolidar necessidades de reposição e compra.'],['Revisão de equipe e treinamento','Pessoas e RH','16:30',[5],'Registrar dúvidas, treinamentos e alinhamentos necessários.']];
-const defaultRoutines=R0.map((x,i)=>({id:'r'+i,title:x[0],cat:x[1],time:x[2],days:x[3],desc:x[4],active:true}));
-let routines=await migrateLocalState('operations_routines','croma_ops_routines_v2',defaultRoutines);
-let tasks=await migrateLocalState('operations_tasks','croma_ops_tasks_v2',[]);
-let viewDate=new Date();
-const $=id=>document.getElementById(id),iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,today=()=>iso(new Date()),fmt=d=>d?d.split('-').reverse().join('/'):'',status=t=>t.status||'todo',esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-async function persistTasks(){await saveModuleState('operations_tasks',tasks)}async function persistRoutines(){await saveModuleState('operations_routines',routines)}
-function seed(){const a=new Date();a.setDate(a.getDate()-7);const b=new Date();b.setDate(b.getDate()+35);const exists=new Set(tasks.filter(x=>x.routineId).map(x=>x.routineId+'|'+x.date));let changed=false;for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1)){const ds=iso(d),dw=d.getDay();routines.filter(r=>r.active&&r.days.includes(dw)).forEach(r=>{const k=r.id+'|'+ds;if(!exists.has(k)){tasks.push({id:crypto.randomUUID(),routineId:r.id,title:r.title,cat:r.cat,date:ds,time:r.time,priority:'Média',obs:r.desc,status:'todo'});exists.add(k);changed=true}})}if(changed)persistTasks()}
-function card(t){const late=t.date<today()&&status(t)!=='done';return`<div class="task"><strong>${esc(t.title)}</strong><small>${esc(t.cat)}${t.obs?' · '+esc(t.obs):''}</small><div class="meta"><span class="pill ${late?'late':''}">${fmt(t.date)} ${esc(t.time||'')}</span><span class="pill ${t.priority==='Alta'?'warn':''}">${esc(t.priority)}</span></div><div class="actions">${status(t)!=='todo'?`<button class="btn alt" data-move="${t.id}:todo">A fazer</button>`:''}${status(t)!=='doing'?`<button class="btn alt" data-move="${t.id}:doing">Em andamento</button>`:''}${status(t)!=='done'?`<button class="btn" data-move="${t.id}:done">Concluir</button>`:''}${t.routineId?'':`<button class="btn danger" data-del="${t.id}">Excluir</button>`}</div></div>`}
-function renderBoard(){['todo','doing','done'].forEach(s=>$(s).innerHTML=tasks.filter(t=>status(t)===s&&t.date<=today()).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(card).join('')||'<small>Nenhuma tarefa.</small>');const td=today(),tod=tasks.filter(t=>t.date===td),open=tasks.filter(t=>status(t)!=='done'),late=open.filter(t=>t.date<td);$('kToday').textContent=tod.length;$('kDone').textContent=tod.filter(t=>status(t)==='done').length;$('kOpen').textContent=open.length;$('kLate').textContent=late.length;const nx=open.filter(t=>t.date>=td).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0]||late[0];$('nextTitle').textContent=nx?nx.title:'Nenhuma tarefa pendente';$('nextMeta').textContent=nx?`${nx.cat} · ${fmt(nx.date)} ${nx.time||''}`:'O dia está em dia.'}
-function renderCal(){const y=viewDate.getFullYear(),m=viewDate.getMonth();$('monthTitle').textContent=new Date(y,m,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());let out='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=iso(d),ev=tasks.filter(t=>t.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||''));out+=`<div class="day ${d.getMonth()!==m?'muted':''} ${ds===today()?'today':''}"><b>${d.getDate()}</b>${ev.slice(0,4).map(t=>`<div class="event">${esc(t.time||'')} ${esc(t.title)}</div>`).join('')}${ev.length>4?`<div class="event">+${ev.length-4}</div>`:''}</div>`}$('cal').innerHTML=out}
-function renderRoutines(){$('routineGrid').innerHTML=routines.map((r,i)=>`<div class="routine"><strong>${esc(r.title)}</strong><p>${esc(r.desc)}</p><div class="meta"><span class="pill">${esc(r.cat)}</span><span class="pill">${esc(r.time)}</span><span class="pill ${r.active?'ok':''}">${r.active?'Ativa':'Pausada'}</span></div><div class="actions"><button class="btn alt" data-routine="${i}">${r.active?'Pausar':'Ativar'}</button></div></div>`).join('')}
-function renderCats(){$('catGrid').innerHTML=CATS.map(c=>`<div class="cat"><strong>${esc(c[0])}</strong><p>${esc(c[1])}</p></div>`).join('');$('tCat').innerHTML=CATS.map(c=>`<option>${esc(c[0])}</option>`).join('')}
-function render(){seed();renderBoard();renderCal();renderRoutines();renderCats()}
-document.body.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.move){const sep=b.dataset.move.lastIndexOf(':'),id=b.dataset.move.slice(0,sep),s=b.dataset.move.slice(sep+1),t=tasks.find(x=>x.id===id);if(t){t.status=s;await persistTasks();renderBoard();renderCal()}}if(b.dataset.del){tasks=tasks.filter(x=>x.id!==b.dataset.del);await persistTasks();renderBoard();renderCal()}if(b.dataset.routine!=null){routines[+b.dataset.routine].active=!routines[+b.dataset.routine].active;await persistRoutines();render()}});
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active')});$('prev').onclick=()=>{viewDate.setMonth(viewDate.getMonth()-1);renderCal()};$('next').onclick=()=>{viewDate.setMonth(viewDate.getMonth()+1);renderCal()};$('tDate').value=today();$('addTask').onclick=async()=>{if(!$('tTitle').value.trim())return alert('Informe a tarefa.');tasks.push({id:crypto.randomUUID(),title:$('tTitle').value.trim(),cat:$('tCat').value,date:$('tDate').value||today(),time:$('tTime').value,priority:$('tPri').value,obs:$('tObs').value.trim(),status:'todo'});$('tTitle').value=$('tObs').value='';await persistTasks();render();alert('Tarefa adicionada.')};render();
+const session = await protectInternalPage();
+if (!session) throw new Error("auth");
+const $ = (id) => document.getElementById(id);
+const esc = (value) =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    (char) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        char
+      ],
+  );
+const iso = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const today = () => iso(new Date());
+const fmt = (value) =>
+  value ? value.split("-").reverse().join("/") : "Sem prazo";
+const statusMap = {
+  pendente: "todo",
+  em_andamento: "doing",
+  concluida: "done",
+};
+const priorityLabel = {
+  baixa: "Baixa",
+  normal: "Média",
+  alta: "Alta",
+  critica: "Crítica",
+};
+const visibilityLabel = {
+  all_staff: "Toda a equipe",
+  management: "Gerência",
+  owner: "Somente owner",
+  assignee: "Responsável",
+};
+let tasks = [],
+  departments = [],
+  profiles = [],
+  routines = [],
+  viewDate = new Date();
+
+function department(id) {
+  return departments.find((item) => item.id === id)?.label || "Sem setor";
+}
+function responsible(id) {
+  return profiles.find((item) => item.id === id)?.nome || "Sem responsável";
+}
+function status(task) {
+  return statusMap[task.status] || "todo";
+}
+
+async function load() {
+  const [taskResult, departmentResult, profileResult, routineResult] =
+    await Promise.all([
+      supabase
+        .from("tasks")
+        .select("*")
+        .order("data_limite", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("departments")
+        .select("id,code,label,description")
+        .eq("active", true)
+        .order("sort_order"),
+      supabase
+        .from("profiles")
+        .select("id,nome,cargo,role,ativo")
+        .eq("ativo", true)
+        .order("nome"),
+      supabase
+        .from("routines")
+        .select("*,categories(nome)")
+        .eq("ativa", true)
+        .order("ordem"),
+    ]);
+  for (const result of [
+    taskResult,
+    departmentResult,
+    profileResult,
+    routineResult,
+  ])
+    if (result.error) throw result.error;
+  tasks = taskResult.data || [];
+  departments = departmentResult.data || [];
+  profiles = profileResult.data || [];
+  routines = routineResult.data || [];
+  renderSelects();
+  render();
+}
+
+function card(task) {
+  const late =
+    task.data_limite && task.data_limite < today() && status(task) !== "done";
+  return `<div class="task"><strong>${esc(task.titulo)}</strong><small>${esc(department(task.department_id))} · ${esc(responsible(task.responsavel_id))}${task.descricao ? " · " + esc(task.descricao) : ""}</small><div class="meta"><span class="pill ${late ? "late" : ""}">${fmt(task.data_limite)}</span><span class="pill ${task.prioridade === "alta" || task.prioridade === "critica" ? "warn" : ""}">${esc(priorityLabel[task.prioridade] || task.prioridade)}</span><span class="pill">${esc(visibilityLabel[task.visibility_level] || task.visibility_level)}</span></div><div class="actions">${status(task) !== "todo" ? `<button class="btn alt" data-move="${task.id}:pendente">A fazer</button>` : ""}${status(task) !== "doing" ? `<button class="btn alt" data-move="${task.id}:em_andamento">Em andamento</button>` : ""}${status(task) !== "done" ? `<button class="btn" data-move="${task.id}:concluida">Concluir</button>` : ""}<button class="btn danger" data-del="${task.id}">Excluir</button></div></div>`;
+}
+
+function renderBoard() {
+  ["todo", "doing", "done"].forEach(
+    (column) =>
+      ($(column).innerHTML =
+        tasks
+          .filter((task) => status(task) === column)
+          .map(card)
+          .join("") || "<small>Nenhuma tarefa.</small>"),
+  );
+  const current = today(),
+    todayTasks = tasks.filter((task) => task.data_limite === current),
+    open = tasks.filter(
+      (task) => !["concluida", "cancelada"].includes(task.status),
+    ),
+    late = open.filter(
+      (task) => task.data_limite && task.data_limite < current,
+    );
+  $("kToday").textContent = todayTasks.length;
+  $("kDone").textContent = todayTasks.filter(
+    (task) => task.status === "concluida",
+  ).length;
+  $("kOpen").textContent = open.length;
+  $("kLate").textContent = late.length;
+  const next = [...open].sort((a, b) =>
+    (a.data_limite || "9999").localeCompare(b.data_limite || "9999"),
+  )[0];
+  $("nextTitle").textContent = next?.titulo || "Nenhuma tarefa pendente";
+  $("nextMeta").textContent = next
+    ? `${department(next.department_id)} · ${fmt(next.data_limite)} · ${responsible(next.responsavel_id)}`
+    : "O dia está em dia.";
+}
+
+function renderCalendar() {
+  const year = viewDate.getFullYear(),
+    month = viewDate.getMonth();
+  $("monthTitle").textContent = new Date(year, month, 1).toLocaleDateString(
+    "pt-BR",
+    { month: "long", year: "numeric" },
+  );
+  const first = new Date(year, month, 1),
+    start = new Date(year, month, 1 - first.getDay());
+  let output = "";
+  for (let index = 0; index < 42; index++) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const dateString = iso(date),
+      events = tasks.filter(
+        (task) =>
+          task.data_limite === dateString && task.status !== "cancelada",
+      );
+    output += `<div class="day ${date.getMonth() !== month ? "muted" : ""} ${dateString === today() ? "today" : ""}"><b>${date.getDate()}</b>${events
+      .slice(0, 4)
+      .map((task) => `<div class="event">${esc(task.titulo)}</div>`)
+      .join(
+        "",
+      )}${events.length > 4 ? `<div class="event">+${events.length - 4}</div>` : ""}</div>`;
+  }
+  $("cal").innerHTML = output;
+}
+
+function renderRoutines() {
+  $("routineGrid").innerHTML = routines.length
+    ? routines
+        .map(
+          (routine) =>
+            `<div class="routine"><strong>${esc(routine.titulo)}</strong><p>${esc(routine.descricao || "")}</p><div class="meta"><span class="pill">${esc(routine.categories?.nome || "Geral")}</span><span class="pill">${esc(routine.frequencia)}</span><span class="pill">${esc(priorityLabel[routine.prioridade] || routine.prioridade)}</span></div></div>`,
+        )
+        .join("")
+    : '<p class="internal-muted">Nenhuma rotina padronizada cadastrada ainda.</p>';
+}
+function renderDepartments() {
+  $("catGrid").innerHTML = departments
+    .map(
+      (item) =>
+        `<div class="cat"><strong>${esc(item.label)}</strong><p>${esc(item.description || "")}</p></div>`,
+    )
+    .join("");
+}
+function render() {
+  renderBoard();
+  renderCalendar();
+  renderRoutines();
+  renderDepartments();
+}
+
+function renderSelects() {
+  $("tDepartment").innerHTML =
+    '<option value="">Sem setor</option>' +
+    departments
+      .map((item) => `<option value="${item.id}">${esc(item.label)}</option>`)
+      .join("");
+  $("tResponsible").innerHTML =
+    '<option value="">Sem responsável</option>' +
+    profiles
+      .map(
+        (profile) =>
+          `<option value="${profile.id}">${esc(profile.nome)}${profile.cargo ? " · " + esc(profile.cargo) : ""}</option>`,
+      )
+      .join("");
+}
+
+document.body.addEventListener("click", async (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
+  if (button.dataset.move) {
+    const separator = button.dataset.move.lastIndexOf(":"),
+      id = button.dataset.move.slice(0, separator),
+      nextStatus = button.dataset.move.slice(separator + 1);
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        status: nextStatus,
+        concluida_em:
+          nextStatus === "concluida" ? new Date().toISOString() : null,
+      })
+      .eq("id", id);
+    if (error) return alert(error.message);
+    await load();
+  }
+  if (button.dataset.del && confirm("Excluir esta tarefa?")) {
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", button.dataset.del);
+    if (error) return alert(error.message);
+    await load();
+  }
+});
+
+document.querySelectorAll(".tab").forEach(
+  (button) =>
+    (button.onclick = () => {
+      document
+        .querySelectorAll(".tab")
+        .forEach((item) => item.classList.remove("active"));
+      document
+        .querySelectorAll(".panel")
+        .forEach((item) => item.classList.remove("active"));
+      button.classList.add("active");
+      $(button.dataset.tab).classList.add("active");
+    }),
+);
+$("prev").onclick = () => {
+  viewDate.setMonth(viewDate.getMonth() - 1);
+  renderCalendar();
+};
+$("next").onclick = () => {
+  viewDate.setMonth(viewDate.getMonth() + 1);
+  renderCalendar();
+};
+$("tDate").value = today();
+$("addTask").onclick = async () => {
+  const title = $("tTitle").value.trim();
+  if (!title) return alert("Informe a tarefa.");
+  const payload = {
+    titulo: title,
+    descricao: $("tObs").value.trim() || null,
+    status: "pendente",
+    prioridade: $("tPri").value,
+    responsavel_id: $("tResponsible").value || null,
+    data_inicio: today(),
+    data_limite: $("tDate").value || null,
+    origem: "pontual",
+    visibility_level: $("tVisibility").value,
+    department_id: $("tDepartment").value || null,
+    created_by: session.user.id,
+  };
+  const { error } = await supabase.from("tasks").insert(payload);
+  if (error) return alert(error.message);
+  $("tTitle").value = $("tObs").value = "";
+  await load();
+  alert("Tarefa adicionada.");
+};
+
+await load();

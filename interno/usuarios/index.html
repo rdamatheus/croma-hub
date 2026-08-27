@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Usuários e acessos | Croma</title>
+    <link rel="stylesheet" href="/css/interno-base.css?v=20260827-1" />
+    <style>
+      .toolbar,
+      .row-actions {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .toolbar {
+        justify-content: space-between;
+        margin: 22px 0;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .table th,
+      .table td {
+        text-align: left;
+        padding: 13px;
+        border-bottom: 1px solid var(--croma-line);
+        vertical-align: top;
+      }
+      .table th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        color: var(--croma-muted);
+      }
+      .role {
+        font-weight: 900;
+        color: var(--croma-purple);
+      }
+      .status {
+        font-weight: 900;
+        color: #a63838;
+      }
+      .status.active {
+        color: #537b23;
+      }
+      dialog {
+        border: 0;
+        border-radius: 22px;
+        padding: 0;
+        width: min(720px, calc(100% - 24px));
+        box-shadow: 0 30px 90px #211c5c40;
+      }
+      .modal {
+        padding: 22px;
+      }
+      .modal-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .modal-head h2 {
+        margin: 0;
+      }
+      .close {
+        border: 0;
+        background: transparent;
+        font-size: 1.8rem;
+        cursor: pointer;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .wide {
+        grid-column: 1/-1;
+      }
+      .departments {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .departments label {
+        border: 1px solid var(--croma-line);
+        border-radius: 11px;
+        padding: 10px;
+      }
+      .message {
+        min-height: 22px;
+        margin: 10px 0;
+        color: #a63838;
+      }
+      @media (max-width: 700px) {
+        .table thead {
+          display: none;
+        }
+        .table,
+        .table tbody,
+        .table tr,
+        .table td {
+          display: block;
+        }
+        .table tr {
+          padding: 12px 0;
+        }
+        .table td {
+          border: 0;
+          padding: 4px;
+        }
+        .form-grid,
+        .departments {
+          grid-template-columns: 1fr;
+        }
+        .wide {
+          grid-column: auto;
+        }
+      }
+    </style>
+  </head>
+  <body hidden>
+    <header class="internal-header">
+      <a href="../">← Painel interno</a
+      ><strong>Configurações · Usuários</strong>
+    </header>
+    <main class="internal-shell">
+      <span class="internal-eyebrow">Acesso controlado pelo proprietário</span>
+      <h1 class="internal-title">Usuários e permissões</h1>
+      <p class="internal-lead">
+        Cadastre usuários internos, escolha o nível de acesso e vincule os
+        setores. Os valores são selecionados diretamente dos cadastros oficiais
+        do banco.
+      </p>
+      <div class="toolbar">
+        <input
+          class="internal-field"
+          id="search"
+          placeholder="Buscar nome, e-mail ou cargo"
+        /><button class="internal-btn" id="newUser">+ Novo usuário</button>
+      </div>
+      <section class="internal-card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Usuário</th>
+              <th>Nível</th>
+              <th>Setores</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="userRows"></tbody>
+        </table>
+      </section>
+    </main>
+    <dialog id="dialog">
+      <form id="userForm" class="modal">
+        <div class="modal-head">
+          <h2 id="dialogTitle">Novo usuário</h2>
+          <button class="close" type="button" id="close">×</button>
+        </div>
+        <div class="form-grid">
+          <div class="internal-field">
+            <label>Nome</label><input name="nome" required minlength="2" />
+          </div>
+          <div class="internal-field">
+            <label>E-mail</label><input name="email" type="email" required />
+          </div>
+          <div class="internal-field">
+            <label>Cargo</label
+            ><input name="cargo" placeholder="Ex.: Atendimento" />
+          </div>
+          <div class="internal-field">
+            <label>Nível de acesso</label
+            ><select name="role" id="role" required></select>
+          </div>
+          <div class="internal-field wide">
+            <label>Senha temporária <span id="passwordHint"></span></label
+            ><input
+              name="password"
+              type="password"
+              minlength="12"
+              autocomplete="new-password"
+            /><small class="internal-muted"
+              >Mínimo de 12 caracteres. No cadastro inicial, este campo é
+              obrigatório.</small
+            >
+          </div>
+          <div class="internal-field">
+            <label>Status</label
+            ><select name="ativo">
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
+          <div class="internal-field wide">
+            <label>Setores de atuação</label>
+            <div class="departments" id="departments"></div>
+          </div>
+        </div>
+        <div class="message" id="message"></div>
+        <div class="row-actions">
+          <button class="internal-btn" type="submit">Salvar usuário</button
+          ><button class="internal-btn secondary" type="button" id="cancel">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="/js/interno-usuarios.js?v=20260827-1"></script>
+  </body>
+</html>
