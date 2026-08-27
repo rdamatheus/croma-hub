@@ -5,7 +5,7 @@
 <title>Impressões e Cópias | Croma</title>
 <link rel="stylesheet" href="../../css/service-pages.css?v=20260811-1">
 <style>
-.product-layout{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.2fr);gap:32px;align-items:start}.product-media{background:#f6f6fb;border:1px solid #e6e4ef;border-radius:22px;padding:18px;position:sticky;top:18px}.product-media img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:16px;background:#eee}.media-note{margin:10px 4px 0;color:#77728a;font-size:.82rem}.config{background:#fff;border:1px solid #e5e3ee;border-radius:22px;padding:22px}.option-group{border:0;padding:0;margin:0 0 20px}.option-group legend{font-weight:900;color:#211c5c;margin-bottom:10px}.radio-grid{display:flex;gap:10px;flex-wrap:wrap}.radio-choice{display:inline-flex;align-items:center;gap:8px;border:1px solid #dcd9e8;border-radius:12px;padding:10px 13px;cursor:pointer;background:#fff;font-weight:750}.radio-choice:has(input:checked){border-color:#30297F;box-shadow:0 0 0 2px #30297F18}.radio-choice input{accent-color:#30297F;width:17px;height:17px}.qty{width:150px;padding:12px;border:1px solid #d8d6e4;border-radius:11px;font:inherit}.summary{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.box{background:#f6f6fb;border-radius:16px;padding:16px}.price{font-size:2rem;font-weight:900;color:#211c5c}.muted{color:#6f6c7e}.cart-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}.add-cart{border:0;background:#30297F;color:#fff;border-radius:12px;padding:12px 18px;font-weight:900;cursor:pointer}.add-cart:disabled{opacity:.45}.crumb a{color:inherit;text-decoration:none}.product-switch{display:flex;gap:8px;margin:16px 0}.product-switch a{padding:8px 12px;border-radius:999px;border:1px solid #ddd9e8;text-decoration:none;color:#30297F;font-weight:850}.product-switch a.active{background:#30297F;color:#fff}@media(max-width:820px){.product-layout{grid-template-columns:1fr}.product-media{position:static}.summary{grid-template-columns:1fr}}
+.product-layout{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.2fr);gap:32px;align-items:start}.product-media{background:#f6f6fb;border:1px solid #e6e4ef;border-radius:22px;padding:18px;position:sticky;top:18px}.product-media img{width:100%;aspect-ratio:4/5;object-fit:contain;border-radius:16px;background:#fff}.media-note{margin:10px 4px 0;color:#77728a;font-size:.82rem}.config{background:#fff;border:1px solid #e5e3ee;border-radius:22px;padding:22px}.option-group{border:0;padding:0;margin:0 0 20px}.option-group legend{font-weight:900;color:#211c5c;margin-bottom:10px}.radio-grid{display:flex;gap:10px;flex-wrap:wrap}.radio-choice{display:inline-flex;align-items:center;gap:8px;border:1px solid #dcd9e8;border-radius:12px;padding:10px 13px;cursor:pointer;background:#fff;font-weight:750}.radio-choice:has(input:checked){border-color:#30297F;box-shadow:0 0 0 2px #30297F18}.radio-choice input{accent-color:#30297F;width:17px;height:17px}.qty{width:150px;padding:12px;border:1px solid #d8d6e4;border-radius:11px;font:inherit}.summary{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.box{background:#f6f6fb;border-radius:16px;padding:16px}.price{font-size:2rem;font-weight:900;color:#211c5c}.muted{color:#6f6c7e}.cart-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}.add-cart{border:0;background:#30297F;color:#fff;border-radius:12px;padding:12px 18px;font-weight:900;cursor:pointer}.add-cart:disabled{opacity:.45}.crumb a{color:inherit;text-decoration:none}.product-switch{display:flex;gap:8px;margin:16px 0}.product-switch a{padding:8px 12px;border-radius:999px;border:1px solid #ddd9e8;text-decoration:none;color:#30297F;font-weight:850}.product-switch a.active{background:#30297F;color:#fff}@media(max-width:820px){.product-layout{grid-template-columns:1fr}.product-media{position:static}.summary{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="crumb" id="breadcrumb"><a href="../../">Croma</a> › <a href="../">Serviços</a> › <span id="crumbProduct">Impressões</span></div>
 <div class="product-switch"><a id="switchPrint" href="./">Impressões</a><a id="switchCopy" href="?produto=copias">Cópias</a></div>
 <div class="product-layout">
-<aside class="product-media"><img id="productImage" src="../../assets/produtos/impressao-pb-perfil.jpg" alt="Exemplo de impressão preto e branco"><p class="media-note" id="mediaNote">Imagem de referência da configuração selecionada.</p></aside>
+<aside class="product-media"><img id="productImage" src="../../assets/produtos/impressao-pb-croma.jpg" alt="Exemplo de impressão preto e branco"><p class="media-note" id="mediaNote">Imagem de referência da configuração selecionada.</p></aside>
 <section>
 <p class="eyebrow">Serviços gráficos</p><h1 id="productTitle">Impressões</h1><p class="lead" id="productDescription">Configure tamanho, lados, cor, conteúdo e quantidade. O preço utiliza automaticamente a faixa de quantidade mais específica aplicável.</p>
 <div class="config">
@@ -31,17 +31,20 @@
 import{supabase}from'/js/croma-supabase.js?v=20260821-2';
 const $=s=>document.querySelector(s),brl=v=>Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),params=new URLSearchParams(location.search),slug=params.get('produto')==='copias'?'copias':'impressoes';
 let product,groups=[],variants=[],tiers=[],media=[],selected={},currentVariant=null,currentTier=null;
-const fallbackPb='../../assets/produtos/impressao-pb-perfil.jpg';
+const printPbPhoto='../../assets/produtos/impressao-pb-croma.jpg';
+const legacyPb='../../assets/produtos/impressao-pb-perfil.jpg';
 const placeholder='../../assets/produtos/impressao-placeholder.svg';
 async function load(){
  const {data:p,error:pe}=await supabase.from('products').select('id,slug,nome,descricao,metadata,catalog_category_id').eq('slug',slug).eq('ativo',true).single();if(pe)throw pe;product=p;
- const [{data:g},{data:v},{data:t},{data:m}]=await Promise.all([
-  supabase.from('product_option_groups').select('id,code,nome,selection_type,required,ordem,product_options(id,code,nome,ordem,metadata)').eq('product_id',p.id).eq('ativo',true).order('ordem'),
+ const [gr,vr,tr,mr]=await Promise.all([
+  supabase.from('product_option_groups').select('id,code,nome,selection_type,required,ordem,product_options(id,code,nome,ordem,ativo,metadata)').eq('product_id',p.id).eq('ativo',true).order('ordem'),
   supabase.from('product_variants').select('*').eq('product_id',p.id).eq('ativo',true),
   supabase.from('product_price_tiers').select('*').eq('product_id',p.id).eq('ativo',true).order('min_qty'),
   supabase.from('product_media').select('*').eq('product_id',p.id).eq('ativo',true).order('ordem')]);
- groups=(g||[]).map(x=>({...x,product_options:(x.product_options||[]).sort((a,b)=>a.ordem-b.ordem)}));variants=v||[];tiers=t||[];media=m||[];
- groups.forEach(g=>selected[g.code]=g.product_options[0]?.code||'');render();calc();
+ const queryError=gr.error||vr.error||tr.error||mr.error;if(queryError)throw queryError;
+ groups=(gr.data||[]).map(x=>({...x,product_options:(x.product_options||[]).filter(o=>o.ativo!==false).sort((a,b)=>a.ordem-b.ordem)}));variants=vr.data||[];tiers=tr.data||[];media=mr.data||[];
+ if(!groups.length||groups.some(g=>!g.product_options.length)||!variants.length||!tiers.length)throw new Error('Cadastro incompleto do configurador.');
+ selected={};groups.forEach(g=>selected[g.code]=g.product_options[0]?.code||'');render();calc();
 }
 function render(){
  $('#productTitle').textContent=product.nome;$('#crumbProduct').textContent=product.nome;$('#productDescription').textContent=product.descricao||'';document.title=product.nome+' | Croma';$('#switchPrint').classList.toggle('active',slug==='impressoes');$('#switchCopy').classList.toggle('active',slug==='copias');
@@ -54,10 +57,18 @@ function calc(){
  if(!currentTier){$('#unit').textContent=$('#total').textContent='Sob consulta';$('#tier').textContent='Nenhuma faixa cadastrada para esta configuração.';$('#detail').textContent='Fale com a Croma para orçamento.';$('#addCart').disabled=true}else{const unit=Number(currentTier.unit_price);$('#unit').textContent=brl(unit);$('#total').textContent=brl(unit*q);$('#tier').textContent=`Faixa aplicada: a partir de ${currentTier.min_qty}`;$('#detail').textContent=`${q} × ${brl(unit)}`;$('#addCart').disabled=false}
  updateImage();
 }
-function updateImage(){const color=selected.color;const vm=currentVariant&&media.find(x=>x.variant_id===currentVariant.id&&x.kind==='image');const pm=media.find(x=>!x.variant_id&&x.is_primary&&x.kind==='image');const src=vm?.url||pm?.url||(color==='pb'?fallbackPb:placeholder);$('#productImage').src=src;$('#productImage').alt=`${product.nome} — ${color==='pb'?'preto e branco':'colorido'}`;$('#mediaNote').textContent=vm||pm?'Imagem correspondente à configuração selecionada.':'Imagem desta variação será adicionada ao catálogo.'}
+function updateImage(){
+ const color=selected.color,vm=currentVariant&&media.find(x=>x.variant_id===currentVariant.id&&x.kind==='image'),pm=media.find(x=>!x.variant_id&&x.is_primary&&x.kind==='image');
+ const genericPb=url=>!url||url===legacyPb||url==='/assets/produtos/impressao-pb-perfil.jpg';
+ let src,note;
+ if(slug==='impressoes'&&color==='pb'){src=printPbPhoto;note='Imagem correspondente à impressão em preto e branco.'}
+ else if(color==='color'&&genericPb(vm?.url)){src=pm?.url&&!genericPb(pm.url)?pm.url:placeholder;note='Imagem da variação colorida será adicionada ao catálogo.'}
+ else{src=vm?.url||pm?.url||(color==='pb'?legacyPb:placeholder);note=vm||pm?'Imagem correspondente à configuração selecionada.':'Imagem desta variação será adicionada ao catálogo.'}
+ const img=$('#productImage');img.onerror=()=>{img.onerror=null;img.src=placeholder;$('#mediaNote').textContent='Imagem temporariamente indisponível.'};img.src=src;img.alt=`${product.nome} — ${color==='pb'?'preto e branco':'colorido'}`;$('#mediaNote').textContent=note;
+}
 $('#qty').addEventListener('input',calc);
 $('#addCart').addEventListener('click',()=>{if(!currentTier||!currentVariant||!window.CromaCart)return;const q=Math.max(1,Number($('#qty').value)||1),labels={};groups.forEach(g=>{const o=g.product_options.find(x=>x.code===selected[g.code]);labels[g.nome]=o?.nome||selected[g.code]});window.CromaCart.add({name:product.nome,qty:q,unitPrice:Number(currentTier.unit_price),options:{...labels,'Faixa de quantidade':`A partir de ${currentTier.min_qty}`}});$('#status').textContent='Item adicionado ao carrinho.'});
-load().catch(e=>{console.error(e);$('#status').textContent='Não foi possível carregar o configurador agora.'});
+load().catch(e=>{console.error(e);$('#options').innerHTML='<p class="muted">Não foi possível carregar as opções deste produto agora.</p>';$('#status').textContent='Não foi possível carregar o configurador agora.';$('#addCart').disabled=true});
 </script>
 <script src="../../js/service-header.js?v=20260821-1" defer></script>
 </body></html>
