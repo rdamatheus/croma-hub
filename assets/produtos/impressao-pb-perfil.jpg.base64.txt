@@ -1,0 +1,1 @@
+A imagem binária real é adicionada ao repositório via Git blob no próximo commit.
