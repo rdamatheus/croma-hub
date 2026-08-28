@@ -94,7 +94,11 @@ Deno.serve(async (req: Request) => {
     const user = userData?.user;
     if (userError || !user) return json({ error: "Sessão inválida." }, 401);
 
-    const { data: profile } = await admin.from("profiles").select("id,role,ativo").eq("id", user.id).maybeSingle();
+    const { data: profile, error: profileError } = await admin.from("profiles").select("id,role,ativo").eq("id", user.id).maybeSingle();
+    if (profileError) {
+      console.error("profile_lookup_failed", profileError);
+      return json({ error: "Falha ao validar o acesso interno.", detail: profileError.message }, 500);
+    }
     if (!profile?.ativo || !["owner", "manager", "equipe"].includes(profile.role)) {
       return json({ error: "Conta sem acesso ao laboratório." }, 403);
     }
@@ -102,11 +106,19 @@ Deno.serve(async (req: Request) => {
     const { atendimento_id } = await req.json();
     if (!atendimento_id) return json({ error: "Atendimento não informado." }, 400);
 
-    const [{ data: atendimento }, { data: messages }, { data: attachments }] = await Promise.all([
+    const [atendimentoResult, messagesResult, attachmentsResult] = await Promise.all([
       admin.from("lab_whatsapp_atendimentos").select("*").eq("id", atendimento_id).maybeSingle(),
       admin.from("lab_whatsapp_mensagens").select("*").eq("atendimento_id", atendimento_id).order("sequence"),
       admin.from("lab_whatsapp_anexos").select("*").eq("atendimento_id", atendimento_id).order("created_at")
     ]);
+    const dataError = atendimentoResult.error || messagesResult.error || attachmentsResult.error;
+    if (dataError) {
+      console.error("lab_data_lookup_failed", dataError);
+      return json({ error: "Falha ao carregar os dados do atendimento.", detail: dataError.message }, 500);
+    }
+    const atendimento = atendimentoResult.data;
+    const messages = messagesResult.data;
+    const attachments = attachmentsResult.data;
     if (!atendimento) return json({ error: "Atendimento não encontrado." }, 404);
 
     const openaiKey = Deno.env.get("OPENAI_API_KEY");

@@ -348,6 +348,20 @@ function renderAnalysis(analysis){
   elements.analysisReply.textContent = analysis.resposta_sugerida || 'Nenhuma resposta sugerida.';
 }
 
+async function functionErrorMessage(error,data){
+  if(data?.message || data?.detail || data?.error) return data.message || data.detail || data.error;
+  const response = error?.context;
+  if(response && typeof response.clone === 'function'){
+    try{
+      const payload = await response.clone().json();
+      return payload.message || payload.detail || payload.error || error.message;
+    }catch{
+      try{ return (await response.clone().text()) || error.message; }catch{ /* resposta já consumida */ }
+    }
+  }
+  return error?.message || 'Erro desconhecido na função de processamento.';
+}
+
 async function processAtendimento(id,button){
   const original = button.textContent;
   button.disabled = true;
@@ -355,7 +369,7 @@ async function processAtendimento(id,button){
   setStatus('Transcrevendo áudios, lendo documentos e analisando a conversa…');
   try{
     const { data, error } = await supabase.functions.invoke('whatsapp-lab-processar',{body:{atendimento_id:id}});
-    if(error) throw new Error(data?.message || data?.error || error.message);
+    if(error) throw new Error(await functionErrorMessage(error,data));
     if(data?.error) throw new Error(data.message || data.error);
     const failed = data?.attachment_errors?.length || 0;
     setStatus(failed ? `Análise concluída, com ${failed} anexo(s) não processado(s).` : 'Análise concluída. A resposta sugerida já está disponível.',failed > 0);
