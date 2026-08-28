@@ -6,6 +6,14 @@
     document.head.appendChild(s);
   }
 
+  if (!document.querySelector('script[data-croma-product-gallery]')) {
+    const g = document.createElement('script');
+    g.src = '/js/product-media-gallery.js?v=20260828-1';
+    g.dataset.cromaProductGallery = '1';
+    g.defer = true;
+    document.head.appendChild(g);
+  }
+
   const header = document.querySelector('.topbar');
   if (!header) return;
 
