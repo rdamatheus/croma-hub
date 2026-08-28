@@ -4,9 +4,13 @@ import { protectInternalPage, roleLabel } from './interno-auth.js';
 const MAX_JSON_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 const GENERIC_CHAT_NAMES = ['dados do perfil', 'conversa', 'perfil'];
+const EXPORTER_URL = '/js/croma-whatsapp-exportador.js?v=20260828-1';
 
 const elements = {
   who: document.querySelector('#who'),
+  copyExporter: document.querySelector('#copyExporter'),
+  copyBookmarklet: document.querySelector('#copyBookmarklet'),
+  exporterStatus: document.querySelector('#exporterStatus'),
   jsonFile: document.querySelector('#jsonFile'),
   attachmentFiles: document.querySelector('#attachmentFiles'),
   jsonPreview: document.querySelector('#jsonPreview'),
@@ -40,6 +44,7 @@ const elements = {
 let staffSession = null;
 let importedPayload = null;
 let attachmentFiles = [];
+let exporterSourcePromise = null;
 
 function escapeHtml(value=''){
   return String(value).replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
@@ -48,6 +53,59 @@ function escapeHtml(value=''){
 function setStatus(message='', isError=false){
   elements.formStatus.textContent = message;
   elements.formStatus.classList.toggle('error', isError);
+}
+
+function setExporterStatus(message='',isError=false){
+  elements.exporterStatus.textContent = message;
+  elements.exporterStatus.classList.toggle('error',isError);
+}
+
+async function copyToClipboard(value){
+  try{
+    await navigator.clipboard.writeText(value);
+  }catch(error){
+    const area = document.createElement('textarea');
+    area.value = value;
+    area.setAttribute('readonly','');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand('copy');
+    area.remove();
+    if(!copied) throw error;
+  }
+}
+
+async function loadExporterSource(){
+  if(!exporterSourcePromise){
+    exporterSourcePromise = fetch(EXPORTER_URL,{cache:'no-store'}).then(response => {
+      if(!response.ok) throw new Error('O arquivo do exportador ainda não está disponível.');
+      return response.text();
+    });
+  }
+  return exporterSourcePromise;
+}
+
+async function copyExporter(asBookmarklet=false){
+  const button = asBookmarklet ? elements.copyBookmarklet : elements.copyExporter;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Copiando…';
+  setExporterStatus('');
+  try{
+    const source = await loadExporterSource();
+    const content = asBookmarklet ? `javascript:${encodeURIComponent(source)}` : source;
+    await copyToClipboard(content);
+    setExporterStatus(asBookmarklet
+      ? 'Favorito copiado. Crie um novo favorito no Chrome, cole no campo URL e depois clique nele quando estiver no WhatsApp Web.'
+      : 'Código copiado. No WhatsApp Web, digite javascript: na barra de endereços, cole o código depois dos dois-pontos e pressione Enter.');
+  }catch(error){
+    setExporterStatus(`Não foi possível copiar: ${error.message}`,true);
+  }finally{
+    button.disabled = false;
+    button.textContent = original;
+  }
 }
 
 function setProgress(value=0){
@@ -362,6 +420,13 @@ async function functionErrorMessage(error,data){
   return error?.message || 'Erro desconhecido na função de processamento.';
 }
 
+function friendlyProcessError(message){
+  if(/OPENAI_API_KEY|chave da API da OpenAI/i.test(message)){
+    return 'A chave da OpenAI ainda não está configurada. Enquanto isso, use “Copiar código” para extrair a conversa e colar diretamente no ChatGPT.';
+  }
+  return message;
+}
+
 async function processAtendimento(id,button){
   const original = button.textContent;
   button.disabled = true;
@@ -375,7 +440,7 @@ async function processAtendimento(id,button){
     setStatus(failed ? `Análise concluída, com ${failed} anexo(s) não processado(s).` : 'Análise concluída. A resposta sugerida já está disponível.',failed > 0);
     await Promise.all([loadAtendimentos(),showDetail(id)]);
   }catch(error){
-    setStatus(`Não foi possível processar com IA: ${error.message}`,true);
+    setStatus(`Não foi possível processar com IA: ${friendlyProcessError(error.message)}`,true);
   }finally{
     button.disabled = false;
     button.textContent = original;
@@ -451,6 +516,9 @@ async function deleteAtendimento(id,name){
   setStatus('Atendimento de teste excluído.');
   await loadAtendimentos();
 }
+
+elements.copyExporter.addEventListener('click',() => copyExporter(false));
+elements.copyBookmarklet.addEventListener('click',() => copyExporter(true));
 
 elements.jsonFile.addEventListener('change',async event => {
   setStatus('');
