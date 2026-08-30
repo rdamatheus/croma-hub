@@ -22,7 +22,7 @@
     <p class="internal-lead">Importe o histórico gerado pelo Exportador Croma e associe os arquivos que o cliente enviou. Esta área usa tabelas próprias de laboratório e não altera pedidos, produtos, preços ou clientes oficiais.</p>
 
     <section class="lab-banner">
-      <div><strong>Fluxo de validação</strong><p>1. Exporte o JSON no WhatsApp. 2. Baixe os anexos desejados. 3. Importe e salve tudo aqui. 4. Clique em “Processar com IA”. 5. Confira o resumo e a resposta sugerida.</p></div>
+      <div><strong>Fluxo de validação</strong><p>1. No WhatsApp, clique no ícone ✦ do Exportador Croma. 2. A conversa será recebida neste laboratório. 3. Salve o atendimento. 4. Clique em “Processar com IA”. 5. Confira o resumo e a resposta sugerida.</p></div>
       <span class="lab-badge">LAB · removível</span>
     </section>
 
@@ -30,8 +30,8 @@
       <div>
         <span class="internal-eyebrow">Exportador Croma</span>
         <h2>Levar a conversa do WhatsApp para o laboratório</h2>
-        <p class="hint">O código roda somente dentro do WhatsApp Web e cria um painel para copiar a conversa, baixar TXT, CSV e JSON e salvar imagens e PDFs visíveis separadamente.</p>
-        <ol class="exporter-steps"><li>Abra o WhatsApp Web e a conversa desejada.</li><li>Role para cima até carregar o histórico e os anexos necessários.</li><li>Execute o código copiado ou use o favorito de um clique.</li><li>Para os anexos, clique em “Baixar imagens e PDFs visíveis”; o Chrome poderá pedir permissão para vários downloads.</li></ol>
+        <p class="hint">O código roda somente dentro do WhatsApp Web. O painel pode ser arrastado e redimensionado, baixa texto ou um ZIP organizado e envia a conversa diretamente para este laboratório pelo ícone ✦.</p>
+        <ol class="exporter-steps"><li>Abra o WhatsApp Web e a conversa desejada.</li><li>Role para cima até carregar o histórico necessário.</li><li>Execute o código copiado ou use o favorito de um clique.</li><li>Para reunir anexos, abra “Mídia, links e docs” e use a coleta por etapas do botão “Baixar com mídia”.</li></ol>
       </div>
       <div class="exporter-actions">
         <button class="internal-btn" id="copyExporter" type="button">Copiar código</button>
@@ -47,8 +47,8 @@
         <p class="hint">Os arquivos só são enviados quando você clicar em “Salvar atendimento”.</p>
 
         <label class="drop" for="jsonFile">
-          <strong>1. Histórico em JSON</strong>
-          <span class="hint">Arquivo criado pelo botão “Baixar JSON” do exportador.</span>
+          <strong>1. Histórico em JSON — modo legado</strong>
+          <span class="hint">Para o fluxo novo, use o ícone ✦ no painel do WhatsApp. Este campo permanece apenas para arquivos JSON exportados anteriormente.</span>
           <input id="jsonFile" type="file" accept="application/json,.json">
         </label>
 
@@ -105,6 +105,6 @@
     </div>
   </main>
 
-  <script type="module" src="/js/whatsapp-lab.js?v=20260830-1"></script>
+  <script type="module" src="/js/whatsapp-lab.js?v=20260830-2"></script>
 </body>
 </html>
