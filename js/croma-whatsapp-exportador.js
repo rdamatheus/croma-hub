@@ -3,8 +3,11 @@
 
   const APP_ID = "croma-wa-exportador-v1";
   const STYLE_ID = APP_ID + "-style";
-  const VERSION = "1.1.0";
-  const ATTACHMENT_LIMIT = 40;
+  const VERSION = "1.2.0";
+  const ATTACHMENT_LIMIT = 250;
+  const MAX_ARCHIVE_BYTES = 500 * 1024 * 1024;
+  const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
+  const PANEL_STORAGE_KEY = "croma-wa-exportador-layout-v1";
 
   if (!/^(web\.)?whatsapp\.com$/i.test(location.hostname)) {
     alert("Abra o WhatsApp Web antes de executar o Exportador Croma.");
@@ -128,75 +131,169 @@
     return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
   }
 
-  function attachmentDownloadControls(roots) {
-    const selector = [
-      '[data-icon*="download" i]',
-      '[aria-label*="baixar" i]',
-      '[aria-label*="download" i]',
-      '[title*="baixar" i]',
-      '[title*="download" i]'
-    ].join(",");
-    const controls = roots.flatMap((root) => [...root.querySelectorAll(selector)]).map((element) =>
-      element.closest('button, [role="button"], a') || element
-    );
-    return [...new Set(controls)].filter((element) => !element.closest("#" + APP_ID) && visible(element));
+  function attachmentSourcesOnScreen() {
+    const seen = new Set(state.collectedUrls);
+    return [...document.querySelectorAll("img[src], video[src], audio[src], source[src], a[href]")]
+      .filter((element) => !element.closest("#" + APP_ID) && visible(element))
+      .map((element) => ({
+        element,
+        url: element.currentSrc || element.getAttribute("src") || element.getAttribute("href") || ""
+      }))
+      .filter(({ element, url }) => {
+        if (!/^(?:blob:|data:|https:)/i.test(url) || seen.has(url)) return false;
+        if (/^https:/i.test(url) && !/(?:whatsapp\.net|fbcdn\.net|whatsapp\.com)/i.test(url)) return false;
+        if (element.tagName === "IMG") {
+          const width = element.naturalWidth || element.clientWidth;
+          const height = element.naturalHeight || element.clientHeight;
+          const description = [element.alt, element.getAttribute("aria-label"), element.getAttribute("title")].filter(Boolean).join(" ");
+          if ((width < 64 && height < 64) || /(emoji|avatar|foto do perfil|profile photo)/i.test(description)) return false;
+        }
+        seen.add(url);
+        return true;
+      });
   }
 
-  function loadedAttachmentSources(roots) {
-    const candidates = roots.flatMap((root) => [...root.querySelectorAll("img[src], video[src], audio[src], a[href]")].map((element) => ({ root, element })));
-    const seen = new Set();
-    return candidates.filter(({ element }) => {
-      const url = element.currentSrc || element.getAttribute("src") || element.getAttribute("href") || "";
-      if (!/^(?:blob:|data:)/i.test(url) || seen.has(url)) return false;
-      if (element.tagName === "IMG") {
-        const width = element.naturalWidth || element.clientWidth;
-        const height = element.naturalHeight || element.clientHeight;
-        const description = [element.alt, element.getAttribute("aria-label")].filter(Boolean).join(" ");
-        if ((width < 96 && height < 96) || /(emoji|avatar|foto do perfil|profile photo)/i.test(description)) return false;
-      }
-      seen.add(url);
-      return true;
-    }).map(({ root, element }) => ({
-      root,
-      element,
-      url: element.currentSrc || element.getAttribute("src") || element.getAttribute("href")
-    }));
+  function archiveFolder(blob, fileName) {
+    const type = String(blob.type || "").toLowerCase();
+    if (/^(?:image|video|audio)\//.test(type) || /\.(?:jpe?g|png|webp|gif|mp4|mov|avi|mp3|m4a|ogg|wav)$/i.test(fileName)) return "midias";
+    return "documentos";
   }
 
-  async function downloadVisibleAttachments() {
-    const main = document.querySelector("#main");
-    if (!main) throw new Error("Abra uma conversa antes de baixar os anexos.");
-    const roots = messageRoots(main);
-    if (!roots.length) throw new Error("Nenhuma mensagem carregada foi encontrada. Abra a conversa e role o histórico.");
+  function uniqueArchivePath(folder, fileName) {
+    const cleanName = safeFileName(fileName);
+    let path = folder + "/" + cleanName;
+    let index = 2;
+    while (state.collectedFiles.has(path)) {
+      const dot = cleanName.lastIndexOf(".");
+      const base = dot > 0 ? cleanName.slice(0, dot) : cleanName;
+      const extension = dot > 0 ? cleanName.slice(dot) : "";
+      path = folder + "/" + base + " (" + index + ")" + extension;
+      index += 1;
+    }
+    return path;
+  }
 
-    const controls = attachmentDownloadControls(roots).slice(0, ATTACHMENT_LIMIT);
-    controls.forEach((control) => control.click());
-    if (controls.length) await wait(1600);
+  function sourceRoot(element) {
+    return element.closest("[data-id], [role=listitem], [role=row]") || element.parentElement || document.body;
+  }
 
-    const sources = loadedAttachmentSources(roots).slice(0, ATTACHMENT_LIMIT);
-    let saved = 0;
+  function updateCollector() {
+    if (!collectorCount) return;
+    const files = [...state.collectedFiles.values()];
+    const media = files.filter((file) => file.folder === "midias").length;
+    const documents = files.filter((file) => file.folder === "documentos").length;
+    collectorCount.textContent = media + " mídia(s) · " + documents + " documento(s) coletado(s)";
+  }
+
+  async function collectCurrentAttachments() {
+    if (!document.querySelector("#main")) throw new Error("Abra uma conversa antes de coletar os anexos.");
+    const sources = attachmentSourcesOnScreen().slice(0, Math.max(0, ATTACHMENT_LIMIT - state.collectedFiles.size));
+    let added = 0;
     for (let index = 0; index < sources.length; index += 1) {
       const source = sources[index];
       try {
+        toast("Coletando anexo " + (index + 1) + " de " + sources.length + "…");
         const response = await fetch(source.url);
         if (!response.ok) throw new Error("Falha ao ler o anexo.");
         const blob = await response.blob();
+        const collectedBytes = [...state.collectedFiles.values()].reduce((total, file) => total + file.blob.size, 0);
+        if (!blob.size || blob.size > MAX_ATTACHMENT_BYTES || collectedBytes + blob.size > MAX_ARCHIVE_BYTES) continue;
         const extension = extensionForMime(blob.type || (source.element.tagName === "IMG" ? "image/jpeg" : ""));
-        downloadBlob(blob, fileNameFromRoot(source.root, index + 1, extension));
-        saved += 1;
-        await wait(180);
+        const name = fileNameFromRoot(sourceRoot(source.element), state.collectedFiles.size + 1, extension);
+        const folder = archiveFolder(blob, name);
+        const path = uniqueArchivePath(folder, name);
+        state.collectedFiles.set(path, { path, folder, blob });
+        state.collectedUrls.add(source.url);
+        added += 1;
       } catch (error) {
-        // Alguns anexos só podem ser obtidos pelo botão de download original do WhatsApp.
+        // O WhatsApp nem sempre expõe o arquivo original antes que a prévia seja aberta.
       }
     }
+    updateCollector();
+    if (!added) throw new Error("Nenhum arquivo novo foi encontrado nesta tela. Role a galeria, abra a prévia ou mude para Documentos e tente novamente.");
+    toast(added + " novo(s) anexo(s) adicionado(s). Você pode mudar de aba e continuar coletando.");
+  }
 
-    if (!saved && !controls.length) {
-      throw new Error("Nenhuma imagem ou arquivo disponível foi encontrado. Abra o anexo ou clique na prévia e tente novamente.");
+  function littleEndian(value, bytes) {
+    const result = new Uint8Array(bytes);
+    for (let index = 0; index < bytes; index += 1) result[index] = (value >>> (index * 8)) & 255;
+    return result;
+  }
+
+  function joinBytes(parts) {
+    const size = parts.reduce((total, part) => total + part.length, 0);
+    const result = new Uint8Array(size);
+    let offset = 0;
+    parts.forEach((part) => {
+      result.set(part, offset);
+      offset += part.length;
+    });
+    return result;
+  }
+
+  const CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let number = 0; number < 256; number += 1) {
+      let crc = number;
+      for (let bit = 0; bit < 8; bit += 1) crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+      table[number] = crc >>> 0;
     }
-    const parts = [];
-    if (saved) parts.push(saved + (saved === 1 ? " mídia carregada foi salva" : " mídias carregadas foram salvas"));
-    if (controls.length) parts.push(controls.length + (controls.length === 1 ? " download do WhatsApp foi acionado" : " downloads do WhatsApp foram acionados"));
-    toast(parts.join("; ") + ". O Chrome pode pedir permissão para vários downloads.");
+    return table;
+  })();
+
+  function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (let index = 0; index < bytes.length; index += 1) crc = CRC_TABLE[(crc ^ bytes[index]) & 255] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  async function createZip(files) {
+    const encoder = new TextEncoder();
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+    for (const file of files) {
+      const name = encoder.encode(file.path.replace(/^\/+/, ""));
+      const data = new Uint8Array(await file.blob.arrayBuffer());
+      const checksum = crc32(data);
+      const localHeader = joinBytes([
+        littleEndian(0x04034b50, 4), littleEndian(20, 2), littleEndian(0, 2), littleEndian(0, 2),
+        littleEndian(0, 2), littleEndian(0, 2), littleEndian(checksum, 4), littleEndian(data.length, 4),
+        littleEndian(data.length, 4), littleEndian(name.length, 2), littleEndian(0, 2), name
+      ]);
+      localParts.push(localHeader, data);
+      centralParts.push(joinBytes([
+        littleEndian(0x02014b50, 4), littleEndian(20, 2), littleEndian(20, 2), littleEndian(0, 2),
+        littleEndian(0, 2), littleEndian(0, 2), littleEndian(0, 2), littleEndian(checksum, 4),
+        littleEndian(data.length, 4), littleEndian(data.length, 4), littleEndian(name.length, 2),
+        littleEndian(0, 2), littleEndian(0, 2), littleEndian(0, 2), littleEndian(0, 2),
+        littleEndian(0, 4), littleEndian(offset, 4), name
+      ]));
+      offset += localHeader.length + data.length;
+    }
+    const central = joinBytes(centralParts);
+    const end = joinBytes([
+      littleEndian(0x06054b50, 4), littleEndian(0, 2), littleEndian(0, 2), littleEndian(files.length, 2),
+      littleEndian(files.length, 2), littleEndian(central.length, 4), littleEndian(offset, 4), littleEndian(0, 2)
+    ]);
+    return new Blob([...localParts, central, end], { type: "application/zip" });
+  }
+
+  async function generateMediaZip() {
+    const data = extractOpenChat();
+    const textBlob = new Blob([conversationText(data)], { type: "text/plain;charset=utf-8" });
+    const files = [{ path: "texto/conversa.txt", blob: textBlob }, ...state.collectedFiles.values()];
+    toast("Montando o arquivo ZIP com " + files.length + " item(ns)…");
+    const zip = await createZip(files);
+    downloadBlob(zip, currentBaseName(data) + " - completo.zip");
+    toast("ZIP criado com texto, mídias e documentos coletados.");
+  }
+
+  function clearCollectedAttachments() {
+    state.collectedFiles.clear();
+    state.collectedUrls.clear();
+    updateCollector();
+    toast("Coleta de anexos limpa.");
   }
 
   async function copyText(text) {
@@ -474,36 +571,39 @@
     return safeFileName("WhatsApp - " + privacy(data.chat.name) + " - " + date);
   }
 
+  function consultAI() {
+    const data = extractOpenChat();
+    const target = window.open("https://www.cromapel.com.br/interno/whatsapp-lab/?receber=whatsapp", "croma-whatsapp-lab");
+    if (!target) throw new Error("O navegador bloqueou a abertura do laboratório. Permita pop-ups e tente novamente.");
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      try {
+        target.postMessage({ type: "croma-whatsapp-import", payload: data }, "https://www.cromapel.com.br");
+      } catch (error) {
+        // A nova aba pode ainda estar carregando ou redirecionando para o login.
+      }
+      if (attempts >= 20 || target.closed) clearInterval(timer);
+    }, 750);
+    toast("Conversa enviada para o Laboratório Croma. Continue na nova aba para consultar a IA.");
+  }
+
   async function run(action) {
     try {
-      if (action === "attachments") {
-        await downloadVisibleAttachments();
+      if (action === "ai") {
+        consultAI();
         return;
       }
-      if (action === "sidebar") {
-        const rows = extractSidebar();
-        downloadFile(sidebarCsv(rows), "WhatsApp - lista carregada - " + new Date().toISOString().slice(0, 10) + ".csv", "text/csv");
-        toast(rows.length + " conversas carregadas foram salvas em CSV.");
+      if (action === "media") {
+        collector.hidden = !collector.hidden;
+        if (!collector.hidden) updateCollector();
         return;
       }
       const data = extractOpenChat();
       const baseName = currentBaseName(data);
-      if (action === "copy") {
-        try {
-          await copyText(conversationText(data));
-          toast(data.count + " mensagens copiadas. Agora você pode colar no ChatGPT.");
-        } catch (error) {
-          toast("Não foi possível copiar. Use uma das opções de download.", true);
-        }
-      } else if (action === "txt") {
+      if (action === "txt") {
         downloadFile(conversationText(data), baseName + ".txt", "text/plain");
         toast(data.count + " mensagens salvas em TXT.");
-      } else if (action === "csv") {
-        downloadFile(conversationCsv(data), baseName + ".csv", "text/csv");
-        toast(data.count + " mensagens salvas em CSV.");
-      } else if (action === "json") {
-        downloadFile(privateJson(data), baseName + ".json", "application/json");
-        toast(data.count + " mensagens salvas em JSON.");
       }
     } catch (error) {
       toast(error && error.message ? error.message : "Não foi possível extrair.", true);
@@ -515,18 +615,25 @@
     includeMedia: true,
     includeQuotes: true,
     includeReactions: true,
-    anonymize: false
+    anonymize: false,
+    collectedFiles: new Map(),
+    collectedUrls: new Set()
   };
 
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    #${APP_ID}{position:fixed;right:16px;top:58px;width:340px;z-index:2147483647;background:#f8faf9;color:#17201c;border:1px solid #ccd7d1;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.28);font-family:Arial,sans-serif;font-size:14px;overflow:hidden}
+    #${APP_ID}{position:fixed;right:16px;top:58px;width:360px;height:520px;min-width:300px;min-height:360px;max-width:92vw;max-height:90vh;resize:both;z-index:2147483647;background:#f8faf9;color:#17201c;border:1px solid #ccd7d1;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.28);font-family:Arial,sans-serif;font-size:14px;overflow:hidden}
+    #${APP_ID}::after{content:"";position:absolute;right:3px;bottom:3px;width:13px;height:13px;pointer-events:none;background:repeating-linear-gradient(135deg,transparent 0 3px,#6d7d76 3px 4px);opacity:.7}
     #${APP_ID} *{box-sizing:border-box}
-    #${APP_ID} header{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:#075e54;color:#fff}
+    #${APP_ID} header{display:flex;align-items:center;justify-content:space-between;height:48px;padding:10px 12px;background:#075e54;color:#fff;cursor:move;user-select:none;touch-action:none}
     #${APP_ID} header strong{font-size:15px}
-    #${APP_ID} header button{border:0;background:transparent;color:#fff;font-size:22px;line-height:1;cursor:pointer;padding:0 2px}
-    #${APP_ID} .croma-body{padding:13px 14px}
+    #${APP_ID} .croma-drag{font-size:18px;letter-spacing:-3px;opacity:.75;margin-left:auto;margin-right:10px}
+    #${APP_ID} .croma-header-actions{display:flex;align-items:center;gap:5px}
+    #${APP_ID} header button{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:7px;background:rgba(255,255,255,.12);color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:0}
+    #${APP_ID} header button:hover{background:rgba(255,255,255,.24)}
+    #${APP_ID} header [data-action="ai"]{font-size:15px}
+    #${APP_ID} .croma-body{height:calc(100% - 48px);padding:13px 14px 20px;overflow:auto}
     #${APP_ID} .croma-note{font-size:12px;line-height:1.35;color:#52625b;margin:0 0 12px}
     #${APP_ID} label{display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer}
     #${APP_ID} select{width:100%;margin:5px 0 7px;padding:8px;border:1px solid #b9c7c0;border-radius:8px;background:#fff;color:#17201c}
@@ -535,8 +642,14 @@
     #${APP_ID} .croma-action:hover{background:#0d7468}
     #${APP_ID} .croma-secondary{background:#e4ece8;color:#173e35}
     #${APP_ID} .croma-secondary:hover{background:#d1ded8}
-    #${APP_ID} .croma-wide{grid-column:1/-1}
-    #${APP_ID} .croma-attachment-note{margin:9px 0 0;font-size:11px;line-height:1.35;color:#52625b}
+    #${APP_ID} .croma-action:disabled{opacity:.58;cursor:wait}
+    #${APP_ID} .croma-collector{margin-top:10px;padding:10px;border:1px solid #cbd9d2;border-radius:10px;background:#fff}
+    #${APP_ID} .croma-collector[hidden]{display:none}
+    #${APP_ID} .croma-collector p{margin:0 0 8px;font-size:11px;line-height:1.4;color:#52625b}
+    #${APP_ID} .croma-collector strong{display:block;margin-bottom:8px;font-size:12px;color:#175c49}
+    #${APP_ID} .croma-collector-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    #${APP_ID} .croma-collector-actions button{padding:8px 6px;font-size:11px}
+    #${APP_ID} .croma-collector-actions [data-collector="clear"]{grid-column:1/-1;background:#eef2f0;color:#53635c}
     #${APP_ID} .croma-status{margin-top:11px;padding:8px 9px;border-radius:8px;background:#e7f5ef;color:#175c49;font-size:12px;line-height:1.35}
     #${APP_ID} .croma-status[data-error="1"]{background:#ffe9e7;color:#8a241c}
     #${APP_ID} .croma-footer{margin-top:9px;font-size:10px;color:#74827b;text-align:center}
@@ -546,9 +659,16 @@
   const panel = document.createElement("section");
   panel.id = APP_ID;
   panel.innerHTML = `
-    <header><strong>Exportador Croma</strong><button type="button" data-close aria-label="Fechar">×</button></header>
+    <header data-drag-header>
+      <strong>Exportador Croma</strong>
+      <span class="croma-drag" title="Arraste para mover">⠿</span>
+      <span class="croma-header-actions">
+        <button type="button" data-action="ai" aria-label="Consultar IA" title="Consultar IA">✦</button>
+        <button type="button" data-close aria-label="Fechar" title="Fechar">×</button>
+      </span>
+    </header>
     <div class="croma-body">
-      <p class="croma-note">Extrai somente a conversa aberta e as mensagens já carregadas. Para buscar mensagens antigas, role a conversa para cima antes.</p>
+      <p class="croma-note">Arraste pelo cabeçalho e redimensione pela esquina inferior direita. O conteúdo é processado localmente.</p>
       <label for="croma-limit">Quantidade de mensagens:</label>
       <select id="croma-limit">
         <option value="0">Todas as carregadas</option>
@@ -562,21 +682,86 @@
       <label><input type="checkbox" data-option="includeReactions" checked> Incluir reações e status disponíveis</label>
       <label><input type="checkbox" data-option="anonymize"> Ocultar telefone, e-mail, CPF e CNPJ</label>
       <div class="croma-grid">
-        <button class="croma-action croma-wide" type="button" data-action="copy">Copiar para o ChatGPT</button>
-        <button class="croma-action croma-wide" type="button" data-action="attachments">Baixar imagens e PDFs visíveis</button>
-        <button class="croma-action" type="button" data-action="txt">Baixar TXT</button>
-        <button class="croma-action" type="button" data-action="csv">Baixar CSV</button>
-        <button class="croma-action" type="button" data-action="json">Baixar JSON</button>
-        <button class="croma-action croma-secondary" type="button" data-action="sidebar">Lista lateral CSV</button>
+        <button class="croma-action" type="button" data-action="txt">Baixar texto</button>
+        <button class="croma-action" type="button" data-action="media">Baixar com mídia</button>
       </div>
-      <p class="croma-attachment-note">Os anexos são salvos separadamente. Abra ou carregue as imagens e PDFs desejados antes de baixar. Limite de ${ATTACHMENT_LIMIT} por clique.</p>
+      <section class="croma-collector" data-collector-box hidden>
+        <p>Abra “Mídia, links e docs”, role a aba de mídias e clique em “Adicionar tela atual”. Depois faça o mesmo na aba Documentos. Repita durante a rolagem e finalize o ZIP.</p>
+        <strong data-collector-count>0 mídia(s) · 0 documento(s) coletado(s)</strong>
+        <div class="croma-collector-actions">
+          <button class="croma-action" type="button" data-collector="collect">Adicionar tela atual</button>
+          <button class="croma-action" type="button" data-collector="zip">Gerar ZIP</button>
+          <button class="croma-action" type="button" data-collector="clear">Limpar coleta</button>
+        </div>
+      </section>
       <div class="croma-status" data-error="0">Pronto para extrair.</div>
-      <div class="croma-footer">Processamento local · nenhum envio automático · v${VERSION}</div>
+      <div class="croma-footer">ZIP: texto/ · midias/ · documentos/ · limite ${ATTACHMENT_LIMIT} · v${VERSION}</div>
     </div>
   `;
   document.body.appendChild(panel);
 
   const statusBox = panel.querySelector(".croma-status");
+  const collector = panel.querySelector("[data-collector-box]");
+  const collectorCount = panel.querySelector("[data-collector-count]");
+  const dragHeader = panel.querySelector("[data-drag-header]");
+
+  function savePanelLayout() {
+    try {
+      const rect = panel.getBoundingClientRect();
+      localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ left: rect.left, top: rect.top, width: rect.width, height: rect.height }));
+    } catch (error) {
+      // O painel continua funcionando quando o armazenamento local estiver bloqueado.
+    }
+  }
+
+  function restorePanelLayout() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PANEL_STORAGE_KEY) || "null");
+      if (!saved) return;
+      const width = Math.min(Math.max(Number(saved.width) || 360, 300), window.innerWidth * 0.92);
+      const height = Math.min(Math.max(Number(saved.height) || 520, 360), window.innerHeight * 0.9);
+      const left = Math.min(Math.max(Number(saved.left) || 0, 0), Math.max(0, window.innerWidth - width));
+      const top = Math.min(Math.max(Number(saved.top) || 0, 0), Math.max(0, window.innerHeight - height));
+      Object.assign(panel.style, { right: "auto", left: left + "px", top: top + "px", width: width + "px", height: height + "px" });
+    } catch (error) {
+      // Ignora preferências antigas ou inválidas.
+    }
+  }
+
+  restorePanelLayout();
+  let dragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  dragHeader.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button")) return;
+    const rect = panel.getBoundingClientRect();
+    dragging = true;
+    dragOffsetX = event.clientX - rect.left;
+    dragOffsetY = event.clientY - rect.top;
+    panel.style.right = "auto";
+    dragHeader.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  dragHeader.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const rect = panel.getBoundingClientRect();
+    const left = Math.min(Math.max(event.clientX - dragOffsetX, 0), Math.max(0, window.innerWidth - rect.width));
+    const top = Math.min(Math.max(event.clientY - dragOffsetY, 0), Math.max(0, window.innerHeight - rect.height));
+    panel.style.left = left + "px";
+    panel.style.top = top + "px";
+  });
+  const finishDrag = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    if (dragHeader.hasPointerCapture(event.pointerId)) dragHeader.releasePointerCapture(event.pointerId);
+    savePanelLayout();
+  };
+  dragHeader.addEventListener("pointerup", finishDrag);
+  dragHeader.addEventListener("pointercancel", finishDrag);
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => {
+    if (!dragging) savePanelLayout();
+  }).observe(panel);
+
   panel.querySelector("[data-close]").addEventListener("click", () => {
     panel.remove();
     style.remove();
@@ -594,6 +779,20 @@
       button.disabled = true;
       try {
         await run(button.dataset.action);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+  panel.querySelectorAll("[data-collector]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        if (button.dataset.collector === "collect") await collectCurrentAttachments();
+        if (button.dataset.collector === "zip") await generateMediaZip();
+        if (button.dataset.collector === "clear") clearCollectedAttachments();
+      } catch (error) {
+        toast(error && error.message ? error.message : "Não foi possível concluir esta etapa.", true);
       } finally {
         button.disabled = false;
       }
