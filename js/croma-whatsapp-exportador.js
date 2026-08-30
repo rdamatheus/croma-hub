@@ -3,7 +3,7 @@
 
   const APP_ID = "croma-wa-exportador-v1";
   const STYLE_ID = APP_ID + "-style";
-  const VERSION = "1.3.0";
+  const VERSION = "1.4.0";
   const ATTACHMENT_LIMIT = 250;
   const MAX_ARCHIVE_BYTES = 500 * 1024 * 1024;
   const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
@@ -77,6 +77,7 @@
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = fileName;
+    anchor.dataset.cromaInternalDownload = "1";
     anchor.style.display = "none";
     document.body.appendChild(anchor);
     anchor.click();
@@ -126,21 +127,34 @@
   }
 
   function mediaDrawerScope() {
-    const tabPattern = /^(?:m[ií]dia|media|links?|documentos?|docs?)$/i;
-    const tabs = [...document.querySelectorAll('[role="tab"], button, [role="button"]')]
-      .filter((element) => visible(element) && tabPattern.test(clean(element.innerText || element.getAttribute("aria-label"))));
+    const main = document.querySelector("#main");
+    const pane = document.querySelector("#pane-side");
+    const markerPattern = /(?:m[ií]dia(?:s)?(?:,?\s*links?\s*e\s*(?:docs?|documentos?))?|media(?:,?\s*links?\s*(?:and|e)\s*(?:docs?|documents?))?|^documentos?$|^docs?$)/i;
+    const markers = [...document.querySelectorAll('[role="tab"], button, [role="button"], [aria-label], [title], span')]
+      .filter((element) => {
+        if (!visible(element)) return false;
+        const text = clean(element.getAttribute("aria-label") || element.getAttribute("title") || element.innerText);
+        return text.length > 0 && text.length < 100 && markerPattern.test(text);
+      });
     const candidates = [];
-    tabs.forEach((tab) => {
-      let node = tab.parentElement;
-      for (let depth = 0; node && node !== document.body && depth < 9; depth += 1, node = node.parentElement) {
+    markers.forEach((marker) => {
+      let node = marker.parentElement;
+      for (let depth = 0; node && node !== document.body && depth < 12; depth += 1, node = node.parentElement) {
         const rect = node.getBoundingClientRect();
         const text = clean(node.innerText);
-        if (rect.width >= 260 && rect.width <= 900 && rect.height >= 260 && /(m[ií]dia|media)/i.test(text) && /(documentos?|docs?)/i.test(text)) {
-          if (!node.contains(document.querySelector("#pane-side"))) candidates.push(node);
+        const hasMediaContent = node.querySelector("img[src], video, audio, canvas, [data-icon*=download], [aria-label*=download i], [aria-label*=baixar i]");
+        if (rect.width >= 260 && rect.width <= window.innerWidth * 0.95 && rect.height >= 260 && (markerPattern.test(text) || hasMediaContent)) {
+          if ((!main || !node.contains(main)) && (!pane || !node.contains(pane))) candidates.push(node);
           break;
         }
       }
     });
+    [...document.querySelectorAll('[role="dialog"], aside, [data-animate-drawer], [data-testid*=drawer i], [data-testid*=media i]')]
+      .filter((node) => visible(node) && (!main || !node.contains(main)) && (!pane || !node.contains(pane)))
+      .forEach((node) => {
+        const text = clean(node.innerText);
+        if (markerPattern.test(text) || node.querySelector("img[src], video, audio, canvas, [data-icon*=download]")) candidates.push(node);
+      });
     return candidates.sort((first, second) => {
       const a = first.getBoundingClientRect();
       const b = second.getBoundingClientRect();
@@ -160,21 +174,29 @@
   function attachmentSourcesOnScreen() {
     const seen = new Set(state.collectedUrls);
     const scopes = currentAttachmentScopes();
-    return scopes.flatMap((scope) => [...scope.querySelectorAll("img[src], video[src], audio[src], source[src], a[href]")])
-      .filter((element) => !element.closest("#" + APP_ID) && !element.closest("#pane-side, header") && visible(element))
-      .map((element) => ({
-        element,
-        url: element.currentSrc || element.getAttribute("src") || element.getAttribute("href") || ""
-      }))
-      .filter(({ element, url }) => {
-        if (!/^(?:blob:|data:|https:)/i.test(url) || seen.has(url)) return false;
+    const elements = scopes.flatMap((scope) => [...scope.querySelectorAll("img[src], video[src], audio[src], source[src], a[href], [style], canvas")]);
+    const descriptors = elements.flatMap((element) => {
+      if (element.tagName === "CANVAS") return [{ element, kind: "canvas", url: "canvas:" + element.width + "x" + element.height + ":" + elements.indexOf(element) }];
+      const directUrl = element.currentSrc || element.getAttribute("src") || element.getAttribute("href") || "";
+      const background = getComputedStyle(element).backgroundImage || "";
+      const backgroundMatch = background.match(/url\(["']?([^"')]+)["']?\)/i);
+      return [directUrl, backgroundMatch ? backgroundMatch[1] : ""].filter(Boolean).map((url) => ({ element, kind: "url", url }));
+    });
+    return descriptors
+      .filter(({ element }) => !element.closest("#" + APP_ID) && !element.closest("#pane-side, header") && visible(element))
+      .filter(({ element, kind, url }) => {
+        if (seen.has(url)) {
+          if (state.captureActive) state.captureStats.duplicates += 1;
+          return false;
+        }
+        if (kind === "url" && !/^(?:blob:|data:|https:)/i.test(url)) return false;
         if (/^https:/i.test(url) && !/(?:whatsapp\.net|fbcdn\.net|whatsapp\.com)/i.test(url)) return false;
         if (/\bpps\.whatsapp\.net\b/i.test(url)) return false;
-        if (element.tagName === "IMG") {
+        if (element.tagName === "IMG" || element.tagName === "CANVAS") {
           const width = element.naturalWidth || element.clientWidth;
           const height = element.naturalHeight || element.clientHeight;
           const description = [element.alt, element.getAttribute("aria-label"), element.getAttribute("title")].filter(Boolean).join(" ");
-          if ((width < 64 && height < 64) || /(emoji|avatar|foto do perfil|profile photo|imagem do perfil|contact photo)/i.test(description)) return false;
+          if (width < 64 || height < 64 || /(emoji|avatar|foto do perfil|profile photo|imagem do perfil|contact photo)/i.test(description)) return false;
         }
         seen.add(url);
         return true;
@@ -201,6 +223,42 @@
     return path;
   }
 
+  function canvasToBlob(canvas) {
+    return new Promise((resolve, reject) => {
+      try {
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas sem conteúdo acessível.")), "image/png");
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  async function sourceBlob(source) {
+    if (source.kind === "canvas") return canvasToBlob(source.element);
+    if (state.generatedBlobs.has(source.url)) return state.generatedBlobs.get(source.url);
+    const response = await fetch(source.url, { credentials: "include" });
+    if (!response.ok) throw new Error("Falha ao ler o anexo.");
+    return response.blob();
+  }
+
+  function storeCollectedBlob(blob, element, sourceKey, preferredName) {
+    const collectedBytes = [...state.collectedFiles.values()].reduce((total, file) => total + file.blob.size, 0);
+    if (!blob || !blob.size || blob.size > MAX_ATTACHMENT_BYTES || collectedBytes + blob.size > MAX_ARCHIVE_BYTES) {
+      state.captureStats.skipped += 1;
+      return false;
+    }
+    const extension = extensionForMime(blob.type || (element && element.tagName === "IMG" ? "image/jpeg" : ""));
+    const root = element ? sourceRoot(element) : document.querySelector("#main");
+    const name = safeFileName(preferredName || fileNameFromRoot(root, state.collectedFiles.size + 1, extension));
+    const folder = archiveFolder(blob, name);
+    const path = uniqueArchivePath(folder, name.includes(".") ? name : name + "." + extension);
+    state.collectedFiles.set(path, { path, folder, blob });
+    if (sourceKey) state.collectedUrls.add(sourceKey);
+    state.captureStats.added += 1;
+    updateCollector();
+    return true;
+  }
+
   function sourceRoot(element) {
     return element.closest("[data-id], [role=listitem], [role=row]") || element.parentElement || document.body;
   }
@@ -212,6 +270,7 @@
     const documents = files.filter((file) => file.folder === "documentos").length;
     const chat = state.collectionChatName ? state.collectionChatName + " · " : "";
     collectorCount.textContent = chat + media + " mídia(s) · " + documents + " documento(s) coletado(s)";
+    if (collectorStats) collectorStats.textContent = state.captureStats.added + " coletado(s) · " + state.captureStats.duplicates + " duplicado(s) · " + state.captureStats.failed + " falha(s) · " + state.captureStats.skipped + " ignorado(s)";
   }
 
   function currentChatCollection() {
@@ -226,6 +285,8 @@
     if (changed) {
       state.collectedFiles.clear();
       state.collectedUrls.clear();
+      state.generatedBlobs.clear();
+      state.captureStats = { found: 0, added: 0, duplicates: 0, failed: 0, skipped: 0 };
     }
     state.collectionChatKey = chat.key;
     state.collectionChatName = chat.name;
@@ -233,33 +294,62 @@
     return changed;
   }
 
-  async function collectCurrentAttachments() {
+  async function collectCurrentAttachments(options) {
+    const settings = options || {};
+    if (state.collecting) return 0;
+    state.collecting = true;
     const changedConversation = bindCollectionToCurrentChat();
-    const sources = attachmentSourcesOnScreen().slice(0, Math.max(0, ATTACHMENT_LIMIT - state.collectedFiles.size));
-    let added = 0;
-    for (let index = 0; index < sources.length; index += 1) {
-      const source = sources[index];
-      try {
-        toast("Coletando anexo " + (index + 1) + " de " + sources.length + "…");
-        const response = await fetch(source.url);
-        if (!response.ok) throw new Error("Falha ao ler o anexo.");
-        const blob = await response.blob();
-        const collectedBytes = [...state.collectedFiles.values()].reduce((total, file) => total + file.blob.size, 0);
-        if (!blob.size || blob.size > MAX_ATTACHMENT_BYTES || collectedBytes + blob.size > MAX_ARCHIVE_BYTES) continue;
-        const extension = extensionForMime(blob.type || (source.element.tagName === "IMG" ? "image/jpeg" : ""));
-        const name = fileNameFromRoot(sourceRoot(source.element), state.collectedFiles.size + 1, extension);
-        const folder = archiveFolder(blob, name);
-        const path = uniqueArchivePath(folder, name);
-        state.collectedFiles.set(path, { path, folder, blob });
-        state.collectedUrls.add(source.url);
-        added += 1;
-      } catch (error) {
-        // O WhatsApp nem sempre expõe o arquivo original antes que a prévia seja aberta.
+    try {
+      const sources = attachmentSourcesOnScreen().slice(0, Math.max(0, ATTACHMENT_LIMIT - state.collectedFiles.size));
+      state.captureStats.found += sources.length;
+      let added = 0;
+      for (let index = 0; index < sources.length; index += 1) {
+        const source = sources[index];
+        try {
+          if (!settings.silent) toast("Coletando anexo " + (index + 1) + " de " + sources.length + "…");
+          const blob = await sourceBlob(source);
+          if (storeCollectedBlob(blob, source.element, source.url, "")) added += 1;
+        } catch (error) {
+          state.captureStats.failed += 1;
+        }
       }
+      updateCollector();
+      if (!added && !settings.silent) throw new Error("Nenhum arquivo novo foi encontrado. Abra a galeria, role ou clique no download do documento e tente novamente.");
+      if (added && !settings.silent) toast((changedConversation ? "A conversa mudou e a coleta anterior foi limpa. " : "") + added + " novo(s) anexo(s) adicionado(s) desta conversa.");
+      return added;
+    } finally {
+      state.collecting = false;
     }
-    updateCollector();
-    if (!added) throw new Error("Nenhum arquivo novo foi encontrado nesta tela. Role a galeria, abra a prévia ou mude para Documentos e tente novamente.");
-    toast((changedConversation ? "A conversa mudou e a coleta anterior foi limpa. " : "") + added + " novo(s) anexo(s) adicionado(s) desta conversa.");
+  }
+
+  async function captureDownloadAnchor(anchor) {
+    if (!state.captureActive || !anchor || anchor.dataset.cromaInternalDownload === "1") return;
+    const href = anchor.href || anchor.getAttribute("href") || "";
+    if (!/^(?:blob:|data:|https:)/i.test(href)) return;
+    let belongsToCurrentConversation = false;
+    try {
+      belongsToCurrentConversation = currentAttachmentScopes().some((scope) => scope.contains(anchor));
+    } catch (error) {
+      return;
+    }
+    const generatedDownload = Boolean(anchor.download) && /^(?:blob:|data:)/i.test(href) && state.generatedBlobs.has(href);
+    if (!belongsToCurrentConversation && !generatedDownload) return;
+    if (state.collectedUrls.has(href)) {
+      state.captureStats.duplicates += 1;
+      updateCollector();
+      return;
+    }
+    try {
+      bindCollectionToCurrentChat();
+      const blob = state.generatedBlobs.get(href) || await fetch(href, { credentials: "include" }).then((response) => {
+        if (!response.ok) throw new Error("Download inacessível.");
+        return response.blob();
+      });
+      storeCollectedBlob(blob, anchor, href, anchor.download || "");
+    } catch (error) {
+      state.captureStats.failed += 1;
+      updateCollector();
+    }
   }
 
   function littleEndian(value, bytes) {
@@ -332,12 +422,16 @@
     if (state.collectionChatKey && state.collectionChatKey !== chat.key) {
       state.collectedFiles.clear();
       state.collectedUrls.clear();
+      state.generatedBlobs.clear();
       state.collectionChatKey = chat.key;
       state.collectionChatName = chat.name;
+      state.captureStats = { found: 0, added: 0, duplicates: 0, failed: 0, skipped: 0 };
       updateCollector();
       throw new Error("A conversa aberta mudou. A coleta anterior foi limpa; colete os anexos desta conversa antes de gerar o ZIP.");
     }
     if (!state.collectionChatKey) bindCollectionToCurrentChat();
+    await collectCurrentAttachments({ silent: true });
+    stopCaptureMode();
     const data = extractOpenChat();
     const textBlob = new Blob([conversationText(data)], { type: "text/plain;charset=utf-8" });
     const files = [{ path: "texto/conversa.txt", blob: textBlob }, ...state.collectedFiles.values()];
@@ -350,8 +444,10 @@
   function clearCollectedAttachments() {
     state.collectedFiles.clear();
     state.collectedUrls.clear();
+    state.generatedBlobs.clear();
     state.collectionChatKey = "";
     state.collectionChatName = "";
+    state.captureStats = { found: 0, added: 0, duplicates: 0, failed: 0, skipped: 0 };
     updateCollector();
     toast("Coleta de anexos limpa.");
   }
@@ -633,6 +729,9 @@
         if (!collector.hidden) {
           const changed = bindCollectionToCurrentChat();
           if (changed) toast("A conversa mudou e a coleta anterior foi limpa.");
+          startCaptureMode();
+        } else {
+          stopCaptureMode();
         }
         return;
       }
@@ -650,8 +749,12 @@
   const state = {
     collectedFiles: new Map(),
     collectedUrls: new Set(),
+    generatedBlobs: new Map(),
     collectionChatKey: "",
-    collectionChatName: ""
+    collectionChatName: "",
+    captureActive: false,
+    collecting: false,
+    captureStats: { found: 0, added: 0, duplicates: 0, failed: 0, skipped: 0 }
   };
 
   const style = document.createElement("style");
@@ -680,6 +783,7 @@
     #${APP_ID} .croma-collector[hidden]{display:none}
     #${APP_ID} .croma-collector p{margin:0 0 8px;font-size:11px;line-height:1.4;color:#52625b}
     #${APP_ID} .croma-collector strong{display:block;margin-bottom:8px;font-size:12px;color:#175c49}
+    #${APP_ID} .croma-collector small{display:block;margin:-3px 0 9px;color:#6b7771;font-size:10px;line-height:1.35}
     #${APP_ID} .croma-collector-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
     #${APP_ID} .croma-collector-actions button{padding:8px 6px;font-size:11px}
     #${APP_ID} .croma-collector-actions [data-collector="clear"]{grid-column:1/-1;background:#eef2f0;color:#53635c}
@@ -707,11 +811,12 @@
         <button class="croma-action" type="button" data-action="media">Baixar com mídia</button>
       </div>
       <section class="croma-collector" data-collector-box hidden>
-        <p>Abra “Mídia, links e docs”, role a aba de mídias e clique em “Adicionar tela atual”. Depois faça o mesmo na aba Documentos. Repita durante a rolagem e finalize o ZIP.</p>
+        <p>A captura fica ativa enquanto você abre e rola “Mídia, links e docs”. Em documentos, clique no botão de download para o coletor tentar incorporar o arquivo.</p>
         <strong data-collector-count>0 mídia(s) · 0 documento(s) coletado(s)</strong>
+        <small data-collector-stats>0 coletado(s) · 0 duplicado(s) · 0 falha(s) · 0 ignorado(s)</small>
         <div class="croma-collector-actions">
-          <button class="croma-action" type="button" data-collector="collect">Adicionar tela atual</button>
-          <button class="croma-action" type="button" data-collector="zip">Gerar ZIP</button>
+          <button class="croma-action" type="button" data-collector="collect">Capturar tela agora</button>
+          <button class="croma-action" type="button" data-collector="zip">Finalizar e baixar ZIP</button>
           <button class="croma-action" type="button" data-collector="clear">Limpar coleta</button>
         </div>
       </section>
@@ -724,7 +829,59 @@
   const statusBox = panel.querySelector(".croma-status");
   const collector = panel.querySelector("[data-collector-box]");
   const collectorCount = panel.querySelector("[data-collector-count]");
+  const collectorStats = panel.querySelector("[data-collector-stats]");
   const dragHeader = panel.querySelector("[data-drag-header]");
+  const originalCreateObjectURL = URL.createObjectURL;
+  const originalAnchorClick = HTMLAnchorElement.prototype.click;
+  let captureObserver = null;
+  let captureTimer = null;
+
+  URL.createObjectURL = function (blob) {
+    const url = originalCreateObjectURL.call(URL, blob);
+    if (state.captureActive && blob instanceof Blob && !/application\/zip/i.test(blob.type)) state.generatedBlobs.set(url, blob);
+    return url;
+  };
+
+  HTMLAnchorElement.prototype.click = function () {
+    if (state.captureActive && this.dataset.cromaInternalDownload !== "1") captureDownloadAnchor(this);
+    return originalAnchorClick.call(this);
+  };
+
+  function captureDocumentClick(event) {
+    const anchor = event.target.closest && event.target.closest("a[href]");
+    if (anchor) captureDownloadAnchor(anchor);
+  }
+
+  function scheduleAutomaticCapture() {
+    if (!state.captureActive) return;
+    clearTimeout(captureTimer);
+    captureTimer = setTimeout(() => {
+      collectCurrentAttachments({ silent: true }).catch(() => {
+        state.captureStats.failed += 1;
+        updateCollector();
+      });
+    }, 450);
+  }
+
+  function startCaptureMode() {
+    if (state.captureActive) return;
+    state.captureActive = true;
+    const target = document.querySelector("#app") || document.body;
+    captureObserver = new MutationObserver(scheduleAutomaticCapture);
+    captureObserver.observe(target, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "href", "style"] });
+    document.addEventListener("click", captureDocumentClick, true);
+    scheduleAutomaticCapture();
+    toast("Captura ativa. Abra a galeria e role as mídias; nos documentos, clique em baixar.");
+  }
+
+  function stopCaptureMode() {
+    state.captureActive = false;
+    clearTimeout(captureTimer);
+    captureTimer = null;
+    if (captureObserver) captureObserver.disconnect();
+    captureObserver = null;
+    document.removeEventListener("click", captureDocumentClick, true);
+  }
 
   function savePanelLayout() {
     try {
@@ -790,8 +947,10 @@
       if (chat.key === state.collectionChatKey) return;
       state.collectedFiles.clear();
       state.collectedUrls.clear();
+      state.generatedBlobs.clear();
       state.collectionChatKey = "";
       state.collectionChatName = "";
+      state.captureStats = { found: 0, added: 0, duplicates: 0, failed: 0, skipped: 0 };
       updateCollector();
       toast("A conversa aberta mudou. A coleta de anexos anterior foi limpa.");
     } catch (error) {
@@ -800,6 +959,9 @@
   }, 1000);
 
   panel.querySelector("[data-close]").addEventListener("click", () => {
+    stopCaptureMode();
+    URL.createObjectURL = originalCreateObjectURL;
+    HTMLAnchorElement.prototype.click = originalAnchorClick;
     clearInterval(conversationWatcher);
     panel.remove();
     style.remove();
