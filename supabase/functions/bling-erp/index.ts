@@ -3,8 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const BLING_CLIENT_ID = Deno.env.get("BLING_CLIENT_ID") || "";
-const BLING_CLIENT_SECRET = Deno.env.get("BLING_CLIENT_SECRET") || "";
 const REDIRECT_URI =
   Deno.env.get("BLING_REDIRECT_URI") ||
   `${SUPABASE_URL}/functions/v1/bling-erp`;
@@ -12,9 +10,16 @@ const SITE_URL =
   Deno.env.get("CROMA_SITE_URL") ||
   "https://www.cromapel.com.br/interno/bling/";
 const BLING_API = "https://api.bling.com.br/Api/v3";
+const CLIENT_ID_SECRET = "erp_bling_client_id";
+const CLIENT_SECRET_SECRET = "erp_bling_client_secret";
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false },
 });
+
+type BlingCredentials = {
+  clientId: string;
+  clientSecret: string;
+};
 
 const allowedOrigins = new Set([
   "https://www.cromapel.com.br",
@@ -74,15 +79,63 @@ function randomState() {
     .replaceAll("=", "");
 }
 
-function basicAuth() {
-  return `Basic ${btoa(`${BLING_CLIENT_ID}:${BLING_CLIENT_SECRET}`)}`;
+async function readSecret(name: string) {
+  const { data, error } = await admin.rpc("erp_read_secret", { p_name: name });
+  if (error) throw error;
+  return typeof data === "string" ? data : "";
 }
 
-async function exchangeToken(params: URLSearchParams) {
+async function storeSecret(name: string, value: string, description: string) {
+  const { data, error } = await admin.rpc("erp_store_secret", {
+    p_name: name,
+    p_value: value,
+    p_description: description,
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function credentials(required = true): Promise<BlingCredentials | null> {
+  const [clientId, clientSecret] = await Promise.all([
+    readSecret(CLIENT_ID_SECRET),
+    readSecret(CLIENT_SECRET_SECRET),
+  ]);
+  if (!clientId || !clientSecret) {
+    if (required) throw new Error("Credenciais do aplicativo Bling não configuradas.");
+    return null;
+  }
+  return { clientId, clientSecret };
+}
+
+function maskClientId(value: string) {
+  if (!value) return null;
+  const visible = value.slice(-6);
+  return `${"•".repeat(Math.min(12, Math.max(4, value.length - visible.length)))}${visible}`;
+}
+
+function validateCredentialInput(clientId: string, clientSecret: string | null) {
+  if (clientId && !/^[A-Za-z0-9._-]{16,160}$/.test(clientId))
+    throw new Error("Client ID inválido. Copie o valor completo exibido pelo Bling.");
+  if (clientSecret !== null && !/^[^\s]{20,512}$/.test(clientSecret))
+    throw new Error("Client Secret inválido. Copie o valor completo, sem espaços.");
+}
+
+function tokenSecretName(kind: "access" | "refresh", connectionId: string) {
+  return `erp_bling_${kind}_token_${connectionId.replaceAll("-", "")}`;
+}
+
+function basicAuth(currentCredentials: BlingCredentials) {
+  return `Basic ${btoa(`${currentCredentials.clientId}:${currentCredentials.clientSecret}`)}`;
+}
+
+async function exchangeToken(
+  params: URLSearchParams,
+  currentCredentials: BlingCredentials,
+) {
   const response = await fetch(`${BLING_API}/oauth/token`, {
     method: "POST",
     headers: {
-      Authorization: basicAuth(),
+      Authorization: basicAuth(currentCredentials),
       "Content-Type": "application/x-www-form-urlencoded",
       "enable-jwt": "1",
     },
@@ -103,10 +156,24 @@ async function saveTokens(connectionId: string, payload: any) {
   const expiresAt = new Date(
     Date.now() + Math.max(60, Number(payload.expires_in || 3600)) * 1000,
   ).toISOString();
+  const accessTokenSecretName = tokenSecretName("access", connectionId);
+  const refreshTokenSecretName = tokenSecretName("refresh", connectionId);
+  await Promise.all([
+    storeSecret(
+      accessTokenSecretName,
+      String(payload.access_token || ""),
+      "Access token OAuth do Bling",
+    ),
+    storeSecret(
+      refreshTokenSecretName,
+      String(payload.refresh_token || ""),
+      "Refresh token OAuth do Bling",
+    ),
+  ]);
   const { error } = await admin.from("erp_private_tokens").upsert({
     connection_id: connectionId,
-    access_token: payload.access_token,
-    refresh_token: payload.refresh_token,
+    access_token_secret_name: accessTokenSecretName,
+    refresh_token_secret_name: refreshTokenSecretName,
     token_type: payload.token_type || "Bearer",
     scope: payload.scope || null,
     expires_at: expiresAt,
@@ -134,14 +201,17 @@ async function accessToken() {
     .maybeSingle();
   if (error || !token) throw new Error("Bling ainda não conectado.");
   if (new Date(token.expires_at).getTime() > Date.now() + 90_000)
-    return token.access_token;
-  if (!BLING_CLIENT_ID || !BLING_CLIENT_SECRET)
-    throw new Error("Credenciais do aplicativo Bling não configuradas.");
+    return await readSecret(token.access_token_secret_name);
+  const currentCredentials = await credentials();
+  const refreshToken = await readSecret(token.refresh_token_secret_name);
+  if (!currentCredentials || !refreshToken)
+    throw new Error("Credenciais protegidas do Bling indisponíveis.");
   const refreshed = await exchangeToken(
     new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: token.refresh_token,
+      refresh_token: refreshToken,
     }),
+    currentCredentials,
   );
   await saveTokens(connection.id, refreshed);
   return refreshed.access_token;
@@ -222,7 +292,8 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && (url.searchParams.has("code") || url.searchParams.has("error"))) {
       if (url.searchParams.get("error"))
         return page("A autorização foi cancelada ou recusada.", false);
-      if (!BLING_CLIENT_ID || !BLING_CLIENT_SECRET)
+      const currentCredentials = await credentials(false);
+      if (!currentCredentials)
         return page("Credenciais do aplicativo não configuradas.", false);
       const state = url.searchParams.get("state") || "";
       const code = url.searchParams.get("code") || "";
@@ -246,6 +317,7 @@ Deno.serve(async (req: Request) => {
           code,
           redirect_uri: REDIRECT_URI,
         }),
+        currentCredentials,
       );
       await saveTokens(connection.id, tokens);
       await admin
@@ -257,6 +329,12 @@ Deno.serve(async (req: Request) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", connection.id);
+      await admin.from("erp_connection_audit").insert({
+        provider: "bling",
+        action: "authorized",
+        changed_fields: ["oauth_tokens"],
+        performed_by: oauthState.created_by,
+      });
       return page("Bling conectado com segurança.", true);
     }
 
@@ -265,9 +343,114 @@ Deno.serve(async (req: Request) => {
     const input = await req.json();
     const action = String(input.action || "status");
 
+    if (action === "save_credentials") {
+      const connection = await activeConnection();
+      const existing = await credentials(false);
+      const informedClientId = String(input.client_id || "").trim();
+      const informedClientSecret = String(input.client_secret || "").trim();
+      const nextClientId = informedClientId || existing?.clientId || "";
+      const nextClientSecret = informedClientSecret || existing?.clientSecret || "";
+
+      if (!nextClientId || !nextClientSecret)
+        return json(
+          req,
+          { error: "Informe o Client ID e o Client Secret fornecidos pelo Bling." },
+          400,
+        );
+
+      validateCredentialInput(
+        nextClientId,
+        informedClientSecret ? nextClientSecret : null,
+      );
+
+      const changedFields: string[] = [];
+      if (!existing || existing.clientId !== nextClientId) changedFields.push("client_id");
+      if (!existing || existing.clientSecret !== nextClientSecret)
+        changedFields.push("client_secret");
+
+      if (changedFields.length) {
+        const writes = [];
+        if (changedFields.includes("client_id"))
+          writes.push(
+            storeSecret(CLIENT_ID_SECRET, nextClientId, "Client ID do aplicativo Bling"),
+          );
+        if (changedFields.includes("client_secret"))
+          writes.push(
+            storeSecret(
+              CLIENT_SECRET_SECRET,
+              nextClientSecret,
+              "Client Secret do aplicativo Bling",
+            ),
+          );
+        await Promise.all(writes);
+
+        await admin
+          .from("erp_private_tokens")
+          .delete()
+          .eq("connection_id", connection.id);
+
+        const updatedAt = new Date().toISOString();
+        const { error: connectionError } = await admin
+          .from("erp_connections")
+          .update({
+            status: "awaiting_authorization",
+            connected_by: null,
+            last_error: null,
+            config: {
+              ...(connection.config || {}),
+              client_id_hint: maskClientId(nextClientId),
+              credentials_updated_at: updatedAt,
+              credentials_updated_by: user.id,
+            },
+            updated_at: updatedAt,
+          })
+          .eq("id", connection.id);
+        if (connectionError) throw connectionError;
+
+        const { error: auditError } = await admin.from("erp_connection_audit").insert({
+          provider: "bling",
+          action: existing ? "credentials_updated" : "credentials_created",
+          changed_fields: changedFields,
+          performed_by: user.id,
+        });
+        if (auditError) throw auditError;
+      }
+
+      return json(req, {
+        ok: true,
+        credentials_configured: true,
+        client_id_masked: maskClientId(nextClientId),
+        requires_authorization: changedFields.length > 0,
+        message: changedFields.length
+          ? "Credenciais protegidas e salvas. Autorize novamente a conta no Bling."
+          : "Nenhuma alteração foi necessária.",
+      });
+    }
+
+    if (action === "validate_credentials") {
+      const currentCredentials = await credentials();
+      if (!currentCredentials)
+        return json(req, { error: "Credenciais não configuradas." }, 400);
+      validateCredentialInput(currentCredentials.clientId, currentCredentials.clientSecret);
+      await admin.from("erp_connection_audit").insert({
+        provider: "bling",
+        action: "credentials_validated",
+        changed_fields: [],
+        performed_by: user.id,
+      });
+      return json(req, {
+        ok: true,
+        client_id_masked: maskClientId(currentCredentials.clientId),
+        redirect_uri: REDIRECT_URI,
+        message:
+          "Estrutura validada. A confirmação final das credenciais acontece na autorização do Bling.",
+      });
+    }
+
     if (action === "status") {
       const connection = await activeConnection();
-      const [mappings, conflicts, jobs] = await Promise.all([
+      const currentCredentials = await credentials(false);
+      const [mappings, conflicts, jobs, audit] = await Promise.all([
         admin.from("erp_entity_mappings").select("entity_type,sync_status"),
         admin
           .from("erp_sync_conflicts")
@@ -278,6 +461,12 @@ Deno.serve(async (req: Request) => {
           .select("*")
           .order("created_at", { ascending: false })
           .limit(10),
+        admin
+          .from("erp_connection_audit")
+          .select("action,changed_fields,performed_by,created_at")
+          .eq("provider", "bling")
+          .order("created_at", { ascending: false })
+          .limit(5),
       ]);
       const counts: Record<string, number> = {};
       (mappings.data || []).forEach((item: any) => {
@@ -285,22 +474,26 @@ Deno.serve(async (req: Request) => {
       });
       return json(req, {
         connection,
-        credentials_configured: Boolean(BLING_CLIENT_ID && BLING_CLIENT_SECRET),
+        credentials_configured: Boolean(currentCredentials),
+        client_id_masked: maskClientId(currentCredentials?.clientId || ""),
+        credentials_updated_at: connection.config?.credentials_updated_at || null,
         redirect_uri: REDIRECT_URI,
         mappings: counts,
         open_conflicts: conflicts.count || 0,
         recent_jobs: jobs.data || [],
+        recent_credential_events: audit.data || [],
       });
     }
 
     if (action === "authorize") {
-      if (!BLING_CLIENT_ID || !BLING_CLIENT_SECRET)
+      const currentCredentials = await credentials(false);
+      if (!currentCredentials)
         return json(
           req,
           {
             error: "BLING_CREDENTIALS_NOT_CONFIGURED",
             message:
-              "Configure BLING_CLIENT_ID, BLING_CLIENT_SECRET e BLING_REDIRECT_URI nos segredos das Edge Functions.",
+              "Cadastre o Client ID e o Client Secret na configuração da integração.",
             redirect_uri: REDIRECT_URI,
           },
           503,
@@ -319,7 +512,7 @@ Deno.serve(async (req: Request) => {
         .eq("provider", "bling");
       const authorizeUrl = new URL("https://www.bling.com.br/Api/v3/oauth/authorize");
       authorizeUrl.searchParams.set("response_type", "code");
-      authorizeUrl.searchParams.set("client_id", BLING_CLIENT_ID);
+      authorizeUrl.searchParams.set("client_id", currentCredentials.clientId);
       authorizeUrl.searchParams.set("state", state);
       return json(req, { authorize_url: authorizeUrl.toString() });
     }
