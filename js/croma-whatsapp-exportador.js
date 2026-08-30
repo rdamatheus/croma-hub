@@ -3,7 +3,7 @@
 
   const APP_ID = "croma-wa-exportador-v1";
   const STYLE_ID = APP_ID + "-style";
-  const VERSION = "1.2.0";
+  const VERSION = "1.3.0";
   const ATTACHMENT_LIMIT = 250;
   const MAX_ARCHIVE_BYTES = 500 * 1024 * 1024;
   const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
@@ -54,13 +54,7 @@
   }
 
   function privacy(value) {
-    let text = String(value == null ? "" : value);
-    if (!state.anonymize) return text;
-    text = text.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[E-MAIL]");
-    text = text.replace(/\b\d{3}[.\s-]?\d{3}[.\s-]?\d{3}[-.\s]?\d{2}\b/g, "[CPF]");
-    text = text.replace(/\b\d{2}[.\s-]?\d{3}[.\s-]?\d{3}[\/\s-]?\d{4}[-.\s]?\d{2}\b/g, "[CNPJ]");
-    text = text.replace(/(?:\+?55[\s.-]?)?(?:\(?\d{2}\)?[\s.-]?)?(?:9[\s.-]?)?\d{4}[\s.-]?\d{4}/g, "[TELEFONE]");
-    return text;
+    return String(value == null ? "" : value);
   }
 
   function toast(message, isError) {
@@ -131,10 +125,43 @@
     return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
   }
 
+  function mediaDrawerScope() {
+    const tabPattern = /^(?:m[ií]dia|media|links?|documentos?|docs?)$/i;
+    const tabs = [...document.querySelectorAll('[role="tab"], button, [role="button"]')]
+      .filter((element) => visible(element) && tabPattern.test(clean(element.innerText || element.getAttribute("aria-label"))));
+    const candidates = [];
+    tabs.forEach((tab) => {
+      let node = tab.parentElement;
+      for (let depth = 0; node && node !== document.body && depth < 9; depth += 1, node = node.parentElement) {
+        const rect = node.getBoundingClientRect();
+        const text = clean(node.innerText);
+        if (rect.width >= 260 && rect.width <= 900 && rect.height >= 260 && /(m[ií]dia|media)/i.test(text) && /(documentos?|docs?)/i.test(text)) {
+          if (!node.contains(document.querySelector("#pane-side"))) candidates.push(node);
+          break;
+        }
+      }
+    });
+    return candidates.sort((first, second) => {
+      const a = first.getBoundingClientRect();
+      const b = second.getBoundingClientRect();
+      return (a.width * a.height) - (b.width * b.height);
+    })[0] || null;
+  }
+
+  function currentAttachmentScopes() {
+    const main = document.querySelector("#main");
+    if (!main) throw new Error("Abra uma conversa antes de coletar os anexos.");
+    const roots = messageRoots(main);
+    const drawer = mediaDrawerScope();
+    if (drawer) roots.push(drawer);
+    return [...new Set(roots)];
+  }
+
   function attachmentSourcesOnScreen() {
     const seen = new Set(state.collectedUrls);
-    return [...document.querySelectorAll("img[src], video[src], audio[src], source[src], a[href]")]
-      .filter((element) => !element.closest("#" + APP_ID) && visible(element))
+    const scopes = currentAttachmentScopes();
+    return scopes.flatMap((scope) => [...scope.querySelectorAll("img[src], video[src], audio[src], source[src], a[href]")])
+      .filter((element) => !element.closest("#" + APP_ID) && !element.closest("#pane-side, header") && visible(element))
       .map((element) => ({
         element,
         url: element.currentSrc || element.getAttribute("src") || element.getAttribute("href") || ""
@@ -142,11 +169,12 @@
       .filter(({ element, url }) => {
         if (!/^(?:blob:|data:|https:)/i.test(url) || seen.has(url)) return false;
         if (/^https:/i.test(url) && !/(?:whatsapp\.net|fbcdn\.net|whatsapp\.com)/i.test(url)) return false;
+        if (/\bpps\.whatsapp\.net\b/i.test(url)) return false;
         if (element.tagName === "IMG") {
           const width = element.naturalWidth || element.clientWidth;
           const height = element.naturalHeight || element.clientHeight;
           const description = [element.alt, element.getAttribute("aria-label"), element.getAttribute("title")].filter(Boolean).join(" ");
-          if ((width < 64 && height < 64) || /(emoji|avatar|foto do perfil|profile photo)/i.test(description)) return false;
+          if ((width < 64 && height < 64) || /(emoji|avatar|foto do perfil|profile photo|imagem do perfil|contact photo)/i.test(description)) return false;
         }
         seen.add(url);
         return true;
@@ -182,11 +210,31 @@
     const files = [...state.collectedFiles.values()];
     const media = files.filter((file) => file.folder === "midias").length;
     const documents = files.filter((file) => file.folder === "documentos").length;
-    collectorCount.textContent = media + " mídia(s) · " + documents + " documento(s) coletado(s)";
+    const chat = state.collectionChatName ? state.collectionChatName + " · " : "";
+    collectorCount.textContent = chat + media + " mídia(s) · " + documents + " documento(s) coletado(s)";
+  }
+
+  function currentChatCollection() {
+    const chat = getChatHeader();
+    const key = [chat.name, chat.phone, chat.details].map(clean).join("|");
+    return { key, name: chat.name || chat.phone || "Conversa atual" };
+  }
+
+  function bindCollectionToCurrentChat() {
+    const chat = currentChatCollection();
+    const changed = Boolean(state.collectionChatKey && state.collectionChatKey !== chat.key);
+    if (changed) {
+      state.collectedFiles.clear();
+      state.collectedUrls.clear();
+    }
+    state.collectionChatKey = chat.key;
+    state.collectionChatName = chat.name;
+    updateCollector();
+    return changed;
   }
 
   async function collectCurrentAttachments() {
-    if (!document.querySelector("#main")) throw new Error("Abra uma conversa antes de coletar os anexos.");
+    const changedConversation = bindCollectionToCurrentChat();
     const sources = attachmentSourcesOnScreen().slice(0, Math.max(0, ATTACHMENT_LIMIT - state.collectedFiles.size));
     let added = 0;
     for (let index = 0; index < sources.length; index += 1) {
@@ -211,7 +259,7 @@
     }
     updateCollector();
     if (!added) throw new Error("Nenhum arquivo novo foi encontrado nesta tela. Role a galeria, abra a prévia ou mude para Documentos e tente novamente.");
-    toast(added + " novo(s) anexo(s) adicionado(s). Você pode mudar de aba e continuar coletando.");
+    toast((changedConversation ? "A conversa mudou e a coleta anterior foi limpa. " : "") + added + " novo(s) anexo(s) adicionado(s) desta conversa.");
   }
 
   function littleEndian(value, bytes) {
@@ -280,6 +328,16 @@
   }
 
   async function generateMediaZip() {
+    const chat = currentChatCollection();
+    if (state.collectionChatKey && state.collectionChatKey !== chat.key) {
+      state.collectedFiles.clear();
+      state.collectedUrls.clear();
+      state.collectionChatKey = chat.key;
+      state.collectionChatName = chat.name;
+      updateCollector();
+      throw new Error("A conversa aberta mudou. A coleta anterior foi limpa; colete os anexos desta conversa antes de gerar o ZIP.");
+    }
+    if (!state.collectionChatKey) bindCollectionToCurrentChat();
     const data = extractOpenChat();
     const textBlob = new Blob([conversationText(data)], { type: "text/plain;charset=utf-8" });
     const files = [{ path: "texto/conversa.txt", blob: textBlob }, ...state.collectedFiles.values()];
@@ -292,6 +350,8 @@
   function clearCollectedAttachments() {
     state.collectedFiles.clear();
     state.collectedUrls.clear();
+    state.collectionChatKey = "";
+    state.collectionChatName = "";
     updateCollector();
     toast("Coleta de anexos limpa.");
   }
@@ -355,13 +415,12 @@
     const texts = unique(textNodes.map((node) => node.innerText));
     let text = texts.length ? texts[texts.length - 1] : "";
     let quotedText = "";
-    if (state.includeQuotes && texts.length > 1) quotedText = texts.slice(0, -1).join(" | ");
+    if (texts.length > 1) quotedText = texts.slice(0, -1).join(" | ");
     if (!text && metaElement) text = clean(metaElement.innerText);
     return { text, quotedText };
   }
 
   function extractMedia(root) {
-    if (!state.includeMedia) return { types: "", files: "", duration: "" };
     const labels = unique(
       [...root.querySelectorAll("[aria-label], [title]")].flatMap((element) => [
         element.getAttribute("aria-label"),
@@ -377,25 +436,6 @@
     const files = unique(clean(root.innerText).match(filePattern) || []);
     const duration = unique((clean(root.innerText).match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g) || []).filter((value) => !/^\d{1,2}:\d{2}$/.test(value) || root.querySelector("audio,video")));
     return { types: unique(types).join(" | "), files: files.join(" | "), duration: duration.join(" | ") };
-  }
-
-  function extractReactions(root) {
-    if (!state.includeReactions) return "";
-    return unique(
-      [...root.querySelectorAll("[aria-label], [title]")]
-        .flatMap((element) => [element.getAttribute("aria-label"), element.getAttribute("title")])
-        .filter((value) => /(reação|reaction|reagiu|reacted)/i.test(value || ""))
-    ).join(" | ");
-  }
-
-  function extractStatus(root) {
-    const icons = unique([...root.querySelectorAll("[data-icon]")].map((element) => element.getAttribute("data-icon")));
-    if (icons.some((icon) => /msg-time|clock/i.test(icon))) return "pendente";
-    if (icons.some((icon) => /msg-dblcheck/i.test(icon))) return "entregue/lida";
-    if (icons.some((icon) => /msg-check/i.test(icon))) return "enviada";
-    const labels = unique([...root.querySelectorAll("[aria-label]")].map((element) => element.getAttribute("aria-label")));
-    const result = labels.find((label) => /(lida|read|entregue|delivered|enviada|sent|pendente|pending)/i.test(label));
-    return result || "";
   }
 
   function extractOpenChat() {
@@ -429,14 +469,10 @@
         mediaTypes: media.types,
         fileNames: media.files,
         duration: media.duration,
-        reactions: extractReactions(root),
-        deliveryStatus: extractStatus(root),
         rawMetadata: meta.raw
       });
     });
 
-    const limit = Number(state.limit);
-    if (limit > 0 && messages.length > limit) messages = messages.slice(-limit);
     messages = messages.map((message, index) => ({ ...message, sequence: index + 1 }));
     return {
       exporter: "Exportador Croma para WhatsApp Web",
@@ -473,8 +509,6 @@
       if (message.mediaTypes) lines.push("[Mídia: " + privacy(message.mediaTypes) + "]");
       if (message.fileNames) lines.push("[Arquivo: " + privacy(message.fileNames) + "]");
       if (message.duration) lines.push("[Duração: " + message.duration + "]");
-      if (message.reactions) lines.push("[Reações: " + privacy(message.reactions) + "]");
-      if (message.deliveryStatus) lines.push("[Status: " + privacy(message.deliveryStatus) + "]");
       if (!message.text && !message.mediaTypes && !message.fileNames) lines.push("[Mensagem sem texto identificável]");
       lines.push("");
     });
@@ -596,7 +630,10 @@
       }
       if (action === "media") {
         collector.hidden = !collector.hidden;
-        if (!collector.hidden) updateCollector();
+        if (!collector.hidden) {
+          const changed = bindCollectionToCurrentChat();
+          if (changed) toast("A conversa mudou e a coleta anterior foi limpa.");
+        }
         return;
       }
       const data = extractOpenChat();
@@ -611,13 +648,10 @@
   }
 
   const state = {
-    limit: "0",
-    includeMedia: true,
-    includeQuotes: true,
-    includeReactions: true,
-    anonymize: false,
     collectedFiles: new Map(),
-    collectedUrls: new Set()
+    collectedUrls: new Set(),
+    collectionChatKey: "",
+    collectionChatName: ""
   };
 
   const style = document.createElement("style");
@@ -634,9 +668,8 @@
     #${APP_ID} header button:hover{background:rgba(255,255,255,.24)}
     #${APP_ID} header [data-action="ai"]{font-size:15px}
     #${APP_ID} .croma-body{height:calc(100% - 48px);padding:13px 14px 20px;overflow:auto}
-    #${APP_ID} .croma-note{font-size:12px;line-height:1.35;color:#52625b;margin:0 0 12px}
-    #${APP_ID} label{display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer}
-    #${APP_ID} select{width:100%;margin:5px 0 7px;padding:8px;border:1px solid #b9c7c0;border-radius:8px;background:#fff;color:#17201c}
+    #${APP_ID} .croma-scope{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid #cbd9d2;border-radius:9px;background:#fff;color:#52625b;font-size:12px}
+    #${APP_ID} .croma-scope strong{color:#175c49}
     #${APP_ID} .croma-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
     #${APP_ID} .croma-action{border:0;border-radius:9px;padding:10px 8px;background:#128c7e;color:#fff;font-weight:700;cursor:pointer}
     #${APP_ID} .croma-action:hover{background:#0d7468}
@@ -668,19 +701,7 @@
       </span>
     </header>
     <div class="croma-body">
-      <p class="croma-note">Arraste pelo cabeçalho e redimensione pela esquina inferior direita. O conteúdo é processado localmente.</p>
-      <label for="croma-limit">Quantidade de mensagens:</label>
-      <select id="croma-limit">
-        <option value="0">Todas as carregadas</option>
-        <option value="50">Últimas 50</option>
-        <option value="100">Últimas 100</option>
-        <option value="200">Últimas 200</option>
-        <option value="500">Últimas 500</option>
-      </select>
-      <label><input type="checkbox" data-option="includeMedia" checked> Incluir mídias e nomes de arquivos</label>
-      <label><input type="checkbox" data-option="includeQuotes" checked> Incluir respostas citadas</label>
-      <label><input type="checkbox" data-option="includeReactions" checked> Incluir reações e status disponíveis</label>
-      <label><input type="checkbox" data-option="anonymize"> Ocultar telefone, e-mail, CPF e CNPJ</label>
+      <div class="croma-scope"><span>Escopo</span><strong>Conversa atual</strong></div>
       <div class="croma-grid">
         <button class="croma-action" type="button" data-action="txt">Baixar texto</button>
         <button class="croma-action" type="button" data-action="media">Baixar com mídia</button>
@@ -695,7 +716,7 @@
         </div>
       </section>
       <div class="croma-status" data-error="0">Pronto para extrair.</div>
-      <div class="croma-footer">ZIP: texto/ · midias/ · documentos/ · limite ${ATTACHMENT_LIMIT} · v${VERSION}</div>
+      <div class="croma-footer">Conversa atual · ZIP: texto/ · midias/ · documentos/ · v${VERSION}</div>
     </div>
   `;
   document.body.appendChild(panel);
@@ -762,17 +783,26 @@
     if (!dragging) savePanelLayout();
   }).observe(panel);
 
+  const conversationWatcher = setInterval(() => {
+    if (!state.collectionChatKey) return;
+    try {
+      const chat = currentChatCollection();
+      if (chat.key === state.collectionChatKey) return;
+      state.collectedFiles.clear();
+      state.collectedUrls.clear();
+      state.collectionChatKey = "";
+      state.collectionChatName = "";
+      updateCollector();
+      toast("A conversa aberta mudou. A coleta de anexos anterior foi limpa.");
+    } catch (error) {
+      // Aguarda a próxima conversa terminar de carregar.
+    }
+  }, 1000);
+
   panel.querySelector("[data-close]").addEventListener("click", () => {
+    clearInterval(conversationWatcher);
     panel.remove();
     style.remove();
-  });
-  panel.querySelector("#croma-limit").addEventListener("change", (event) => {
-    state.limit = event.target.value;
-  });
-  panel.querySelectorAll("[data-option]").forEach((input) => {
-    input.addEventListener("change", () => {
-      state[input.dataset.option] = input.checked;
-    });
   });
   panel.querySelectorAll("[data-action]").forEach((button) => {
     button.addEventListener("click", async () => {
