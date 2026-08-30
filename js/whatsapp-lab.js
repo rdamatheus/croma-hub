@@ -4,7 +4,7 @@ import { protectInternalPage, roleLabel } from './interno-auth.js';
 const MAX_JSON_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 const GENERIC_CHAT_NAMES = ['dados do perfil', 'conversa', 'perfil'];
-const EXPORTER_URL = '/js/croma-whatsapp-exportador.js?v=20260828-1';
+const EXPORTER_URL = '/js/croma-whatsapp-exportador.js?v=20260830-1';
 
 const elements = {
   who: document.querySelector('#who'),
