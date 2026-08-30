@@ -25,24 +25,38 @@ const credentialState = {
   configured: false,
   clientIdMasked: null,
   updatedAt: null,
+  invitationUrl: null,
 };
 let editingCredentials = false;
 
 async function invoke(body) {
   const { data, error } = await supabase.functions.invoke("bling-erp", { body });
   if (error) {
-    let message = error.message;
+    let message = readableError(error);
     try {
       const response = error.context;
       if (response?.json) {
         const detail = await response.json();
-        message = detail.message || detail.detail || detail.error || message;
+        message = readableError(detail) || message;
       }
     } catch {}
     throw new Error(message);
   }
-  if (data?.error) throw new Error(data.message || data.detail || data.error);
+  if (data?.error) throw new Error(readableError(data));
   return data;
+}
+
+function readableError(value) {
+  if (!value) return "Falha inesperada na integração.";
+  if (typeof value === "string") return value;
+  for (const key of ["message", "detail", "error"]) {
+    if (typeof value[key] === "string") return value[key];
+    if (value[key] && value[key] !== value) {
+      const nested = readableError(value[key]);
+      if (nested) return nested;
+    }
+  }
+  return "Não foi possível concluir a operação do Bling.";
 }
 
 function formatDate(value) {
@@ -68,6 +82,7 @@ function setCredentialEditing(enabled) {
   editingCredentials = enabled;
   $("clientId").disabled = !enabled;
   $("clientSecret").disabled = !enabled;
+  $("invitationUrl").disabled = !enabled;
   $("toggleSecret").disabled = !enabled;
   $("saveCredentials").classList.toggle("hidden", !enabled);
   $("cancelCredentials").classList.toggle("hidden", !enabled);
@@ -75,6 +90,7 @@ function setCredentialEditing(enabled) {
   if (enabled) {
     $("clientId").value = "";
     $("clientSecret").value = "";
+    $("invitationUrl").value = credentialState.invitationUrl || "";
     $("clientSecret").type = "password";
     $("toggleSecret").textContent = "Mostrar";
     $("clientId").placeholder = credentialState.configured
@@ -91,6 +107,7 @@ function renderCredentialStatus(data) {
   credentialState.configured = Boolean(data.credentials_configured);
   credentialState.clientIdMasked = data.client_id_masked || null;
   credentialState.updatedAt = data.credentials_updated_at || null;
+  credentialState.invitationUrl = data.invitation_url || null;
 
   $("credentialsBadge").textContent = credentialState.configured
     ? "🔒 Credenciais protegidas"
@@ -107,6 +124,11 @@ function renderCredentialStatus(data) {
     : "Nenhuma credencial foi cadastrada neste ambiente.";
   $("validateCredentials").disabled = !credentialState.configured;
   $("connect").disabled = !credentialState.configured;
+  $("copyInvitation").disabled = !credentialState.invitationUrl;
+  $("invitationUrl").value = credentialState.invitationUrl || "";
+  $("invitationHint").textContent = credentialState.invitationUrl
+    ? "Link do Bling salvo. Ao conectar, o sistema usará um state temporário novo."
+    : "O sistema validará o domínio e o Client ID antes de salvar.";
   if (!editingCredentials) setCredentialEditing(!credentialState.configured);
 }
 
@@ -172,6 +194,7 @@ $("cancelCredentials").onclick = () => {
   clearCredentialMessage();
   $("clientId").value = "";
   $("clientSecret").value = "";
+  $("invitationUrl").value = credentialState.invitationUrl || "";
   setCredentialEditing(false);
 };
 $("toggleSecret").onclick = () => {
@@ -187,13 +210,24 @@ $("copyRedirect").onclick = async () => {
     setCredentialMessage("Não foi possível copiar automaticamente. Selecione a URL e copie.");
   }
 };
+$("copyInvitation").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(credentialState.invitationUrl || "");
+    setCredentialMessage("Link de convite do Bling copiado.", true);
+  } catch {
+    setCredentialMessage("Não foi possível copiar automaticamente. Selecione o link e copie.");
+  }
+};
 $("credentialsForm").onsubmit = async (event) => {
   event.preventDefault();
   if (!editingCredentials) return;
   const clientId = $("clientId").value.trim();
   const clientSecret = $("clientSecret").value.trim();
-  if (!credentialState.configured && (!clientId || !clientSecret)) {
-    setCredentialMessage("Informe o Client ID e o Client Secret fornecidos pelo Bling.");
+  const invitationUrl = $("invitationUrl").value.trim();
+  if (!credentialState.configured && (!clientId || !clientSecret || !invitationUrl)) {
+    setCredentialMessage(
+      "Informe o Client ID, o Client Secret e o link de convite fornecidos pelo Bling.",
+    );
     return;
   }
   $("saveCredentials").disabled = true;
@@ -204,6 +238,7 @@ $("credentialsForm").onsubmit = async (event) => {
       action: "save_credentials",
       client_id: clientId,
       client_secret: clientSecret,
+      invitation_url: invitationUrl,
     });
     $("clientId").value = "";
     $("clientSecret").value = "";

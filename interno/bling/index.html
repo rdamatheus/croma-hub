@@ -315,10 +315,34 @@
             <div class="form-field wide">
               <label for="redirectUriInput">URL de redirecionamento</label>
               <div class="readonly-row">
-                <input id="redirectUriInput" type="url" readonly value="Carregando…" />
+                <input
+                  id="redirectUriInput"
+                  type="url"
+                  readonly
+                  value="https://xtlubocepsbqanrjabog.supabase.co/functions/v1/bling-erp"
+                />
                 <button class="mini-btn" id="copyRedirect" type="button">Copiar</button>
               </div>
               <small>Esta URL deve ser idêntica à cadastrada no aplicativo do Bling.</small>
+            </div>
+
+            <div class="form-field wide">
+              <label for="invitationUrl">Link de convite fornecido pelo Bling</label>
+              <div class="readonly-row">
+                <input
+                  id="invitationUrl"
+                  name="invitationUrl"
+                  type="url"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Cole o link exibido em Informações do app"
+                  disabled
+                />
+                <button class="mini-btn" id="copyInvitation" type="button" disabled>Copiar</button>
+              </div>
+              <small id="invitationHint">
+                O sistema validará o domínio e o Client ID antes de salvar.
+              </small>
             </div>
           </div>
 
@@ -432,6 +456,6 @@
         </div>
       </section>
     </main>
-    <script type="module" src="/js/interno-bling.js?v=20260830-2"></script>
+    <script type="module" src="/js/interno-bling.js?v=20260830-3"></script>
   </body>
 </html>

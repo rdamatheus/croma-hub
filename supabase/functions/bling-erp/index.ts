@@ -120,6 +120,26 @@ function validateCredentialInput(clientId: string, clientSecret: string | null) 
     throw new Error("Client Secret inválido. Copie o valor completo, sem espaços.");
 }
 
+function validateInvitationUrl(value: string, clientId: string) {
+  let invitation: URL;
+  try {
+    invitation = new URL(value);
+  } catch {
+    throw new Error("Link de convite inválido. Copie o endereço completo fornecido pelo Bling.");
+  }
+  const validHost = invitation.hostname.toLowerCase() === "www.bling.com.br";
+  const validPath = invitation.pathname === "/Api/v3/oauth/authorize";
+  if (invitation.protocol !== "https:" || !validHost || !validPath)
+    throw new Error("O link de convite precisa pertencer ao endereço oficial do Bling.");
+  if (invitation.searchParams.get("response_type") !== "code")
+    throw new Error("O link de convite não utiliza o fluxo Authorization Code esperado.");
+  if (invitation.searchParams.get("client_id") !== clientId)
+    throw new Error("O Client ID do link de convite é diferente do Client ID informado.");
+  if (!/^[A-Za-z0-9._~-]{16,512}$/.test(invitation.searchParams.get("state") || ""))
+    throw new Error("O link de convite do Bling não contém um state válido.");
+  return invitation.toString();
+}
+
 function tokenSecretName(kind: "access" | "refresh", connectionId: string) {
   return `erp_bling_${kind}_token_${connectionId.replaceAll("-", "")}`;
 }
@@ -348,8 +368,11 @@ Deno.serve(async (req: Request) => {
       const existing = await credentials(false);
       const informedClientId = String(input.client_id || "").trim();
       const informedClientSecret = String(input.client_secret || "").trim();
+      const informedInvitationUrl = String(input.invitation_url || "").trim();
       const nextClientId = informedClientId || existing?.clientId || "";
       const nextClientSecret = informedClientSecret || existing?.clientSecret || "";
+      const existingInvitationUrl = String(connection.config?.invitation_url || "");
+      const nextInvitationUrl = informedInvitationUrl || existingInvitationUrl;
 
       if (!nextClientId || !nextClientSecret)
         return json(
@@ -362,11 +385,16 @@ Deno.serve(async (req: Request) => {
         nextClientId,
         informedClientSecret ? nextClientSecret : null,
       );
+      if (!nextInvitationUrl)
+        return json(req, { error: "Informe o link de convite fornecido pelo Bling." }, 400);
+      const validatedInvitationUrl = validateInvitationUrl(nextInvitationUrl, nextClientId);
 
       const changedFields: string[] = [];
       if (!existing || existing.clientId !== nextClientId) changedFields.push("client_id");
       if (!existing || existing.clientSecret !== nextClientSecret)
         changedFields.push("client_secret");
+      if (existingInvitationUrl !== validatedInvitationUrl)
+        changedFields.push("invitation_url");
 
       if (changedFields.length) {
         const writes = [];
@@ -401,6 +429,7 @@ Deno.serve(async (req: Request) => {
               client_id_hint: maskClientId(nextClientId),
               credentials_updated_at: updatedAt,
               credentials_updated_by: user.id,
+              invitation_url: validatedInvitationUrl,
             },
             updated_at: updatedAt,
           })
@@ -420,6 +449,7 @@ Deno.serve(async (req: Request) => {
         ok: true,
         credentials_configured: true,
         client_id_masked: maskClientId(nextClientId),
+        invitation_url: validatedInvitationUrl,
         requires_authorization: changedFields.length > 0,
         message: changedFields.length
           ? "Credenciais protegidas e salvas. Autorize novamente a conta no Bling."
@@ -432,6 +462,11 @@ Deno.serve(async (req: Request) => {
       if (!currentCredentials)
         return json(req, { error: "Credenciais não configuradas." }, 400);
       validateCredentialInput(currentCredentials.clientId, currentCredentials.clientSecret);
+      const connection = await activeConnection();
+      const invitationUrl = String(connection.config?.invitation_url || "");
+      if (!invitationUrl)
+        return json(req, { error: "Link de convite não configurado." }, 400);
+      validateInvitationUrl(invitationUrl, currentCredentials.clientId);
       await admin.from("erp_connection_audit").insert({
         provider: "bling",
         action: "credentials_validated",
@@ -477,6 +512,7 @@ Deno.serve(async (req: Request) => {
         credentials_configured: Boolean(currentCredentials),
         client_id_masked: maskClientId(currentCredentials?.clientId || ""),
         credentials_updated_at: connection.config?.credentials_updated_at || null,
+        invitation_url: connection.config?.invitation_url || null,
         redirect_uri: REDIRECT_URI,
         mappings: counts,
         open_conflicts: conflicts.count || 0,
