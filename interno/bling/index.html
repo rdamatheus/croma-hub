@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Bling ERP | Croma Hub</title>
+    <link rel="stylesheet" href="/css/interno-base.css?v=20260827-1" />
+    <style>
+      .hero-grid,
+      .entity-grid,
+      .setup-grid {
+        display: grid;
+        gap: 14px;
+      }
+      .hero-grid {
+        grid-template-columns: 1.5fr 0.8fr;
+        align-items: stretch;
+      }
+      .entity-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .setup-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .status-card {
+        padding: 22px;
+        border-radius: 22px;
+        color: #fff;
+        background: linear-gradient(145deg, #211c5c, #30297f);
+      }
+      .status-card strong {
+        display: block;
+        font-size: 1.65rem;
+        margin: 8px 0;
+      }
+      .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ffd866;
+        margin-right: 7px;
+      }
+      .status-dot.connected {
+        background: #9bdd62;
+      }
+      .entity {
+        border: 1px solid var(--croma-line);
+        background: #fff;
+        border-radius: 18px;
+        padding: 17px;
+      }
+      .entity h3,
+      .step h3 {
+        margin: 7px 0;
+        color: var(--croma-deep);
+      }
+      .entity p,
+      .step p {
+        color: var(--croma-muted);
+        line-height: 1.45;
+        min-height: 62px;
+      }
+      .entity small {
+        color: var(--croma-muted);
+      }
+      .count {
+        font-size: 1.7rem;
+        font-weight: 900;
+        color: var(--croma-purple);
+      }
+      .step {
+        border-left: 4px solid var(--croma-purple);
+        background: #f8f7fc;
+        border-radius: 14px;
+        padding: 15px;
+      }
+      .step b {
+        color: var(--croma-purple);
+      }
+      .toolbar {
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+      .notice {
+        padding: 13px 15px;
+        border-radius: 13px;
+        background: #fff6d8;
+        color: #655900;
+        line-height: 1.5;
+      }
+      .notice.ok {
+        background: #eef8e7;
+        color: #426920;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 11px 9px;
+        border-bottom: 1px solid var(--croma-line);
+      }
+      th {
+        color: var(--croma-muted);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+      }
+      code {
+        word-break: break-all;
+      }
+      @media (max-width: 900px) {
+        .hero-grid,
+        .entity-grid,
+        .setup-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 620px) {
+        .hero-grid,
+        .entity-grid,
+        .setup-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body hidden>
+    <header class="internal-header">
+      <a href="../">← Painel interno</a><strong>Integrações · Bling ERP</strong>
+    </header>
+    <main class="internal-shell">
+      <span class="internal-eyebrow">ERP e operação</span>
+      <h1 class="internal-title">Integração Bling</h1>
+      <p class="internal-lead">
+        Conexão controlada entre o Bling e o Croma Hub para produtos, clientes,
+        pedidos e estoque. Nenhuma alteração automática será ligada antes da
+        conferência dos campos e correspondências.
+      </p>
+
+      <section class="hero-grid">
+        <div class="internal-card">
+          <h2>Central da integração</h2>
+          <p class="internal-muted">
+            A primeira sincronização será uma leitura comparativa. Depois da
+            revisão, cada módulo poderá receber criação, consulta, atualização
+            e exclusão conforme as regras do cadastro.
+          </p>
+          <div class="toolbar">
+            <button class="internal-btn" id="connect">Conectar ao Bling</button>
+            <button class="internal-btn secondary" id="refresh">
+              Atualizar diagnóstico
+            </button>
+          </div>
+          <p class="notice" id="message">Carregando situação da conexão…</p>
+        </div>
+        <aside class="status-card">
+          <span><i class="status-dot" id="statusDot"></i>Situação</span>
+          <strong id="statusLabel">Verificando…</strong>
+          <span id="lastSync">Nenhuma sincronização realizada.</span>
+        </aside>
+      </section>
+
+      <section class="internal-card">
+        <h2>Cadastros da primeira fase</h2>
+        <div class="entity-grid">
+          <article class="entity">
+            <span class="internal-eyebrow">Catálogo</span>
+            <h3>Produtos</h3>
+            <p>Consultar, criar, atualizar e inativar produtos e variações.</p>
+            <div class="count" id="countProduct">0</div>
+            <small>correspondências cadastradas</small>
+          </article>
+          <article class="entity">
+            <span class="internal-eyebrow">CRM</span>
+            <h3>Clientes</h3>
+            <p>Relacionar contatos do Bling aos clientes do Croma Hub.</p>
+            <div class="count" id="countCustomer">0</div>
+            <small>correspondências cadastradas</small>
+          </article>
+          <article class="entity">
+            <span class="internal-eyebrow">Vendas</span>
+            <h3>Pedidos</h3>
+            <p>Importar e enviar pedidos preservando itens e situação.</p>
+            <div class="count" id="countOrder">0</div>
+            <small>correspondências cadastradas</small>
+          </article>
+          <article class="entity">
+            <span class="internal-eyebrow">Operação</span>
+            <h3>Estoque</h3>
+            <p>Consultar saldos e registrar movimentações por depósito.</p>
+            <div class="count" id="countStock">0</div>
+            <small>correspondências cadastradas</small>
+          </article>
+        </div>
+      </section>
+
+      <section class="internal-card">
+        <h2>Ativação segura</h2>
+        <div class="setup-grid">
+          <article class="step">
+            <b>1. Aplicativo Bling</b>
+            <h3>Credenciais e escopos</h3>
+            <p>
+              Criar o aplicativo e habilitar os escopos de produtos, contatos,
+              pedidos de venda, depósitos e estoque.
+            </p>
+          </article>
+          <article class="step">
+            <b>2. Autorização</b>
+            <h3>OAuth 2.0 com JWT</h3>
+            <p>
+              O proprietário autoriza a conta. Tokens ficam protegidos no
+              Supabase e são renovados no servidor.
+            </p>
+          </article>
+          <article class="step">
+            <b>3. Comparação</b>
+            <h3>Sem sobrescrever dados</h3>
+            <p>
+              O sistema identifica iguais, novos e divergentes antes de liberar
+              a sincronização bidirecional.
+            </p>
+          </article>
+        </div>
+        <p class="notice" style="margin-top: 14px">
+          URL de redirecionamento para cadastrar no Bling:<br />
+          <code id="redirectUri">carregando…</code>
+        </p>
+      </section>
+
+      <section class="internal-card">
+        <h2>Últimas operações</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Cadastro</th>
+                <th>Operação</th>
+                <th>Situação</th>
+                <th>Resultado</th>
+              </tr>
+            </thead>
+            <tbody id="jobs">
+              <tr><td colspan="5">Nenhuma operação registrada.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/js/interno-bling.js?v=20260830-1"></script>
+  </body>
+</html>

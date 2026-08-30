@@ -40,6 +40,7 @@
         <div class="category-head"><div><h2>Clientes, pedidos e catálogo</h2><p>Dados comerciais oficiais do site.</p></div><span class="tag">Supabase</span></div>
         <div class="internal-grid">
           <a class="module" href="cadastros/"><span class="icon">🧾</span><h3>Clientes, pedidos e produtos</h3><p>Consulta e CRUD dos clientes, pedidos e produtos publicados no site.</p><span class="internal-pill ok">Fonte oficial</span><span class="go">Abrir cadastros →</span></a>
+          <a class="module owner-only" href="bling/"><span class="icon">🔄</span><h3>Integração Bling ERP</h3><p>Conexão, correspondências e sincronização controlada de produtos, clientes, pedidos e estoque.</p><span class="internal-pill">Somente proprietário</span><span class="go">Configurar Bling →</span></a>
           <a class="module" href="precificacao-impressoes/"><span class="icon">🖨️</span><h3>Precificação de impressões</h3><p>Faixas de quantidade, formatos e preços usados no configurador de impressão.</p><span class="go">Editar preços →</span></a>
           <a class="module" href="configuracoes-producao/"><span class="icon">⚙️</span><h3>Regras de produção</h3><p>Margens, espaçamento, limites de recorte e aproveitamento técnico dos configuradores.</p><span class="internal-pill ok">Centralizado</span><span class="go">Configurar produção →</span></a>
           <a class="module" href="gestao/"><span class="icon">📊</span><h3>Gestão</h3><p>Prioridades, produção, financeiro e alertas gerenciais.</p><span class="go">Abrir gestão →</span></a>
@@ -88,7 +89,7 @@
     import { getStaffSession, signInStaff, signOutStaff, roleLabel } from '/js/interno-auth.js?v=20260822-1';
     const loginView=document.querySelector('#loginView'),app=document.querySelector('#app'),form=document.querySelector('#loginForm'),errorBox=document.querySelector('#loginError'),who=document.querySelector('#who');
     const next=new URLSearchParams(location.search).get('next');
-    function showApp(session){loginView.hidden=true;app.hidden=false;who.textContent=`${session.profile.nome || session.user.email} · ${roleLabel(session.profile.role)}`;if(next&&next.startsWith('/interno/')&&next!==location.pathname){location.href=next}}
+    function showApp(session){loginView.hidden=true;app.hidden=false;who.textContent=`${session.profile.nome || session.user.email} · ${roleLabel(session.profile.role)}`;document.querySelectorAll('.owner-only').forEach(element=>element.hidden=session.profile.role!=='owner');if(next&&next.startsWith('/interno/')&&next!==location.pathname){location.href=next}}
     function showLogin(message=''){app.hidden=true;loginView.hidden=false;errorBox.textContent=message}
     try{const session=await getStaffSession();session.profile?showApp(session):showLogin()}catch{showLogin('Não foi possível validar o acesso. Tente novamente.')}
     form.addEventListener('submit',async event=>{event.preventDefault();errorBox.textContent='';try{const session=await signInStaff(email.value,password.value);showApp(session)}catch(error){showLogin(error.message==='Conta sem acesso à área interna.'?error.message:'E-mail ou senha inválidos.')}});
