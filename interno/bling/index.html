@@ -95,6 +95,94 @@
         background: #eef8e7;
         color: #426920;
       }
+      .config-head,
+      .config-actions,
+      .secret-row,
+      .readonly-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .config-head {
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+      }
+      .config-head h2 {
+        margin: 0 0 7px;
+      }
+      .config-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .form-field {
+        display: grid;
+        gap: 7px;
+      }
+      .form-field.wide {
+        grid-column: 1 / -1;
+      }
+      .form-field label {
+        color: var(--croma-deep);
+        font-weight: 800;
+      }
+      .form-field input {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--croma-line);
+        border-radius: 12px;
+        padding: 12px 13px;
+        color: var(--croma-deep);
+        background: #fff;
+        font: inherit;
+      }
+      .form-field input:disabled,
+      .form-field input[readonly] {
+        color: var(--croma-muted);
+        background: #f7f6fa;
+      }
+      .secret-row input,
+      .readonly-row input {
+        flex: 1;
+      }
+      .mini-btn {
+        border: 1px solid var(--croma-line);
+        border-radius: 11px;
+        padding: 10px 12px;
+        color: var(--croma-purple);
+        background: #fff;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .config-actions {
+        flex-wrap: wrap;
+        margin-top: 17px;
+      }
+      .config-meta {
+        margin: 14px 0 0;
+        color: var(--croma-muted);
+        font-size: 0.92rem;
+      }
+      .security-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        padding: 8px 11px;
+        color: #655900;
+        background: #fff6d8;
+        font-size: 0.86rem;
+        font-weight: 800;
+      }
+      .security-badge.ready {
+        color: #426920;
+        background: #eef8e7;
+      }
+      .hidden {
+        display: none !important;
+      }
       .table-wrap {
         overflow-x: auto;
       }
@@ -126,8 +214,15 @@
       @media (max-width: 620px) {
         .hero-grid,
         .entity-grid,
-        .setup-grid {
+        .setup-grid,
+        .config-grid {
           grid-template-columns: 1fr;
+        }
+        .form-field.wide {
+          grid-column: auto;
+        }
+        .config-head {
+          flex-direction: column;
         }
       }
     </style>
@@ -154,7 +249,7 @@
             e exclusão conforme as regras do cadastro.
           </p>
           <div class="toolbar">
-            <button class="internal-btn" id="connect">Conectar ao Bling</button>
+            <button class="internal-btn" id="connect" disabled>Conectar ao Bling</button>
             <button class="internal-btn secondary" id="refresh">
               Atualizar diagnóstico
             </button>
@@ -166,6 +261,87 @@
           <strong id="statusLabel">Verificando…</strong>
           <span id="lastSync">Nenhuma sincronização realizada.</span>
         </aside>
+      </section>
+
+      <section class="internal-card" id="connectionConfig">
+        <div class="config-head">
+          <div>
+            <h2>Configuração da conexão</h2>
+            <p class="internal-muted">
+              Cadastre as credenciais exibidas em <b>Informações do app</b> no
+              Bling. O segredo será criptografado e não ficará visível depois de
+              salvo.
+            </p>
+          </div>
+          <span class="security-badge" id="credentialsBadge">🔒 Não configurado</span>
+        </div>
+
+        <form id="credentialsForm" novalidate>
+          <div class="config-grid">
+            <div class="form-field">
+              <label for="clientId">Client ID</label>
+              <input
+                id="clientId"
+                name="clientId"
+                type="text"
+                inputmode="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Cole o Client ID fornecido pelo Bling"
+                disabled
+              />
+              <small id="clientIdHint">Nenhum Client ID salvo.</small>
+            </div>
+
+            <div class="form-field">
+              <label for="clientSecret">Client Secret</label>
+              <div class="secret-row">
+                <input
+                  id="clientSecret"
+                  name="clientSecret"
+                  type="password"
+                  autocomplete="new-password"
+                  spellcheck="false"
+                  placeholder="Cole o Client Secret fornecido pelo Bling"
+                  disabled
+                />
+                <button class="mini-btn" id="toggleSecret" type="button" disabled>
+                  Mostrar
+                </button>
+              </div>
+              <small id="secretHint">O valor nunca será devolvido ao navegador.</small>
+            </div>
+
+            <div class="form-field wide">
+              <label for="redirectUriInput">URL de redirecionamento</label>
+              <div class="readonly-row">
+                <input id="redirectUriInput" type="url" readonly value="Carregando…" />
+                <button class="mini-btn" id="copyRedirect" type="button">Copiar</button>
+              </div>
+              <small>Esta URL deve ser idêntica à cadastrada no aplicativo do Bling.</small>
+            </div>
+          </div>
+
+          <div class="config-actions">
+            <button class="internal-btn secondary" id="editCredentials" type="button">
+              Editar configuração
+            </button>
+            <button class="internal-btn hidden" id="saveCredentials" type="submit">
+              Salvar configuração
+            </button>
+            <button class="internal-btn secondary hidden" id="cancelCredentials" type="button">
+              Cancelar alteração
+            </button>
+            <button class="internal-btn secondary" id="validateCredentials" type="button" disabled>
+              Testar segurança
+            </button>
+          </div>
+        </form>
+
+        <p class="config-meta" id="credentialsMeta">
+          Nenhuma credencial foi cadastrada neste ambiente.
+        </p>
+        <p class="notice hidden" id="credentialsMessage" role="status"></p>
       </section>
 
       <section class="internal-card">
@@ -256,6 +432,6 @@
         </div>
       </section>
     </main>
-    <script type="module" src="/js/interno-bling.js?v=20260830-1"></script>
+    <script type="module" src="/js/interno-bling.js?v=20260830-2"></script>
   </body>
 </html>
