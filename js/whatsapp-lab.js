@@ -4,7 +4,7 @@ import { protectInternalPage, roleLabel } from './interno-auth.js';
 const MAX_JSON_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 const GENERIC_CHAT_NAMES = ['dados do perfil', 'conversa', 'perfil'];
-const EXPORTER_URL = '/js/croma-whatsapp-exportador.js?v=20260830-1';
+const EXPORTER_URL = '/js/croma-whatsapp-exportador.js?v=20260830-2';
 
 const elements = {
   who: document.querySelector('#who'),
@@ -149,6 +149,20 @@ function normalizePayload(payload){
     })
   };
 }
+
+window.addEventListener('message',event => {
+  if(event.origin !== 'https://web.whatsapp.com') return;
+  if(event.data?.type !== 'croma-whatsapp-import') return;
+  try{
+    importedPayload = normalizePayload(event.data.payload);
+    renderPayloadPreview();
+    refreshSaveState();
+    setStatus(`${importedPayload.messages.length} mensagens recebidas do WhatsApp. Salve o atendimento e clique em “Processar com IA”.`);
+    window.focus();
+  }catch(error){
+    setStatus(`Não foi possível receber a conversa do WhatsApp: ${error.message}`,true);
+  }
+});
 
 function payloadPeriod(payload){
   const messages = payload.messages || [];
