@@ -21,6 +21,12 @@ const labels = {
   error: "Erro de conexão",
   disconnected: "Desconectado",
 };
+const credentialState = {
+  configured: false,
+  clientIdMasked: null,
+  updatedAt: null,
+};
+let editingCredentials = false;
 
 async function invoke(body) {
   const { data, error } = await supabase.functions.invoke("bling-erp", { body });
@@ -48,6 +54,62 @@ function formatDate(value) {
     : "—";
 }
 
+function setCredentialMessage(message, ok = false) {
+  $("credentialsMessage").textContent = message;
+  $("credentialsMessage").className = `notice ${ok ? "ok" : ""}`;
+}
+
+function clearCredentialMessage() {
+  $("credentialsMessage").textContent = "";
+  $("credentialsMessage").className = "notice hidden";
+}
+
+function setCredentialEditing(enabled) {
+  editingCredentials = enabled;
+  $("clientId").disabled = !enabled;
+  $("clientSecret").disabled = !enabled;
+  $("toggleSecret").disabled = !enabled;
+  $("saveCredentials").classList.toggle("hidden", !enabled);
+  $("cancelCredentials").classList.toggle("hidden", !enabled);
+  $("editCredentials").classList.toggle("hidden", enabled);
+  if (enabled) {
+    $("clientId").value = "";
+    $("clientSecret").value = "";
+    $("clientSecret").type = "password";
+    $("toggleSecret").textContent = "Mostrar";
+    $("clientId").placeholder = credentialState.configured
+      ? "Deixe em branco para manter o Client ID atual"
+      : "Cole o Client ID fornecido pelo Bling";
+    $("clientSecret").placeholder = credentialState.configured
+      ? "Deixe em branco para manter o segredo atual"
+      : "Cole o Client Secret fornecido pelo Bling";
+    $("clientId").focus();
+  }
+}
+
+function renderCredentialStatus(data) {
+  credentialState.configured = Boolean(data.credentials_configured);
+  credentialState.clientIdMasked = data.client_id_masked || null;
+  credentialState.updatedAt = data.credentials_updated_at || null;
+
+  $("credentialsBadge").textContent = credentialState.configured
+    ? "🔒 Credenciais protegidas"
+    : "🔒 Não configurado";
+  $("credentialsBadge").classList.toggle("ready", credentialState.configured);
+  $("clientIdHint").textContent = credentialState.clientIdMasked
+    ? `Client ID salvo: ${credentialState.clientIdMasked}`
+    : "Nenhum Client ID salvo.";
+  $("secretHint").textContent = credentialState.configured
+    ? "Segredo configurado. Deixe o campo vazio para mantê-lo."
+    : "O valor nunca será devolvido ao navegador.";
+  $("credentialsMeta").textContent = credentialState.updatedAt
+    ? `Última alteração: ${formatDate(credentialState.updatedAt)}. O valor secreto permanece oculto.`
+    : "Nenhuma credencial foi cadastrada neste ambiente.";
+  $("validateCredentials").disabled = !credentialState.configured;
+  $("connect").disabled = !credentialState.configured;
+  if (!editingCredentials) setCredentialEditing(!credentialState.configured);
+}
+
 function showUrlMessage() {
   const params = new URLSearchParams(location.search);
   const status = params.get("bling");
@@ -71,7 +133,9 @@ async function load() {
       ? `Última sincronização: ${formatDate(connection.last_sync_at)}`
       : "Nenhuma sincronização realizada.";
     $("redirectUri").textContent = data.redirect_uri || "—";
+    $("redirectUriInput").value = data.redirect_uri || "";
     $("connect").textContent = connected ? "Reautorizar Bling" : "Conectar ao Bling";
+    renderCredentialStatus(data);
     ["product", "customer", "order", "stock"].forEach((entity) => {
       $(`count${entity[0].toUpperCase()}${entity.slice(1)}`).textContent =
         data.mappings?.[entity] || 0;
@@ -82,7 +146,7 @@ async function load() {
         ? `Conexão ativa. ${data.open_conflicts || 0} conflito(s) aguardando revisão.`
         : data.credentials_configured
           ? "Credenciais prontas. Clique em Conectar ao Bling para autorizar a conta."
-          : "A estrutura está pronta. Falta cadastrar as credenciais do aplicativo Bling nos segredos do Supabase.";
+          : "Cadastre o Client ID e o Client Secret na configuração da conexão.";
     }
     const jobs = data.recent_jobs || [];
     $("jobs").innerHTML = jobs.length
@@ -100,6 +164,71 @@ async function load() {
 }
 
 $("refresh").onclick = load;
+$("editCredentials").onclick = () => {
+  clearCredentialMessage();
+  setCredentialEditing(true);
+};
+$("cancelCredentials").onclick = () => {
+  clearCredentialMessage();
+  $("clientId").value = "";
+  $("clientSecret").value = "";
+  setCredentialEditing(false);
+};
+$("toggleSecret").onclick = () => {
+  const showing = $("clientSecret").type === "text";
+  $("clientSecret").type = showing ? "password" : "text";
+  $("toggleSecret").textContent = showing ? "Mostrar" : "Ocultar";
+};
+$("copyRedirect").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($("redirectUriInput").value);
+    setCredentialMessage("URL de redirecionamento copiada.", true);
+  } catch {
+    setCredentialMessage("Não foi possível copiar automaticamente. Selecione a URL e copie.");
+  }
+};
+$("credentialsForm").onsubmit = async (event) => {
+  event.preventDefault();
+  if (!editingCredentials) return;
+  const clientId = $("clientId").value.trim();
+  const clientSecret = $("clientSecret").value.trim();
+  if (!credentialState.configured && (!clientId || !clientSecret)) {
+    setCredentialMessage("Informe o Client ID e o Client Secret fornecidos pelo Bling.");
+    return;
+  }
+  $("saveCredentials").disabled = true;
+  $("cancelCredentials").disabled = true;
+  setCredentialMessage("Protegendo e salvando as credenciais…");
+  try {
+    const data = await invoke({
+      action: "save_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    });
+    $("clientId").value = "";
+    $("clientSecret").value = "";
+    setCredentialEditing(false);
+    setCredentialMessage(data.message || "Configuração salva com segurança.", true);
+    await load();
+  } catch (error) {
+    setCredentialMessage(error.message || "Não foi possível salvar a configuração.");
+  } finally {
+    $("saveCredentials").disabled = false;
+    $("cancelCredentials").disabled = false;
+  }
+};
+$("validateCredentials").onclick = async () => {
+  $("validateCredentials").disabled = true;
+  setCredentialMessage("Validando a configuração protegida…");
+  try {
+    const data = await invoke({ action: "validate_credentials" });
+    setCredentialMessage(data.message || "Configuração validada.", true);
+  } catch (error) {
+    setCredentialMessage(error.message || "A configuração não pôde ser validada.");
+  } finally {
+    $("validateCredentials").disabled = !credentialState.configured;
+  }
+};
 $("connect").onclick = async () => {
   $("connect").disabled = true;
   $("message").textContent = "Preparando autorização segura…";
