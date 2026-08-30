@@ -3,7 +3,8 @@
 
   const APP_ID = "croma-wa-exportador-v1";
   const STYLE_ID = APP_ID + "-style";
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
+  const ATTACHMENT_LIMIT = 40;
 
   if (!/^(web\.)?whatsapp\.com$/i.test(location.hostname)) {
     alert("Abra o WhatsApp Web antes de executar o Exportador Croma.");
@@ -71,6 +72,10 @@
 
   function downloadFile(content, fileName, mimeType) {
     const blob = new Blob([content], { type: mimeType + ";charset=utf-8" });
+    downloadBlob(blob, fileName);
+  }
+
+  function downloadBlob(blob, fileName) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -80,6 +85,118 @@
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+
+  function wait(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  function extensionForMime(mimeType) {
+    const normalized = String(mimeType || "").split(";")[0].toLowerCase();
+    const extensions = {
+      "application/pdf": "pdf",
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+      "video/mp4": "mp4",
+      "audio/mpeg": "mp3",
+      "audio/mp4": "m4a",
+      "audio/ogg": "ogg",
+      "audio/wav": "wav"
+    };
+    return extensions[normalized] || (normalized.includes("/") ? normalized.split("/")[1].replace(/[^a-z0-9]/g, "") : "") || "bin";
+  }
+
+  function messageRoots(main) {
+    const roots = [...main.querySelectorAll("[data-pre-plain-text]")].map((metaElement) =>
+      metaElement.closest("[data-id]") || metaElement.closest(".message-in, .message-out") || metaElement.parentElement
+    );
+    return [...new Set(roots.filter(Boolean))];
+  }
+
+  function fileNameFromRoot(root, fallbackIndex, extension) {
+    const filePattern = /[^\n<>:"/\\|?*]+\.(?:pdf|docx?|xlsx?|pptx?|cdr|ai|eps|psd|svg|zip|rar|7z|txt|csv|jpe?g|png|webp|gif|mp3|m4a|ogg|wav|mp4|mov|avi)\b/gi;
+    const names = clean(root.innerText).match(filePattern) || [];
+    if (names.length) return safeFileName(names[0]);
+    return safeFileName("WhatsApp - anexo " + String(fallbackIndex).padStart(2, "0")) + "." + extension;
+  }
+
+  function visible(element) {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+  }
+
+  function attachmentDownloadControls(roots) {
+    const selector = [
+      '[data-icon*="download" i]',
+      '[aria-label*="baixar" i]',
+      '[aria-label*="download" i]',
+      '[title*="baixar" i]',
+      '[title*="download" i]'
+    ].join(",");
+    const controls = roots.flatMap((root) => [...root.querySelectorAll(selector)]).map((element) =>
+      element.closest('button, [role="button"], a') || element
+    );
+    return [...new Set(controls)].filter((element) => !element.closest("#" + APP_ID) && visible(element));
+  }
+
+  function loadedAttachmentSources(roots) {
+    const candidates = roots.flatMap((root) => [...root.querySelectorAll("img[src], video[src], audio[src], a[href]")].map((element) => ({ root, element })));
+    const seen = new Set();
+    return candidates.filter(({ element }) => {
+      const url = element.currentSrc || element.getAttribute("src") || element.getAttribute("href") || "";
+      if (!/^(?:blob:|data:)/i.test(url) || seen.has(url)) return false;
+      if (element.tagName === "IMG") {
+        const width = element.naturalWidth || element.clientWidth;
+        const height = element.naturalHeight || element.clientHeight;
+        const description = [element.alt, element.getAttribute("aria-label")].filter(Boolean).join(" ");
+        if ((width < 96 && height < 96) || /(emoji|avatar|foto do perfil|profile photo)/i.test(description)) return false;
+      }
+      seen.add(url);
+      return true;
+    }).map(({ root, element }) => ({
+      root,
+      element,
+      url: element.currentSrc || element.getAttribute("src") || element.getAttribute("href")
+    }));
+  }
+
+  async function downloadVisibleAttachments() {
+    const main = document.querySelector("#main");
+    if (!main) throw new Error("Abra uma conversa antes de baixar os anexos.");
+    const roots = messageRoots(main);
+    if (!roots.length) throw new Error("Nenhuma mensagem carregada foi encontrada. Abra a conversa e role o histórico.");
+
+    const controls = attachmentDownloadControls(roots).slice(0, ATTACHMENT_LIMIT);
+    controls.forEach((control) => control.click());
+    if (controls.length) await wait(1600);
+
+    const sources = loadedAttachmentSources(roots).slice(0, ATTACHMENT_LIMIT);
+    let saved = 0;
+    for (let index = 0; index < sources.length; index += 1) {
+      const source = sources[index];
+      try {
+        const response = await fetch(source.url);
+        if (!response.ok) throw new Error("Falha ao ler o anexo.");
+        const blob = await response.blob();
+        const extension = extensionForMime(blob.type || (source.element.tagName === "IMG" ? "image/jpeg" : ""));
+        downloadBlob(blob, fileNameFromRoot(source.root, index + 1, extension));
+        saved += 1;
+        await wait(180);
+      } catch (error) {
+        // Alguns anexos só podem ser obtidos pelo botão de download original do WhatsApp.
+      }
+    }
+
+    if (!saved && !controls.length) {
+      throw new Error("Nenhuma imagem ou arquivo disponível foi encontrado. Abra o anexo ou clique na prévia e tente novamente.");
+    }
+    const parts = [];
+    if (saved) parts.push(saved + (saved === 1 ? " mídia carregada foi salva" : " mídias carregadas foram salvas"));
+    if (controls.length) parts.push(controls.length + (controls.length === 1 ? " download do WhatsApp foi acionado" : " downloads do WhatsApp foram acionados"));
+    toast(parts.join("; ") + ". O Chrome pode pedir permissão para vários downloads.");
   }
 
   async function copyText(text) {
@@ -357,8 +474,12 @@
     return safeFileName("WhatsApp - " + privacy(data.chat.name) + " - " + date);
   }
 
-  function run(action) {
+  async function run(action) {
     try {
+      if (action === "attachments") {
+        await downloadVisibleAttachments();
+        return;
+      }
       if (action === "sidebar") {
         const rows = extractSidebar();
         downloadFile(sidebarCsv(rows), "WhatsApp - lista carregada - " + new Date().toISOString().slice(0, 10) + ".csv", "text/csv");
@@ -368,9 +489,12 @@
       const data = extractOpenChat();
       const baseName = currentBaseName(data);
       if (action === "copy") {
-        copyText(conversationText(data))
-          .then(() => toast(data.count + " mensagens copiadas. Agora você pode colar no ChatGPT."))
-          .catch(() => toast("Não foi possível copiar. Use uma das opções de download.", true));
+        try {
+          await copyText(conversationText(data));
+          toast(data.count + " mensagens copiadas. Agora você pode colar no ChatGPT.");
+        } catch (error) {
+          toast("Não foi possível copiar. Use uma das opções de download.", true);
+        }
       } else if (action === "txt") {
         downloadFile(conversationText(data), baseName + ".txt", "text/plain");
         toast(data.count + " mensagens salvas em TXT.");
@@ -412,6 +536,7 @@
     #${APP_ID} .croma-secondary{background:#e4ece8;color:#173e35}
     #${APP_ID} .croma-secondary:hover{background:#d1ded8}
     #${APP_ID} .croma-wide{grid-column:1/-1}
+    #${APP_ID} .croma-attachment-note{margin:9px 0 0;font-size:11px;line-height:1.35;color:#52625b}
     #${APP_ID} .croma-status{margin-top:11px;padding:8px 9px;border-radius:8px;background:#e7f5ef;color:#175c49;font-size:12px;line-height:1.35}
     #${APP_ID} .croma-status[data-error="1"]{background:#ffe9e7;color:#8a241c}
     #${APP_ID} .croma-footer{margin-top:9px;font-size:10px;color:#74827b;text-align:center}
@@ -438,11 +563,13 @@
       <label><input type="checkbox" data-option="anonymize"> Ocultar telefone, e-mail, CPF e CNPJ</label>
       <div class="croma-grid">
         <button class="croma-action croma-wide" type="button" data-action="copy">Copiar para o ChatGPT</button>
+        <button class="croma-action croma-wide" type="button" data-action="attachments">Baixar imagens e PDFs visíveis</button>
         <button class="croma-action" type="button" data-action="txt">Baixar TXT</button>
         <button class="croma-action" type="button" data-action="csv">Baixar CSV</button>
         <button class="croma-action" type="button" data-action="json">Baixar JSON</button>
         <button class="croma-action croma-secondary" type="button" data-action="sidebar">Lista lateral CSV</button>
       </div>
+      <p class="croma-attachment-note">Os anexos são salvos separadamente. Abra ou carregue as imagens e PDFs desejados antes de baixar. Limite de ${ATTACHMENT_LIMIT} por clique.</p>
       <div class="croma-status" data-error="0">Pronto para extrair.</div>
       <div class="croma-footer">Processamento local · nenhum envio automático · v${VERSION}</div>
     </div>
@@ -463,6 +590,13 @@
     });
   });
   panel.querySelectorAll("[data-action]").forEach((button) => {
-    button.addEventListener("click", () => run(button.dataset.action));
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await run(button.dataset.action);
+      } finally {
+        button.disabled = false;
+      }
+    });
   });
 })();
