@@ -14,6 +14,15 @@
     document.head.appendChild(g);
   }
 
+  const currentPath = location.pathname.replace(/\/+$/,'/');
+  if (['/servicos/','/segmentos/'].includes(currentPath) && !document.querySelector('script[data-croma-public-filters]')) {
+    const f = document.createElement('script');
+    f.src = '/js/public-catalog-filters.js?v=20260831-1';
+    f.dataset.cromaPublicFilters = '1';
+    f.defer = true;
+    document.head.appendChild(f);
+  }
+
   const header = document.querySelector('.topbar, .site-header');
   if (!header) return;
 
