@@ -1,3 +1,4 @@
+import './croma-brand.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm';
 
 export const SUPABASE_URL = 'https://xtlubocepsbqanrjabog.supabase.co';
