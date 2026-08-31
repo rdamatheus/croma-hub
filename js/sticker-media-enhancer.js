@@ -2,7 +2,7 @@
   if (!location.pathname.includes('/servicos/adesivos/')) return;
 
   const photos = [
-    {keys:['rótulos em bobina','rotulos em bobina'], url:'/assets/produtos/rotulos-bobina-flor-de-liz.jpg', alt:'Rótulos adesivos em bobina'},
+    {keys:['rótulos em bobina','rotulos em bobina'], url:'/assets/produtos/rotulos-bobina-flor-de-liz.jpg', alt:'Rótulos adesivos em bobina', fit:'contain'},
     {keys:['rótulos em folha','rotulos em folha'], url:'https://images.pexels.com/photos/16605271/pexels-photo-16605271.jpeg?auto=compress&cs=tinysrgb&w=1200', alt:'Folhas com adesivos impressos'},
     {keys:['adesivo papel'], url:'https://images.pexels.com/photos/7123558/pexels-photo-7123558.jpeg?auto=compress&cs=tinysrgb&w=1200', alt:'Folha de adesivos em papel'},
     {keys:['casca de ovo'], url:'https://images.pexels.com/photos/9999871/pexels-photo-9999871.jpeg?auto=compress&cs=tinysrgb&w=1200', alt:'Adesivos redondos impressos'},
@@ -27,6 +27,7 @@
       if (!photo) return;
       const media = card.querySelector('.sticker-photo');
       if (!media) return;
+      media.classList.toggle('sticker-photo-contain', photo.fit === 'contain');
       const img = document.createElement('img');
       img.src = photo.url;
       img.alt = photo.alt || title;
@@ -45,7 +46,7 @@
   if (!document.querySelector('style[data-sticker-media-enhancer]')) {
     const style = document.createElement('style');
     style.dataset.stickerMediaEnhancer = '1';
-    style.textContent = '.sticker-photo-missing{font-size:.8rem!important;font-weight:800;color:#77748a;text-align:center;padding:16px;background:#f1f0f6!important}';
+    style.textContent = '.sticker-photo-missing{font-size:.8rem!important;font-weight:800;color:#77748a;text-align:center;padding:16px;background:#f1f0f6!important}.sticker-photo-contain{background:#fff!important;padding:10px;box-sizing:border-box}.sticker-photo-contain img{object-fit:contain!important;object-position:center!important;border-radius:12px}';
     document.head.appendChild(style);
   }
 
