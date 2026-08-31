@@ -12,6 +12,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   }
 });
 
+window.__cromaSupabase = supabase;
+if(location.pathname.replace(/\/+$/,'/')==='/interno/produtos/'){
+  queueMicrotask(()=>import('/js/catalog-product-enhancer.js?v=20260830-1'));
+}
+
 export async function getSessionUser(){
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
