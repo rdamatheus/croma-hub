@@ -59,10 +59,10 @@
     wait();
   };
   const add=()=>{
-    document.body.classList.add('croma-modern');
-    if(!document.querySelector('link[data-croma-modern]')){const l=document.createElement('link');l.rel='stylesheet';l.href='/css/interno-modern.css?v=20260831-3';l.dataset.cromaModern='1';document.head.appendChild(l)}
     const normalized=location.pathname.replace(/\/+$/,'/')||'/';
-    if(normalized==='/interno/'){return}
+    if(normalized==='/interno/')return;
+    document.body.classList.add('croma-modern');
+    if(!document.querySelector('link[data-croma-modern]')){const l=document.createElement('link');l.rel='stylesheet';l.href='/css/interno-modern.css?v=20260831-4';l.dataset.cromaModern='1';document.head.appendChild(l)}
     if(!document.querySelector('.croma-sidebar')){
       const path=location.pathname;
       const items=[
