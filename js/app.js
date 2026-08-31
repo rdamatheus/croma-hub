@@ -11,22 +11,24 @@ if(!document.querySelector('script[data-croma-cart]')){
 
 setupNavigation();
 
-// Mantém Produtos e Serviços como jornadas públicas separadas.
+// Cabeçalho público da Home: mesmo conjunto de destinos usado nas páginas internas públicas.
 const desktopNav=document.querySelector('.nav');
 if(desktopNav){
-  const links=[...desktopNav.querySelectorAll('a')];
-  if(links[0]){links[0].textContent='Produtos';links[0].href='/produtos/'}
-  if(links[1]){links[1].textContent='Serviços Gráficos';links[1].href='/servicos/'}
-  if(links[2]){links[2].textContent='Comunicação Visual';links[2].href='/servicos/#comunicacao-visual'}
+  desktopNav.innerHTML=`
+    <a href="/produtos/">Produtos</a>
+    <a href="/servicos/#servicos-graficos">Serviços Gráficos</a>
+    <a href="/servicos/#comunicacao-visual">Comunicação Visual</a>
+    <a href="#portfolio">Portfólio</a>
+    <a href="#sobre">Sobre</a>`;
 }
 const mobileTabs=document.querySelector('.mobile-tabs');
 if(mobileTabs){
-  const first=mobileTabs.querySelector(':scope > a');
-  if(first){first.textContent='Produtos';first.href='/produtos/'}
-  const details=mobileTabs.querySelector('details');
-  if(details?.querySelector('summary'))details.querySelector('summary').childNodes[0].textContent='Serviços Gráficos ';
-  const catalog=[...mobileTabs.querySelectorAll(':scope > a')].find(a=>a.textContent.trim()==='Catálogo');
-  if(catalog){catalog.textContent='Comunicação Visual';catalog.href='/servicos/#comunicacao-visual'}
+  mobileTabs.innerHTML=`
+    <a href="/produtos/" role="listitem">Produtos</a>
+    <a href="/servicos/#servicos-graficos" role="listitem">Serviços Gráficos</a>
+    <a href="/servicos/#comunicacao-visual" role="listitem">Comunicação Visual</a>
+    <a href="#portfolio" role="listitem">Portfólio</a>
+    <a href="#sobre" role="listitem">Sobre</a>`;
 }
 document.querySelectorAll('.hero-slide').forEach(slide=>{
   if(slide.textContent.includes('Croma Papelaria & Presentes')){
