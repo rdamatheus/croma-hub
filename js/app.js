@@ -11,6 +11,29 @@ if(!document.querySelector('script[data-croma-cart]')){
 
 setupNavigation();
 
+// Mantém Produtos e Serviços como jornadas públicas separadas.
+const desktopNav=document.querySelector('.nav');
+if(desktopNav){
+  const links=[...desktopNav.querySelectorAll('a')];
+  if(links[0]){links[0].textContent='Produtos';links[0].href='/produtos/'}
+  if(links[1]){links[1].textContent='Serviços Gráficos';links[1].href='/servicos/'}
+  if(links[2]){links[2].textContent='Comunicação Visual';links[2].href='/servicos/#comunicacao-visual'}
+}
+const mobileTabs=document.querySelector('.mobile-tabs');
+if(mobileTabs){
+  const first=mobileTabs.querySelector(':scope > a');
+  if(first){first.textContent='Produtos';first.href='/produtos/'}
+  const details=mobileTabs.querySelector('details');
+  if(details?.querySelector('summary'))details.querySelector('summary').childNodes[0].textContent='Serviços Gráficos ';
+  const catalog=[...mobileTabs.querySelectorAll(':scope > a')].find(a=>a.textContent.trim()==='Catálogo');
+  if(catalog){catalog.textContent='Comunicação Visual';catalog.href='/servicos/#comunicacao-visual'}
+}
+document.querySelectorAll('.hero-slide').forEach(slide=>{
+  if(slide.textContent.includes('Croma Papelaria & Presentes')){
+    const a=slide.querySelector('.hero-slide-actions a');if(a){a.href='/produtos/';a.textContent='Explorar produtos'}
+  }
+});
+
 const state={data:null,categoria:'Todos',termo:''};
 const CATEGORY_ORDER=['Todos','Comunicação Visual','Gráfica','Eventos','Papelaria','Presentes','Eletrônicos','Digital'];
 const WHATSAPP_NUMBER='553230253588';
@@ -39,6 +62,7 @@ function itensFiltrados(){
 
 function categoriasDisponiveis(){
   const available=new Set([
+    ...(state.data?.categororias||[]),
     ...(state.data?.categorias||[]),
     ...(state.data?.itens||[]).map(item=>item.categoria).filter(Boolean)
   ]);
