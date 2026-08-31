@@ -13,8 +13,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 });
 
 window.__cromaSupabase = supabase;
-if(location.pathname.replace(/\/+$/,'/')==='/interno/produtos/'){
-  queueMicrotask(()=>import('/js/catalog-product-enhancer.js?v=20260830-1'));
+const currentPath=location.pathname.replace(/\/+$/,'/');
+if(currentPath==='/interno/produtos/'){
+  queueMicrotask(()=>import('/js/catalog-product-enhancer.js?v=20260831-2'));
+}
+if(currentPath==='/interno/categorias/'||currentPath==='/interno/segmentos/'){
+  queueMicrotask(()=>import('/js/catalog-admin-list-filters.js?v=20260831-1'));
 }
 
 export async function getSessionUser(){
