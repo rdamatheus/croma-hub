@@ -16,6 +16,7 @@ window.__cromaSupabase = supabase;
 const currentPath=location.pathname.replace(/\/+$/,'/');
 if(currentPath==='/interno/produtos/'){
   queueMicrotask(()=>import('/js/catalog-product-enhancer.js?v=20260831-2'));
+  queueMicrotask(()=>import('/js/product-media-inline.js?v=20260831-1'));
 }
 if(currentPath==='/interno/categorias/'||currentPath==='/interno/segmentos/'){
   queueMicrotask(()=>import('/js/catalog-admin-list-filters.js?v=20260831-1'));
