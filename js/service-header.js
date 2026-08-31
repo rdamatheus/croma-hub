@@ -24,7 +24,7 @@
       <span class="service-brand-tag">HUB</span>
     </a>
     <nav class="service-desktop-nav" aria-label="Navegação principal">
-      <a href="/#catalogo">Produtos</a>
+      <a href="/produtos/">Produtos</a>
       <a href="/servicos/">Serviços</a>
       <a href="/#portfolio">Portfólio</a>
       <a href="/#sobre">Sobre</a>
@@ -34,7 +34,7 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="service-mobile-nav" id="serviceMobileNav" aria-label="Navegação mobile">
-      <a href="/#catalogo">Produtos</a>
+      <a href="/produtos/">Produtos</a>
       <details>
         <summary>Serviços <span aria-hidden="true">⌄</span></summary>
         <div class="service-mobile-submenu">
