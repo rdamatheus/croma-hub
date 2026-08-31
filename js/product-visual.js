@@ -8,6 +8,17 @@ const THEME_BY_CATEGORY = Object.freeze({
   "Digital": "digital"
 });
 
+const PHOTO_FALLBACK_BY_CATEGORY = Object.freeze({
+  "Comunicação Visual": "https://images.pexels.com/photos/9307677/pexels-photo-9307677.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "Gráfica": "https://images.pexels.com/photos/8490095/pexels-photo-8490095.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "Eventos": "https://images.pexels.com/photos/11503488/pexels-photo-11503488.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "Papelaria": "https://images.pexels.com/photos/4219132/pexels-photo-4219132.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "Presentes": "https://images.pexels.com/photos/6478824/pexels-photo-6478824.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "Eletrônicos": "https://images.pexels.com/photos/27559516/pexels-photo-27559516.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "Digital": "https://images.pexels.com/photos/890065/pexels-photo-890065.jpeg?auto=compress&cs=tinysrgb&w=1200"
+});
+const DEFAULT_PHOTO = "https://images.pexels.com/photos/8490095/pexels-photo-8490095.jpeg?auto=compress&cs=tinysrgb&w=1200";
+
 function escapeHtml(value) {
   return String(value == null ? "" : value).replace(/[&<>\"']/g, function(char) {
     return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char];
@@ -38,13 +49,11 @@ export function renderProductVisual(item) {
   var visual = visualConfig(item);
   var theme = visual.tema || THEME_BY_CATEGORY[item.categoria] || "brand";
   var mode = visual.modo || (visual.produto ? "recorte" : "foto");
-  var productSrc = isAssetPath(visual.produto) ? visual.produto : (item.imagem || "");
+  var productSrc = isAssetPath(visual.produto) ? visual.produto : (item.imagem || PHOTO_FALLBACK_BY_CATEGORY[item.categoria] || DEFAULT_PHOTO);
   var backgroundSrc = isAssetPath(visual.fundo) ? visual.fundo : "";
   var badges = visualBadges(item, visual);
   var title = escapeHtml(item.nome || "Produto Croma");
-  var productLayer = productSrc
-    ? '<img class="media-product ' + (mode === "recorte" ? "media-cutout" : "media-photo") + '" src="' + escapeHtml(productSrc) + '" alt="' + title + '" loading="lazy" decoding="async">'
-    : '<span class="media-placeholder" aria-hidden="true">' + escapeHtml(item.icone || "•") + '</span>';
+  var productLayer = '<img class="media-product ' + (mode === "recorte" ? "media-cutout" : "media-photo") + '" src="' + escapeHtml(productSrc) + '" alt="' + title + '" loading="lazy" decoding="async">';
   var backgroundLayer = backgroundSrc
     ? '<img class="media-background-image" src="' + escapeHtml(backgroundSrc) + '" alt="" loading="lazy" decoding="async">'
     : '';
