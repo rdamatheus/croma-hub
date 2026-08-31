@@ -5,15 +5,18 @@ const session = await protectInternalPage();
 if (!session) throw new Error('auth');
 
 const canManage = ['owner','manager'].includes(session.profile.role);
+const isOwner = session.profile.role === 'owner';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const brl = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const statusLabels = {recebido:'Recebido',em_analise:'Em análise',aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_producao:'Em produção',pronto:'Pronto',enviado:'Enviado',concluido:'Concluído',cancelado:'Cancelado'};
+const syncLabels = {nao_sincronizado:'Não sincronizado',pendente:'Pendente',sincronizando:'Sincronizando',sincronizado:'Sincronizado',erro:'Erro',conflito:'Conflito'};
 
 let clientes=[],enderecos=[],pedidos=[],produtos=[],custos=[],mode=null,current=null;
 
 $('#logout').onclick = async () => { await signOutStaff(); location.href='/interno/'; };
 if (!canManage) document.querySelectorAll('[data-manager-only]').forEach(el=>el.hidden=true);
+if (!isOwner) document.querySelectorAll('[data-owner-only]').forEach(el=>el.hidden=true);
 
 document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));
@@ -24,8 +27,33 @@ $('#qClientes').oninput=renderClientes;
 $('#qPedidos').oninput=renderPedidos;
 $('#qProdutos').oninput=renderProdutos;
 
-function addrFor(id){return enderecos.find(x=>x.customer_id===id&&x.principal)||enderecos.find(x=>x.customer_id===id)}
+function addrFor(id){return enderecos.find(x=>x.customer_id===id&&(x.tipo_endereco==='geral'||x.principal))||enderecos.find(x=>x.customer_id===id)}
 function costFor(id){return custos.find(x=>x.product_id===id)||{}}
+function roleText(c){const roles=Array.isArray(c.tipos_contato)?c.tipos_contato:[];return roles.map(r=>typeof r==='string'?r:(r.label||r.nome||r.code||r.descricao)).filter(Boolean).join(', ')}
+function parseRoles(v){return String(v||'').split(',').map(x=>x.trim()).filter(Boolean)}
+function syncClass(status){return status==='sincronizado'?'ok':status==='erro'||status==='conflito'?'bad':'warn'}
+function contactPayload(d,id=null){return {
+  ...(id?{id}:{}),
+  nome:d.nome,
+  nome_fantasia:d.nome_fantasia||null,
+  tipo_pessoa:d.tipo_pessoa||'F',
+  tipos_contato:parseRoles(d.tipos_contato),
+  cpf:onlyDigits(d.cpf)||null,
+  telefone:onlyDigits(d.telefone)||null,
+  celular:onlyDigits(d.celular)||null,
+  email:d.email||null,
+  email_nota_fiscal:d.email_nota_fiscal||null,
+  data_nascimento:d.data_nascimento||null,
+  rg:d.rg||null,
+  inscricao_estadual:d.inscricao_estadual||null,
+  indicador_ie:d.indicador_ie||null,
+  orgao_emissor:d.orgao_emissor||null,
+  sexo:d.sexo||null,
+  situacao:d.situacao||'A',
+  observacoes:d.observacoes||null,
+  ativo:d.ativo!=='false',
+  endereco:(d.cep||d.logradouro||d.cidade)?{cep:d.cep,logradouro:d.logradouro,numero:d.numero,complemento:d.complemento,bairro:d.bairro,cidade:d.cidade,estado:d.estado,pais:d.pais||'Brasil'}:null
+}}
 
 async function reloadAll(){
   const requests=[
@@ -46,8 +74,14 @@ async function reloadAll(){
 
 function renderClientes(){
   const q=$('#qClientes').value.toLowerCase();
-  const list=clientes.filter(c=>[c.nome,c.cpf,c.telefone,c.email].join(' ').toLowerCase().includes(q));
-  $('#clientesBody').innerHTML=list.length?list.map(c=>{const a=addrFor(c.id);return`<tr><td><strong>${esc(c.nome)}</strong><br><span class="muted">${esc(c.email)}</span></td><td>${esc(c.cpf)}</td><td>${esc(c.telefone)}</td><td>${a?`${esc(a.logradouro)}, ${esc(a.numero)}<br><span class="muted">${esc(a.cidade)}/${esc(a.estado)}</span>`:'—'}</td><td><span class="pill ${c.ativo?'ok':''}">${c.ativo?'Ativo':'Inativo'}</span></td><td><div class="actions">${canManage?`<button class="btn light" data-client-edit="${c.id}">Editar</button><button class="btn bad" data-client-toggle="${c.id}">${c.ativo?'Desativar':'Ativar'}</button>`:'Consulta'}</div></td></tr>`}).join(''):'<tr><td colspan="6" class="empty">Nenhum cliente encontrado.</td></tr>';
+  const list=clientes.filter(c=>[c.nome,c.nome_fantasia,c.cpf,c.telefone,c.celular,c.email,c.bling_contact_id,roleText(c)].join(' ').toLowerCase().includes(q));
+  $('#clientesBody').innerHTML=list.length?list.map(c=>{
+    const kind=c.tipo_pessoa==='J'?'PJ':c.tipo_pessoa==='F'?'PF':(c.tipo_pessoa||'—');
+    const roles=roleText(c);
+    const phone=c.celular||c.telefone||'—';
+    const sync=c.bling_sync_status||'nao_sincronizado';
+    return `<tr><td><strong>${esc(c.nome)}</strong>${c.nome_fantasia?`<br><span class="muted">${esc(c.nome_fantasia)}</span>`:''}<br><span class="muted">${esc(c.email||'—')}</span></td><td><span class="pill">${esc(kind)}</span>${roles?`<br><span class="muted">${esc(roles)}</span>`:''}</td><td>${esc(c.cpf||'—')}</td><td>${esc(phone)}</td><td>${c.bling_contact_id?`#${esc(c.bling_contact_id)}`:'—'}</td><td><span class="pill ${syncClass(sync)}">${esc(syncLabels[sync]||sync)}</span>${c.bling_sync_error?`<br><span class="muted">${esc(c.bling_sync_error)}</span>`:''}</td><td><div class="actions">${canManage?`<button class="btn light" data-client-edit="${c.id}">Editar</button><button class="btn bad" data-client-toggle="${c.id}">${c.ativo?'Desativar':'Ativar'}</button>`:'Consulta'}</div></td></tr>`
+  }).join(''):'<tr><td colspan="7" class="empty">Nenhum contato encontrado.</td></tr>';
 }
 
 function renderPedidos(){
@@ -62,21 +96,25 @@ function renderProdutos(){
   $('#produtosBody').innerHTML=list.length?list.map(p=>{const c=costFor(p.id);return`<tr><td>${esc(p.sku||'—')}</td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.unidade)}</span></td><td>${esc(p.categoria||'—')}</td><td>${brl(p.preco)}</td>${canManage?`<td>${c.cost==null?'—':brl(c.cost)}</td>`:''}<td><span class="pill ${p.ativo?'ok':''}">${p.ativo?'Ativo':'Inativo'}</span></td><td><div class="actions">${canManage?`<button class="btn light" data-product-edit="${p.id}">Editar</button><button class="btn bad" data-product-del="${p.id}">Excluir</button>`:'Consulta'}</div></td></tr>`}).join(''):`<tr><td colspan="${canManage?7:6}" class="empty">Nenhum produto cadastrado.</td></tr>`;
 }
 
-function field(name,label,type='text',value='',wide=false,extra=''){return`<div class="field ${wide?'wide':''}"><label>${label}</label><input name="${name}" type="${type}" value="${esc(value)}" ${extra}></div>`}
+function field(name,label,type='text',value='',wide=false,extra=''){return`<div class="field ${wide?'wide':''}"><label>${label}</label><input name="${name}" type="${type}" value="${esc(value??'')}" ${extra}></div>`}
 function select(name,label,options,value,wide=false){return`<div class="field ${wide?'wide':''}"><label>${label}</label><select name="${name}">${options.map(([v,l])=>`<option value="${v}" ${String(v)===String(value)?'selected':''}>${l}</option>`).join('')}</select></div>`}
 function textarea(name,label,value=''){return`<div class="field wide"><label>${label}</label><textarea name="${name}" rows="4">${esc(value)}</textarea></div>`}
 function openModal(title,fields,newMode,item=null){mode=newMode;current=item;$('#modalTitle').textContent=title;$('#modalFields').innerHTML=fields;$('#modalMsg').textContent='';$('#dlg').showModal()}
+function contactFields(c={},a={}){return field('nome','Nome / Razão social','text',c.nome||'',true,'required')+field('nome_fantasia','Nome fantasia', 'text',c.nome_fantasia||'')+select('tipo_pessoa','Tipo de pessoa',[['F','Pessoa física'],['J','Pessoa jurídica'],['E','Estrangeiro']],c.tipo_pessoa||'F')+field('cpf','CPF / CNPJ','text',c.cpf||'')+field('rg','RG','text',c.rg||'')+field('inscricao_estadual','Inscrição estadual','text',c.inscricao_estadual||'')+field('indicador_ie','Indicador IE','text',c.indicador_ie||'')+field('orgao_emissor','Órgão emissor','text',c.orgao_emissor||'')+field('telefone','Telefone','text',c.telefone||'')+field('celular','Celular','text',c.celular||'')+field('email','E-mail','email',c.email||'')+field('email_nota_fiscal','E-mail nota fiscal','email',c.email_nota_fiscal||'')+field('data_nascimento','Data de nascimento','date',c.data_nascimento||'')+field('sexo','Sexo','text',c.sexo||'')+field('tipos_contato','Papéis / tipos (separados por vírgula)','text',roleText(c),true)+select('ativo','Status',[['true','Ativo'],['false','Inativo']],String(c.ativo!==false),false)+field('situacao','Situação Bling','text',c.situacao||'A')+textarea('observacoes','Observações',c.observacoes||'')+'<div class="wide"><strong>Endereço geral</strong></div>'+field('cep','CEP','text',a.cep||'')+field('logradouro','Logradouro','text',a.logradouro||'')+field('numero','Número','text',a.numero||'')+field('complemento','Complemento','text',a.complemento||'')+field('bairro','Bairro','text',a.bairro||'')+field('cidade','Cidade','text',a.cidade||'')+field('estado','UF','text',a.estado||'')+field('pais','País','text',a.pais||'Brasil')}
 
-$('#novoCliente').onclick=()=>openModal('Novo cliente',field('nome','Nome completo','text','',true,'required')+field('cpf','CPF','text','','', 'required')+field('telefone','Celular','text','','','required')+field('email','E-mail','email','',false,'required')+field('data_nascimento','Data de nascimento','date')+field('password','Senha inicial','password','',false,'minlength="6" required')+'<div class="wide"><strong>Endereço principal</strong></div>'+field('cep','CEP')+field('logradouro','Logradouro')+field('numero','Número')+field('complemento','Complemento')+field('bairro','Bairro')+field('cidade','Cidade')+field('estado','UF'),'client-create');
-
+$('#novoCliente').onclick=()=>openModal('Novo contato',contactFields({ativo:true,tipo_pessoa:'F',situacao:'A'},{}),'client-create');
 $('#novoProduto').onclick=()=>openModal('Novo produto',field('sku','SKU')+field('nome','Nome','text','',true,'required')+field('categoria','Categoria')+field('unidade','Unidade','text','un')+field('preco','Preço de venda','number','0',false,'step="0.01" min="0"')+field('cost','Custo interno','number','',false,'step="0.01" min="0"')+field('supplier_reference','Referência interna')+select('ativo','Status',[['true','Ativo'],['false','Inativo']],'true')+textarea('descricao','Descrição pública'),'product-create');
+$('#novoPedido').onclick=()=>openModal('Novo pedido',`<div class="field wide"><label>Cliente / contato</label><select name="customer_id">${clientes.filter(c=>c.ativo).map(c=>`<option value="${c.id}">${esc(c.nome)} — ${esc(c.email||c.cpf||'')}</option>`).join('')}</select></div>`+select('status','Status',Object.entries(statusLabels),'recebido')+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],'retirada')+select('payment_method','Pagamento',[['pix','Pix'],['credito','Cartão de crédito'],['debito','Cartão de débito']],'pix')+field('total','Total','number','0',false,'step="0.01" min="0"')+textarea('notes','Observações'),'order-create');
 
-$('#novoPedido').onclick=()=>openModal('Novo pedido',`<div class="field wide"><label>Cliente</label><select name="customer_id">${clientes.map(c=>`<option value="${c.id}">${esc(c.nome)} — ${esc(c.email)}</option>`).join('')}</select></div>`+select('status','Status',Object.entries(statusLabels),'recebido')+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],'retirada')+select('payment_method','Pagamento',[['pix','Pix'],['credito','Cartão de crédito'],['debito','Cartão de débito']],'pix')+field('total','Total','number','0',false,'step="0.01" min="0"')+textarea('notes','Observações'),'order-create');
+$('#syncContatos')?.addEventListener('click',async()=>{
+  const btn=$('#syncContatos'),msg=$('#syncContatosMsg');btn.disabled=true;msg.textContent='Buscando e reconciliando os contatos do Bling…';
+  try{const{data,error}=await supabase.functions.invoke('bling-contact-sync',{body:{action:'full_sync'}});if(error||data?.error)throw new Error(data?.detail||data?.error||error.message);msg.textContent=`Sincronização concluída: ${data.pulled||0} recebidos do Bling, ${data.pushed||0} enviados e ${data.errors||0} erro(s).`;await reloadAll()}catch(error){console.error(error);msg.textContent=error?.message||'Não foi possível sincronizar os contatos.'}finally{btn.disabled=false}
+});
 
 document.body.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.clientEdit){const c=clientes.find(x=>x.id===b.dataset.clientEdit),a=addrFor(c.id)||{};openModal('Editar cliente',field('nome','Nome completo','text',c.nome,true,'required')+field('cpf','CPF','text',c.cpf)+field('telefone','Celular','text',c.telefone)+field('email','E-mail','email',c.email,false,'required')+field('data_nascimento','Data de nascimento','date',c.data_nascimento||'')+select('ativo','Status',[['true','Ativo'],['false','Inativo']],c.ativo)+'<div class="wide"><strong>Endereço principal</strong></div>'+field('cep','CEP','text',a.cep||'')+field('logradouro','Logradouro','text',a.logradouro||'')+field('numero','Número','text',a.numero||'')+field('complemento','Complemento','text',a.complemento||'')+field('bairro','Bairro','text',a.bairro||'')+field('cidade','Cidade','text',a.cidade||'')+field('estado','UF','text',a.estado||''),'client-edit',c)}
-  if(b.dataset.clientToggle){const c=clientes.find(x=>x.id===b.dataset.clientToggle);await supabase.from('customer_profiles').update({ativo:!c.ativo}).eq('id',c.id);await reloadAll()}
+  if(b.dataset.clientEdit){const c=clientes.find(x=>x.id===b.dataset.clientEdit),a=addrFor(c.id)||{};openModal('Editar contato',contactFields(c,a),'client-edit',c)}
+  if(b.dataset.clientToggle){const c=clientes.find(x=>x.id===b.dataset.clientToggle),a=addrFor(c.id)||{};const payload={id:c.id,nome:c.nome,nome_fantasia:c.nome_fantasia,tipo_pessoa:c.tipo_pessoa,tipos_contato:Array.isArray(c.tipos_contato)?c.tipos_contato:[],cpf:c.cpf,telefone:c.telefone,celular:c.celular,email:c.email,email_nota_fiscal:c.email_nota_fiscal,data_nascimento:c.data_nascimento,rg:c.rg,inscricao_estadual:c.inscricao_estadual,indicador_ie:c.indicador_ie,orgao_emissor:c.orgao_emissor,sexo:c.sexo,situacao:!c.ativo?'A':'I',observacoes:c.observacoes,ativo:!c.ativo,endereco:a.id?{cep:a.cep,logradouro:a.logradouro,numero:a.numero,complemento:a.complemento,bairro:a.bairro,cidade:a.cidade,estado:a.estado,pais:a.pais}:null};const{data,error}=await supabase.functions.invoke('admin-update-customer',{body:payload});if(error||data?.error)alert(data?.error||error.message);await reloadAll()}
   if(b.dataset.productEdit){const p=produtos.find(x=>x.id===b.dataset.productEdit),c=costFor(p.id),m=p.metadata||{};openModal('Editar produto',field('sku','SKU','text',p.sku||'')+field('nome','Nome','text',p.nome,true,'required')+field('categoria','Categoria','text',p.categoria||'')+field('unidade','Unidade','text',p.unidade||'un')+field('preco','Preço de venda','number',p.preco,false,'step="0.01" min="0"')+field('cost','Custo interno','number',c.cost??'',false,'step="0.01" min="0"')+field('supplier_reference','Referência interna','text',c.supplier_reference||'')+field('href','Link público','text',m.href||'',true)+select('ativo','Status',[['true','Ativo'],['false','Inativo']],p.ativo)+textarea('descricao','Descrição pública',p.descricao||''),'product-edit',p)}
   if(b.dataset.productDel&&confirm('Excluir este produto?')){await supabase.from('products').delete().eq('id',b.dataset.productDel);await reloadAll()}
   if(b.dataset.orderEdit){const o=pedidos.find(x=>x.id===b.dataset.orderEdit);openModal('Editar pedido',select('status','Status',Object.entries(statusLabels),o.status)+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],o.fulfillment)+select('payment_method','Pagamento',[['pix','Pix'],['credito','Cartão de crédito'],['debito','Cartão de débito']],o.payment_method)+field('total','Total','number',o.total,false,'step="0.01" min="0"')+textarea('notes','Observações',o.notes||''),'order-edit',o)}
@@ -87,14 +125,12 @@ document.body.addEventListener('click',async e=>{
 
 $('#modalForm').addEventListener('submit',async e=>{
   if(e.submitter?.value==='cancel'||mode==='view')return;
-  e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));$('#modalMsg').textContent='Salvando...';
+  e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));$('#modalMsg').textContent='Salvando e sincronizando…';
   try{
     if(mode==='client-create'){
-      const payload={nome:d.nome,cpf:onlyDigits(d.cpf),telefone:onlyDigits(d.telefone),email:d.email,data_nascimento:d.data_nascimento||null,password:d.password,endereco:d.cep?{cep:d.cep,logradouro:d.logradouro,numero:d.numero,complemento:d.complemento,bairro:d.bairro,cidade:d.cidade,estado:d.estado}:null};
-      const{data,error}=await supabase.functions.invoke('admin-create-customer',{body:payload});if(error||data?.error)throw new Error(data?.error||error.message);
+      const{data,error}=await supabase.functions.invoke('admin-create-customer',{body:contactPayload(d)});if(error||data?.error)throw new Error(data?.error||error.message);
     }else if(mode==='client-edit'){
-      const payload={id:current.id,nome:d.nome,cpf:onlyDigits(d.cpf),telefone:onlyDigits(d.telefone),email:d.email,data_nascimento:d.data_nascimento||null,ativo:d.ativo==='true',endereco:d.cep?{cep:d.cep,logradouro:d.logradouro,numero:d.numero,complemento:d.complemento,bairro:d.bairro,cidade:d.cidade,estado:d.estado}:null};
-      const{data,error}=await supabase.functions.invoke('admin-update-customer',{body:payload});if(error||data?.error)throw new Error(data?.error||error.message);
+      const{data,error}=await supabase.functions.invoke('admin-update-customer',{body:contactPayload(d,current.id)});if(error||data?.error)throw new Error(data?.error||error.message);
     }else if(mode==='product-create'||mode==='product-edit'){
       const oldMeta=current?.metadata||{};const payload={sku:d.sku||null,nome:d.nome,categoria:d.categoria||null,unidade:d.unidade||'un',preco:Number(d.preco||0),ativo:d.ativo==='true',descricao:d.descricao||null,metadata:{...oldMeta,...(d.href?{href:d.href}:{})}};
       let productId=current?.id;
