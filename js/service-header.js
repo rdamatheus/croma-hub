@@ -25,7 +25,7 @@
 
   if (currentPath.includes('/servicos/adesivos/') && !document.querySelector('script[data-croma-sticker-media]')) {
     const sm = document.createElement('script');
-    sm.src = '/js/sticker-media-enhancer.js?v=20260831-1';
+    sm.src = '/js/sticker-media-enhancer.js?v=20260903-2';
     sm.dataset.cromaStickerMedia = '1';
     sm.defer = true;
     document.head.appendChild(sm);
