@@ -24,13 +24,14 @@ function mapProduct(row) {
 async function catalogoSupabase() {
   const { data, error } = await supabase
     .from('products')
-    .select('id,sku,nome,categoria,descricao,unidade,preco,ativo,metadata')
+    .select('id,sku,nome,categoria,descricao,unidade,preco,ativo,published_on_site,metadata')
     .eq('ativo', true)
+    .eq('published_on_site', true)
     .order('categoria')
     .order('nome');
 
   if (error) throw error;
-  if (!data?.length) throw new Error('Catálogo sem produtos ativos.');
+  if (!data?.length) throw new Error('Catálogo sem produtos publicados.');
 
   const itens = data.map(mapProduct);
   const categorias = ['Todos', ...new Set(itens.map(item => item.categoria).filter(Boolean))];
