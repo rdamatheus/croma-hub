@@ -2,6 +2,10 @@ import './croma-brand.js';
 import './interno-polish.js';
 import { supabase } from './croma-supabase.js';
 
+if (location.pathname.startsWith('/interno/produtos')) {
+  import('./interno-produtos-supplier-enhancer.js').catch(console.error);
+}
+
 export const INTERNAL_ROLES = ['owner','manager','equipe'];
 
 export async function getStaffSession(){
