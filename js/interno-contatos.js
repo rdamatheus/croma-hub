@@ -50,8 +50,21 @@ function resetForm(){const f=$('#editForm');f.reset();f.tipo_pessoa.value='F';f.
 function openNew(){editing=null;resetForm();$('#editTitle').textContent='Novo contato';$('#saveContact').textContent='Criar contato';$('#editDialog').showModal()}
 function openEdit(c){editing=c;const f=$('#editForm');f.nome.value=c.nome||'';f.nome_fantasia.value=c.nome_fantasia||'';f.tipo_pessoa.value=c.tipo_pessoa||'F';f.cpf.value=c.cpf||'';f.telefone.value=c.telefone||'';f.celular.value=c.celular||'';f.email.value=c.email||'';f.ativo.value=String(c.ativo!==false);$('#editTitle').textContent=`Editar ${c.nome}`;$('#saveContact').textContent='Salvar alterações';$('#editDialog').showModal()}
 function syncFailureMessage(data){return data?.sync?.detail||data?.sync?.error||data?.contact?.bling_sync_error||'A alteração ficou pendente para nova tentativa.'}
+function validateFormPayload(payload){
+  const errors=[];
+  if((payload.nome||'').trim().length<2)errors.push('Informe um nome com pelo menos 2 caracteres.');
+  if(payload.cpf){
+    if(payload.tipo_pessoa==='F'&&payload.cpf.length!==11)errors.push('Para pessoa física, o CPF deve ter 11 dígitos.');
+    if(payload.tipo_pessoa==='J'&&payload.cpf.length!==14)errors.push('Para pessoa jurídica, o CNPJ deve ter 14 dígitos.');
+  }
+  if(payload.telefone&&![10,11].includes(payload.telefone.length))errors.push('Telefone deve ter 10 ou 11 dígitos, incluindo DDD.');
+  if(payload.celular&&![10,11].includes(payload.celular.length))errors.push('Celular deve ter 10 ou 11 dígitos, incluindo DDD.');
+  if(payload.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email))errors.push('Informe um e-mail válido.');
+  return errors;
+}
 async function savePayload(payload){
   const {data,error}=await supabase.functions.invoke('admin-update-customer',{body:payload});
+  if(data?.validation_errors?.length){const msg=data.validation_errors.map(x=>x.message).join('\n');const err=new Error(msg);err.validation=true;throw err}
   if(error||data?.error) throw new Error(data?.error||error?.message||'Não foi possível salvar.');
   return data;
 }
@@ -78,17 +91,20 @@ $('#newContact')?.addEventListener('click',openNew);
 $('#closeEdit').onclick=$('#cancelEdit').onclick=()=>$('#editDialog').close();
 $('#editForm').onsubmit=async e=>{
   e.preventDefault();
-  const btn=$('#saveContact');btn.disabled=true;
+  const btn=$('#saveContact');
   const f=new FormData(e.currentTarget);
   const base=editing||{};
   const payload={action:'save',...(editing?.id?{id:editing.id}:{}),nome:String(f.get('nome')||'').trim(),nome_fantasia:String(f.get('nome_fantasia')||'').trim()||null,tipo_pessoa:String(f.get('tipo_pessoa')||'F'),tipos_contato:Array.isArray(base.tipos_contato)?base.tipos_contato:[],cpf:onlyDigits(f.get('cpf'))||null,telefone:onlyDigits(f.get('telefone'))||null,celular:onlyDigits(f.get('celular'))||null,email:String(f.get('email')||'').trim()||null,email_nota_fiscal:base.email_nota_fiscal||null,data_nascimento:base.data_nascimento||null,rg:base.rg||null,inscricao_estadual:base.inscricao_estadual||null,indicador_ie:base.indicador_ie||null,orgao_emissor:base.orgao_emissor||null,sexo:base.sexo||null,situacao:String(f.get('ativo'))==='false'?'I':'A',observacoes:base.observacoes||null,ativo:String(f.get('ativo'))!=='false'};
+  const localErrors=validateFormPayload(payload);
+  if(localErrors.length){setSyncMsg(localErrors.join(' '),'bad');alert(localErrors.join('\n'));return}
+  btn.disabled=true;
   try{
     const data=await savePayload(payload);
     $('#editDialog').close();
     if(data.sync_ok)setSyncMsg(`${data.created?'Contato criado':'Alteração salva'} no Croma e sincronizada com o Bling.`,'ok');
     else setSyncMsg(`${data.created?'Contato criado':'Alteração salva'} no Croma, mas o Bling ainda não confirmou: ${syncFailureMessage(data)}`,'warn');
     page=1;await Promise.all([load(),loadKpis()]);
-  }catch(err){alert(err.message||'Não foi possível salvar.');}
+  }catch(err){setSyncMsg(err.message||'Não foi possível salvar.','bad');alert(err.message||'Não foi possível salvar.');}
   finally{btn.disabled=false}
 };
 $('#syncNow')?.addEventListener('click',async()=>{const btn=$('#syncNow');btn.disabled=true;setSyncMsg('Iniciando reconciliação com o Bling…');try{const {data,error}=await supabase.functions.invoke('bling-contact-sync',{body:{action:'full_sync'}});if(error||data?.error)throw new Error(data?.detail||data?.error||error.message);setSyncMsg(data?.has_more?'Carga iniciada. Os próximos lotes continuarão automaticamente.':'Reconciliação concluída.','ok');page=1;await Promise.all([load(),loadKpis()])}catch(e){setSyncMsg(e.message||'Não foi possível iniciar a sincronização.','bad')}finally{btn.disabled=false}});
