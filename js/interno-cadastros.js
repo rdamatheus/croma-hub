@@ -1,5 +1,6 @@
 import { supabase, onlyDigits, STORAGE_BUCKET } from './croma-supabase.js';
 import { protectInternalPage, signOutStaff } from './interno-auth.js';
+import { buildSupplierSection, wireSupplierSection, persistSupplierSelection } from './product-supplier-linker.js';
 
 const session = await protectInternalPage();
 if (!session) throw new Error('auth');
@@ -7,7 +8,7 @@ if (!session) throw new Error('auth');
 const canManage = ['owner','manager'].includes(session.profile.role);
 const isOwner = session.profile.role === 'owner';
 const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 const brl = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const statusLabels = {recebido:'Recebido',em_analise:'Em análise',aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_producao:'Em produção',pronto:'Pronto',enviado:'Enviado',concluido:'Concluído',cancelado:'Cancelado'};
 const syncLabels = {nao_sincronizado:'Não sincronizado',pendente:'Pendente',sincronizando:'Sincronizando',sincronizado:'Sincronizado',erro:'Erro',conflito:'Conflito'};
@@ -93,7 +94,7 @@ function renderPedidos(){
 function renderProdutos(){
   const q=$('#qProdutos').value.toLowerCase();
   const list=produtos.filter(p=>[p.sku,p.nome,p.categoria].join(' ').toLowerCase().includes(q));
-  $('#produtosBody').innerHTML=list.length?list.map(p=>{const c=costFor(p.id);return`<tr><td>${esc(p.sku||'—')}</td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.unidade)}</span></td><td>${esc(p.categoria||'—')}</td><td>${brl(p.preco)}</td>${canManage?`<td>${c.cost==null?'—':brl(c.cost)}</td>`:''}<td><span class="pill ${p.ativo?'ok':''}">${p.ativo?'Ativo':'Inativo'}</span></td><td><div class="actions">${canManage?`<button class="btn light" data-product-edit="${p.id}">Editar</button><button class="btn bad" data-product-del="${p.id}">Excluir</button>`:'Consulta'}</div></td></tr>`}).join(''):`<tr><td colspan="${canManage?7:6}" class="empty">Nenhum produto cadastrado.</td></tr>`;
+  $('#produtosBody').innerHTML=list.length?list.map(p=>{const c=costFor(p.id);return`<tr><td>${esc(p.sku||'—')}</td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.unidade)}</span></td><td>${esc(p.categoria||'—')}</td><td>${brl(p.preco)}</td>${canManage?`<td>${c.cost==null?'—':brl(c.cost)}</td>`:''}<td><span class="pill ${p.ativo?'ok':''}">${p.ativo?'Ativo':'Inativo'}</span><br><span class="pill ${p.published_on_site?'ok':''}">${p.published_on_site?'No site':'Fora do site'}</span></td><td><div class="actions">${canManage?`<button class="btn light" data-product-edit="${p.id}">Editar</button><button class="btn light" data-product-site-toggle="${p.id}">${p.published_on_site?'Retirar do site':'Publicar no site'}</button><button class="btn bad" data-product-del="${p.id}">Excluir</button>`:'Consulta'}</div></td></tr>`}).join(''):`<tr><td colspan="${canManage?7:6}" class="empty">Nenhum produto cadastrado.</td></tr>`;
 }
 
 function field(name,label,type='text',value='',wide=false,extra=''){return`<div class="field ${wide?'wide':''}"><label>${label}</label><input name="${name}" type="${type}" value="${esc(value??'')}" ${extra}></div>`}
@@ -102,8 +103,19 @@ function textarea(name,label,value=''){return`<div class="field wide"><label>${l
 function openModal(title,fields,newMode,item=null){mode=newMode;current=item;$('#modalTitle').textContent=title;$('#modalFields').innerHTML=fields;$('#modalMsg').textContent='';$('#dlg').showModal()}
 function contactFields(c={},a={}){return field('nome','Nome / Razão social','text',c.nome||'',true,'required')+field('nome_fantasia','Nome fantasia', 'text',c.nome_fantasia||'')+select('tipo_pessoa','Tipo de pessoa',[['F','Pessoa física'],['J','Pessoa jurídica'],['E','Estrangeiro']],c.tipo_pessoa||'F')+field('cpf','CPF / CNPJ','text',c.cpf||'')+field('rg','RG','text',c.rg||'')+field('inscricao_estadual','Inscrição estadual','text',c.inscricao_estadual||'')+field('indicador_ie','Indicador IE','text',c.indicador_ie||'')+field('orgao_emissor','Órgão emissor','text',c.orgao_emissor||'')+field('telefone','Telefone','text',c.telefone||'')+field('celular','Celular','text',c.celular||'')+field('email','E-mail','email',c.email||'')+field('email_nota_fiscal','E-mail nota fiscal','email',c.email_nota_fiscal||'')+field('data_nascimento','Data de nascimento','date',c.data_nascimento||'')+field('sexo','Sexo','text',c.sexo||'')+field('tipos_contato','Papéis / tipos (separados por vírgula)','text',roleText(c),true)+select('ativo','Status',[['true','Ativo'],['false','Inativo']],String(c.ativo!==false),false)+field('situacao','Situação Bling','text',c.situacao||'A')+textarea('observacoes','Observações',c.observacoes||'')+'<div class="wide"><strong>Endereço geral</strong></div>'+field('cep','CEP','text',a.cep||'')+field('logradouro','Logradouro','text',a.logradouro||'')+field('numero','Número','text',a.numero||'')+field('complemento','Complemento','text',a.complemento||'')+field('bairro','Bairro','text',a.bairro||'')+field('cidade','Cidade','text',a.cidade||'')+field('estado','UF','text',a.estado||'')+field('pais','País','text',a.pais||'Brasil')}
 
+async function productFields(p={}){
+  const c=p.id?costFor(p.id):{};const m=p.metadata||{};
+  const supplierSection=canManage?await buildSupplierSection(supabase,{productId:p.id||null,esc,brl}):'';
+  return field('sku','SKU','text',p.sku||'')+field('nome','Nome','text',p.nome||'',true,'required')+field('categoria','Categoria','text',p.categoria||'')+field('unidade','Unidade','text',p.unidade||'un')+field('preco','Preço de venda','number',p.preco??0,false,'step="0.01" min="0"')+field('cost','Custo interno','number',c.cost??'',false,'step="0.01" min="0"')+field('supplier_reference','Referência interna','text',c.supplier_reference||'')+field('href','Link público','text',m.href||'',true)+select('ativo','Status operacional',[['true','Ativo'],['false','Inativo']],String(p.ativo!==false))+select('published_on_site','Publicação no site',[['true','Publicado'],['false','Não publicado']],String(!!p.published_on_site))+textarea('descricao','Descrição pública',p.descricao||'')+supplierSection;
+}
+async function openProductEditor(p=null){
+  const item=p||{ativo:true,published_on_site:false,unidade:'un',preco:0};
+  openModal(p?'Editar produto':'Novo produto',await productFields(item),p?'product-edit':'product-create',p);
+  if(canManage)wireSupplierSection(supabase,{esc,brl});
+}
+
 $('#novoCliente').onclick=()=>openModal('Novo contato',contactFields({ativo:true,tipo_pessoa:'F',situacao:'A'},{}),'client-create');
-$('#novoProduto').onclick=()=>openModal('Novo produto',field('sku','SKU')+field('nome','Nome','text','',true,'required')+field('categoria','Categoria')+field('unidade','Unidade','text','un')+field('preco','Preço de venda','number','0',false,'step="0.01" min="0"')+field('cost','Custo interno','number','',false,'step="0.01" min="0"')+field('supplier_reference','Referência interna')+select('ativo','Status',[['true','Ativo'],['false','Inativo']],'true')+textarea('descricao','Descrição pública'),'product-create');
+$('#novoProduto').onclick=()=>openProductEditor();
 $('#novoPedido').onclick=()=>openModal('Novo pedido',`<div class="field wide"><label>Cliente / contato</label><select name="customer_id">${clientes.filter(c=>c.ativo).map(c=>`<option value="${c.id}">${esc(c.nome)} — ${esc(c.email||c.cpf||'')}</option>`).join('')}</select></div>`+select('status','Status',Object.entries(statusLabels),'recebido')+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],'retirada')+select('payment_method','Pagamento',[['pix','Pix'],['credito','Cartão de crédito'],['debito','Cartão de débito']],'pix')+field('total','Total','number','0',false,'step="0.01" min="0"')+textarea('notes','Observações'),'order-create');
 
 $('#syncContatos')?.addEventListener('click',async()=>{
@@ -115,7 +127,8 @@ document.body.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.clientEdit){const c=clientes.find(x=>x.id===b.dataset.clientEdit),a=addrFor(c.id)||{};openModal('Editar contato',contactFields(c,a),'client-edit',c)}
   if(b.dataset.clientToggle){const c=clientes.find(x=>x.id===b.dataset.clientToggle),a=addrFor(c.id)||{};const payload={id:c.id,nome:c.nome,nome_fantasia:c.nome_fantasia,tipo_pessoa:c.tipo_pessoa,tipos_contato:Array.isArray(c.tipos_contato)?c.tipos_contato:[],cpf:c.cpf,telefone:c.telefone,celular:c.celular,email:c.email,email_nota_fiscal:c.email_nota_fiscal,data_nascimento:c.data_nascimento,rg:c.rg,inscricao_estadual:c.inscricao_estadual,indicador_ie:c.indicador_ie,orgao_emissor:c.orgao_emissor,sexo:c.sexo,situacao:!c.ativo?'A':'I',observacoes:c.observacoes,ativo:!c.ativo,endereco:a.id?{cep:a.cep,logradouro:a.logradouro,numero:a.numero,complemento:a.complemento,bairro:a.bairro,cidade:a.cidade,estado:a.estado,pais:a.pais}:null};const{data,error}=await supabase.functions.invoke('admin-update-customer',{body:payload});if(error||data?.error)alert(data?.error||error.message);await reloadAll()}
-  if(b.dataset.productEdit){const p=produtos.find(x=>x.id===b.dataset.productEdit),c=costFor(p.id),m=p.metadata||{};openModal('Editar produto',field('sku','SKU','text',p.sku||'')+field('nome','Nome','text',p.nome,true,'required')+field('categoria','Categoria','text',p.categoria||'')+field('unidade','Unidade','text',p.unidade||'un')+field('preco','Preço de venda','number',p.preco,false,'step="0.01" min="0"')+field('cost','Custo interno','number',c.cost??'',false,'step="0.01" min="0"')+field('supplier_reference','Referência interna','text',c.supplier_reference||'')+field('href','Link público','text',m.href||'',true)+select('ativo','Status',[['true','Ativo'],['false','Inativo']],p.ativo)+textarea('descricao','Descrição pública',p.descricao||''),'product-edit',p)}
+  if(b.dataset.productEdit){const p=produtos.find(x=>x.id===b.dataset.productEdit);await openProductEditor(p)}
+  if(b.dataset.productSiteToggle){const p=produtos.find(x=>x.id===b.dataset.productSiteToggle);if(!p)return;const next=!p.published_on_site;const{error}=await supabase.from('products').update({published_on_site:next,updated_at:new Date().toISOString()}).eq('id',p.id);if(error)alert(error.message);await reloadAll()}
   if(b.dataset.productDel&&confirm('Excluir este produto?')){await supabase.from('products').delete().eq('id',b.dataset.productDel);await reloadAll()}
   if(b.dataset.orderEdit){const o=pedidos.find(x=>x.id===b.dataset.orderEdit);openModal('Editar pedido',select('status','Status',Object.entries(statusLabels),o.status)+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],o.fulfillment)+select('payment_method','Pagamento',[['pix','Pix'],['credito','Cartão de crédito'],['debito','Cartão de débito']],o.payment_method)+field('total','Total','number',o.total,false,'step="0.01" min="0"')+textarea('notes','Observações',o.notes||''),'order-edit',o)}
   if(b.dataset.orderDel&&confirm('Excluir este pedido e seus itens?')){await supabase.from('orders').delete().eq('id',b.dataset.orderDel);await reloadAll()}
@@ -132,10 +145,13 @@ $('#modalForm').addEventListener('submit',async e=>{
     }else if(mode==='client-edit'){
       const{data,error}=await supabase.functions.invoke('admin-update-customer',{body:contactPayload(d,current.id)});if(error||data?.error)throw new Error(data?.error||error.message);
     }else if(mode==='product-create'||mode==='product-edit'){
-      const oldMeta=current?.metadata||{};const payload={sku:d.sku||null,nome:d.nome,categoria:d.categoria||null,unidade:d.unidade||'un',preco:Number(d.preco||0),ativo:d.ativo==='true',descricao:d.descricao||null,metadata:{...oldMeta,...(d.href?{href:d.href}:{})}};
+      const oldMeta=current?.metadata||{};const payload={sku:d.sku||null,nome:d.nome,categoria:d.categoria||null,unidade:d.unidade||'un',preco:Number(d.preco||0),ativo:d.ativo==='true',published_on_site:d.published_on_site==='true',descricao:d.descricao||null,metadata:{...oldMeta,...(d.href?{href:d.href}:{})}};
       let productId=current?.id;
       if(mode==='product-create'){const{data,error}=await supabase.from('products').insert(payload).select('id').single();if(error)throw error;productId=data.id}else{const{error}=await supabase.from('products').update(payload).eq('id',current.id);if(error)throw error}
-      if(canManage){const cost=d.cost===''?null:Number(d.cost);const{error}=await supabase.from('product_costs').upsert({product_id:productId,cost,supplier_reference:d.supplier_reference||null,updated_at:new Date().toISOString()},{onConflict:'product_id'});if(error)throw error}
+      if(canManage){
+        const cost=d.cost===''?null:Number(d.cost);const{error}=await supabase.from('product_costs').upsert({product_id:productId,cost,supplier_reference:d.supplier_reference||null,updated_at:new Date().toISOString()},{onConflict:'product_id'});if(error)throw error;
+        if(d.supplier_catalog_item_id)await persistSupplierSelection(supabase,productId,d);
+      }
     }else if(mode==='order-create'){
       const total=Number(d.total||0);const{error}=await supabase.from('orders').insert({customer_id:d.customer_id,status:d.status,fulfillment:d.fulfillment,payment_method:d.payment_method,subtotal:total,delivery_fee:0,total,notes:d.notes||null,delivery_address:d.fulfillment==='entrega'?{}:null});if(error)throw error;
     }else if(mode==='order-edit'){
