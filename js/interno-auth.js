@@ -4,6 +4,7 @@ import { supabase } from './croma-supabase.js';
 
 if (location.pathname.startsWith('/interno/produtos')) {
   import('./interno-produtos-supplier-enhancer.js').catch(console.error);
+  import('./supplier-catalog-importer.js').catch(console.error);
 }
 
 export const INTERNAL_ROLES = ['owner','manager','equipe'];
