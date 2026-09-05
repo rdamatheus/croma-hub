@@ -22,6 +22,9 @@ if(currentPath==='/interno/produtos/'){
 if(currentPath==='/interno/categorias/'||currentPath==='/interno/segmentos/'){
   queueMicrotask(()=>import('/js/catalog-admin-list-filters.js?v=20260831-1'));
 }
+if(currentPath==='/interno/bling/'){
+  queueMicrotask(()=>import('/js/bling-image-enrichment-ui.js?v=20260905-1'));
+}
 
 export async function getSessionUser(){
   const { data, error } = await supabase.auth.getSession();
