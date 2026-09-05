@@ -33,28 +33,6 @@ function mapCanonical(row) {
   };
 }
 
-function mapBlingProduct(row) {
-  const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
-  const stock = Number(payload?.estoque?.saldoVirtualTotal || 0);
-  return {
-    id: row.external_id || row.sku || row.id,
-    sourceId: row.linked_product_id || row.id,
-    integrationId: row.id,
-    tipo: 'produto',
-    nome: row.name || payload.nome || 'Produto Croma',
-    categoria: 'Papelaria & Presentes',
-    descricao: payload.descricaoCurta || '',
-    imagem: payload.imagemURL || '',
-    href: '/produtos/',
-    destaques: stock > 0 ? ['Disponível na loja'] : [],
-    quantidadePreco: 1,
-    precoVenda: Number(row.price || payload.preco || 0) || null,
-    stock,
-    hasImage: Boolean(payload.imagemURL),
-    linked: Boolean(row.linked_product_id)
-  };
-}
-
 function sortHome(items) {
   return [...items].sort((a, b) => {
     if (a.homeFeatured !== b.homeFeatured) return a.homeFeatured ? -1 : 1;
@@ -88,33 +66,15 @@ async function catalogoLocal() {
 
 async function carregarProdutosHome(limit = DEFAULT_HOME_LIMIT) {
   const { data, error } = await supabase
-    .from('integration_catalog_items')
-    .select('id,external_id,sku,name,price,status,payload,linked_product_id,last_refreshed_at')
-    .eq('provider', 'bling')
-    .eq('entity_type', 'product')
-    .eq('status', 'A')
-    .order('last_refreshed_at', { ascending: false })
-    .limit(250);
+    .from('products')
+    .select('id,sku,nome,categoria,descricao,short_description,preco,ativo,published_on_site,metadata,slug,product_type')
+    .eq('ativo', true)
+    .eq('published_on_site', true)
+    .eq('product_type', 'produto')
+    .limit(80);
 
   if (error) throw error;
-
-  const produtos = (data || [])
-    .map(mapBlingProduct)
-    .filter(item => {
-      const raw = (data || []).find(row => row.id === item.integrationId);
-      const tipo = raw?.payload?.tipo;
-      return (!tipo || tipo === 'P') && item.precoVenda;
-    })
-    .sort((a, b) => {
-      if (a.linked !== b.linked) return a.linked ? -1 : 1;
-      if (a.hasImage !== b.hasImage) return a.hasImage ? -1 : 1;
-      if ((a.stock > 0) !== (b.stock > 0)) return a.stock > 0 ? -1 : 1;
-      return String(a.nome).localeCompare(String(b.nome), 'pt-BR');
-    });
-
-  const withImageAndStock = produtos.filter(item => item.hasImage && item.stock > 0);
-  const selected = [...withImageAndStock, ...produtos.filter(item => !withImageAndStock.includes(item))];
-  return selected.slice(0, limit);
+  return sortHome((data || []).map(mapCanonical)).slice(0, limit);
 }
 
 async function carregarServicosHome(limit = DEFAULT_HOME_LIMIT) {
