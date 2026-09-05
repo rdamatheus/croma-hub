@@ -33,9 +33,22 @@ async function mediaMap(productIds){
   return out;
 }
 
+async function fetchAllProducts(filters=[]){
+  const rows=[];
+  for(let from=0;;from+=1000){
+    let q=supabase.from('products').select('id,sku,nome,categoria,descricao,short_description,unidade,preco,ativo,published_on_site,metadata,slug,product_type').order('nome').range(from,from+999);
+    for(const [field,value] of filters)q=q.eq(field,value);
+    const{data,error}=await q;
+    if(error)throw error;
+    rows.push(...(data||[]));
+    if(!data||data.length<1000)break;
+  }
+  return rows;
+}
+
 async function catalogoSupabase(){
-  const{data,error}=await supabase.from('products').select('id,sku,nome,categoria,descricao,short_description,unidade,preco,ativo,published_on_site,metadata,slug,product_type').eq('ativo',true).eq('published_on_site',true).order('categoria').order('nome');
-  if(error)throw error;if(!data?.length)throw new Error('Catálogo sem itens publicados.');
+  const data=await fetchAllProducts([['ativo',true],['published_on_site',true]]);
+  if(!data.length)throw new Error('Catálogo sem itens publicados.');
   const mm=await mediaMap(data.map(x=>x.id));
   const itens=data.map(row=>mapCanonical(row,mm.get(row.id)||''));
   const categorias=['Todos',...new Set(itens.map(item=>item.categoria).filter(Boolean))];return{categorias,itens};
@@ -44,10 +57,9 @@ async function catalogoSupabase(){
 async function catalogoLocal(){const response=await fetch('/data/catalogo.json',{cache:'no-store'});if(!response.ok)throw new Error(`Falha ao carregar fallback: ${response.status}`);return response.json()}
 
 async function carregarHomePorTipo(tipo,limit=DEFAULT_HOME_LIMIT){
-  // A Home usa a base oficial ativa. Publicação completa do catálogo continua controlada separadamente.
-  const{data,error}=await supabase.from('products').select('id,sku,nome,categoria,descricao,short_description,preco,ativo,published_on_site,metadata,slug,product_type').eq('ativo',true).eq('product_type',tipo).limit(500);
-  if(error)throw error;
-  const rows=data||[],mm=await mediaMap(rows.map(x=>x.id));
+  // A Home usa toda a base oficial ativa, mas só mostra itens que possuem imagem real.
+  const rows=await fetchAllProducts([['ativo',true],['product_type',tipo]]);
+  const mm=await mediaMap(rows.map(x=>x.id));
   const withImage=rows.map(row=>mapCanonical(row,mm.get(row.id)||'')).filter(item=>Boolean(item.imagem));
   return sortHome(withImage).slice(0,limit);
 }
