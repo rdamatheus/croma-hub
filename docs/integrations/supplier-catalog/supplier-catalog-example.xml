@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<supplierCatalog version="1.0">
+  <catalogDate>2026-09-05</catalogDate>
+  <items>
+    <item>
+      <sku>ABC123</sku>
+      <name>Adesivo Vinil Branco</name>
+      <description>Adesivo personalizado</description>
+      <category>Adesivos</category>
+      <purchasePrice>36.50</purchasePrice>
+      <minimumOrderQuantity>100</minimumOrderQuantity>
+      <leadTimeDays>3</leadTimeDays>
+      <weight>0.250</weight>
+      <unit>UN</unit>
+      <width>10</width>
+      <height>10</height>
+      <attributes>
+        <attribute name="cores">4x0</attribute>
+        <attribute name="material">Vinil branco</attribute>
+      </attributes>
+    </item>
+  </items>
+</supplierCatalog>
