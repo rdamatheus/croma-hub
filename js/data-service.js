@@ -11,18 +11,20 @@ function asMeta(row) {
   return row && row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
 }
 
-function mapProduct(row) {
+function mapCanonical(row) {
   const meta = asMeta(row);
+  const isService = row.product_type === 'servico';
+  const slug = row.slug || meta.slug || row.sku || row.id;
   return {
-    id: meta.slug || row.sku || row.id,
+    id: slug,
     sourceId: row.id,
-    tipo: 'produto',
+    tipo: isService ? 'servico' : 'produto',
     nome: row.nome,
-    categoria: row.categoria || 'Outros',
-    descricao: row.descricao || '',
-    icone: meta.icone || '◼',
+    categoria: row.categoria || (isService ? 'Serviços' : 'Produtos'),
+    descricao: row.short_description || row.descricao || '',
+    icone: meta.icone || (isService ? '◆' : '◼'),
     imagem: meta.imagem || meta.image_url || meta.imagem_principal || '',
-    href: meta.href || `/produtos/?id=${encodeURIComponent(row.id)}`,
+    href: meta.href || (isService ? `/servicos/${slug}/` : '/produtos/'),
     destaques: Array.isArray(meta.destaques) ? meta.destaques : [],
     quantidadePreco: Number(meta.quantidadePreco || 1),
     precoVenda: Number(row.preco || 0) || null,
@@ -31,32 +33,32 @@ function mapProduct(row) {
   };
 }
 
-function mapService(row) {
-  const meta = asMeta(row);
-  const slug = row.slug || meta.slug || row.id;
-  const preco = Number(row.preco ?? row.preco_base ?? row.price ?? meta.preco ?? 0) || null;
+function mapBlingProduct(row) {
+  const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+  const stock = Number(payload?.estoque?.saldoVirtualTotal || 0);
   return {
-    id: slug,
-    sourceId: row.id,
-    tipo: 'servico',
-    nome: row.nome || row.name || row.titulo || 'Serviço Croma',
-    categoria: row.categoria || row.category || meta.categoria || 'Serviços',
-    descricao: row.descricao || row.description || meta.descricao || '',
-    icone: meta.icone || '◆',
-    imagem: row.image_url || row.imagem || meta.imagem || meta.image_url || meta.imagem_principal || '',
-    href: meta.href || (slug ? `/servicos/${slug}/` : '/servicos/'),
-    destaques: Array.isArray(meta.destaques) ? meta.destaques : [],
-    quantidadePreco: Number(meta.quantidadePreco || 1),
-    precoVenda: preco,
-    homeFeatured: meta.home_featured === true || meta.featured_home === true,
-    homeOrder: Number(meta.home_order ?? meta.featured_order ?? 9999)
+    id: row.external_id || row.sku || row.id,
+    sourceId: row.linked_product_id || row.id,
+    integrationId: row.id,
+    tipo: 'produto',
+    nome: row.name || payload.nome || 'Produto Croma',
+    categoria: 'Papelaria & Presentes',
+    descricao: payload.descricaoCurta || '',
+    imagem: payload.imagemURL || '',
+    href: '/produtos/',
+    destaques: stock > 0 ? ['Disponível na loja'] : [],
+    quantidadePreco: 1,
+    precoVenda: Number(row.price || payload.preco || 0) || null,
+    stock,
+    hasImage: Boolean(payload.imagemURL),
+    linked: Boolean(row.linked_product_id)
   };
 }
 
 function sortHome(items) {
   return [...items].sort((a, b) => {
     if (a.homeFeatured !== b.homeFeatured) return a.homeFeatured ? -1 : 1;
-    if (a.homeOrder !== b.homeOrder) return a.homeOrder - b.homeOrder;
+    if ((a.homeOrder ?? 9999) !== (b.homeOrder ?? 9999)) return (a.homeOrder ?? 9999) - (b.homeOrder ?? 9999);
     return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
   });
 }
@@ -64,16 +66,16 @@ function sortHome(items) {
 async function catalogoSupabase() {
   const { data, error } = await supabase
     .from('products')
-    .select('id,sku,nome,categoria,descricao,unidade,preco,ativo,published_on_site,metadata')
+    .select('id,sku,nome,categoria,descricao,short_description,unidade,preco,ativo,published_on_site,metadata,slug,product_type')
     .eq('ativo', true)
     .eq('published_on_site', true)
     .order('categoria')
     .order('nome');
 
   if (error) throw error;
-  if (!data?.length) throw new Error('Catálogo sem produtos publicados.');
+  if (!data?.length) throw new Error('Catálogo sem itens publicados.');
 
-  const itens = data.map(mapProduct);
+  const itens = data.map(mapCanonical);
   const categorias = ['Todos', ...new Set(itens.map(item => item.categoria).filter(Boolean))];
   return { categorias, itens };
 }
@@ -86,43 +88,46 @@ async function catalogoLocal() {
 
 async function carregarProdutosHome(limit = DEFAULT_HOME_LIMIT) {
   const { data, error } = await supabase
-    .from('products')
-    .select('id,sku,nome,categoria,descricao,preco,ativo,published_on_site,metadata')
-    .eq('ativo', true)
-    .eq('published_on_site', true)
-    .limit(80);
+    .from('integration_catalog_items')
+    .select('id,external_id,sku,name,price,status,payload,linked_product_id,last_refreshed_at')
+    .eq('provider', 'bling')
+    .eq('entity_type', 'product')
+    .eq('status', 'A')
+    .order('last_refreshed_at', { ascending: false })
+    .limit(250);
 
   if (error) throw error;
-  return sortHome((data || []).map(mapProduct)).slice(0, limit);
-}
 
-async function tryServicesQuery(selectExpr) {
-  return supabase
-    .from('services')
-    .select(selectExpr)
-    .limit(80);
+  const produtos = (data || [])
+    .map(mapBlingProduct)
+    .filter(item => {
+      const raw = (data || []).find(row => row.id === item.integrationId);
+      const tipo = raw?.payload?.tipo;
+      return (!tipo || tipo === 'P') && item.precoVenda;
+    })
+    .sort((a, b) => {
+      if (a.linked !== b.linked) return a.linked ? -1 : 1;
+      if (a.hasImage !== b.hasImage) return a.hasImage ? -1 : 1;
+      if ((a.stock > 0) !== (b.stock > 0)) return a.stock > 0 ? -1 : 1;
+      return String(a.nome).localeCompare(String(b.nome), 'pt-BR');
+    });
+
+  const withImageAndStock = produtos.filter(item => item.hasImage && item.stock > 0);
+  const selected = [...withImageAndStock, ...produtos.filter(item => !withImageAndStock.includes(item))];
+  return selected.slice(0, limit);
 }
 
 async function carregarServicosHome(limit = DEFAULT_HOME_LIMIT) {
-  const attempts = [
-    'id,slug,nome,categoria,descricao,preco,ativo,published_on_site,image_url,metadata',
-    'id,slug,nome,categoria,descricao,preco,ativo,image_url,metadata',
-    'id,slug,nome,categoria,descricao,preco,ativo,metadata',
-    'id,slug,nome,categoria,descricao,ativo,metadata',
-    '*'
-  ];
+  const { data, error } = await supabase
+    .from('products')
+    .select('id,sku,nome,categoria,descricao,short_description,preco,ativo,published_on_site,metadata,slug,product_type')
+    .eq('ativo', true)
+    .eq('published_on_site', true)
+    .eq('product_type', 'servico')
+    .limit(80);
 
-  let lastError = null;
-  for (const selectExpr of attempts) {
-    const { data, error } = await tryServicesQuery(selectExpr);
-    if (error) {
-      lastError = error;
-      continue;
-    }
-    const ativos = (data || []).filter(row => row.ativo !== false && row.active !== false && row.published_on_site !== false);
-    return sortHome(ativos.map(mapService)).slice(0, limit);
-  }
-  throw lastError || new Error('Serviços indisponíveis.');
+  if (error) throw error;
+  return sortHome((data || []).map(mapCanonical)).slice(0, limit);
 }
 
 export async function carregarVitrineHome(limit = DEFAULT_HOME_LIMIT) {
