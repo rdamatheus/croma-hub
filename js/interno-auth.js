@@ -7,6 +7,7 @@ if (location.pathname.startsWith('/interno/produtos')) {
   import('./supplier-catalog-importer-v21.js?v=20260905-1').catch(console.error);
   import('./supplier-catalog-browser.js?v=20260905-1').catch(console.error);
   import('./bling-product-catalog-v2.js?v=20260905-1').catch(console.error);
+  import('./product-rules-v21.js?v=20260905-1').catch(console.error);
   import('./interno-produtos-modal.js').catch(console.error);
 }
 
