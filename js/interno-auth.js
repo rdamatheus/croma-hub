@@ -3,14 +3,19 @@ import './interno-polish.js';
 import { supabase } from './croma-supabase.js';
 
 if (location.pathname.startsWith('/interno/produtos')) {
-  import('./products-list-detail-controller.js?v=20260905-1').catch(console.error);
-  import('./interno-produtos-supplier-enhancer.js?v=20260905-4').catch(console.error);
-  import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2').catch(console.error);
-  import('./supplier-catalog-diagnostics-v212.js?v=20260905-1').catch(console.error);
-  import('./supplier-catalog-message-enhancer.js?v=20260905-1').catch(console.error);
-  import('./supplier-catalog-browser.js?v=20260905-1').catch(console.error);
-  import('./bling-product-catalog-v2.js?v=20260905-1').catch(console.error);
-  import('./product-rules-v21.js?v=20260905-1').catch(console.error);
+  const p = new URLSearchParams(location.search);
+  const detailMode = p.get('modo') === 'ficha' && !!p.get('produto');
+
+  if (detailMode) {
+    import('./interno-produtos-supplier-enhancer.js?v=20260905-5').catch(console.error);
+    import('./product-rules-v21.js?v=20260905-2').catch(console.error);
+  } else {
+    import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2').catch(console.error);
+    import('./supplier-catalog-diagnostics-v212.js?v=20260905-1').catch(console.error);
+    import('./supplier-catalog-message-enhancer.js?v=20260905-1').catch(console.error);
+    import('./supplier-catalog-browser.js?v=20260905-1').catch(console.error);
+    import('./bling-product-catalog-v2.js?v=20260905-1').catch(console.error);
+  }
 }
 
 export const INTERNAL_ROLES = ['owner','manager','equipe'];
