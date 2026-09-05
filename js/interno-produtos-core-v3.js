@@ -11,6 +11,9 @@ const num = id => val(id)==='' ? null : Number(val(id));
 const txt = id => val(id).trim() || null;
 const PAGE_SIZE = 500;
 const UI_PAGE_SIZE = 50;
+const params = new URLSearchParams(location.search);
+const detailProductId = params.get('produto') || '';
+const detailMode = params.get('modo') === 'ficha' && !!detailProductId;
 
 let products=[];
 let categories=[];
@@ -53,19 +56,22 @@ function categoryPath(c){
   return names.join(' › ');
 }
 
+function detailHref(id){return `/interno/produtos/?produto=${encodeURIComponent(id)}&modo=ficha`;}
+
 function injectStyles(){
   if($('#productsCoreStyles')) return;
   const s=document.createElement('style');
   s.id='productsCoreStyles';
   s.textContent=`
-  .products-workspace{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}.products-filters{background:#fff;border:1px solid var(--croma-line);border-radius:16px;padding:14px;position:sticky;top:86px}.products-filters h3{margin:0 0 12px;color:var(--croma-purple);font-size:.95rem}.products-filters label{display:grid;gap:5px;margin:0 0 12px;font-size:.68rem;font-weight:900;text-transform:uppercase;color:var(--croma-purple)}.products-filters select{padding:9px 10px;border:1px solid #d8d6e4;border-radius:9px;background:#fff;font:inherit;text-transform:none;color:#3f3b54}.products-main{min-width:0}.products-list-tools{display:flex;gap:10px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}.products-list-tools .search{flex:1;min-width:260px}.product-list{display:grid;gap:8px}.product-row{display:grid!important;grid-template-columns:58px minmax(200px,1.6fr) minmax(120px,.8fr) minmax(110px,.65fr) minmax(130px,.7fr) auto!important;gap:10px;align-items:center;padding:12px 14px;border:1px solid #e6e3ee;border-radius:14px;background:#fff;color:inherit;cursor:pointer}.product-row:hover,.product-row.selected{border-color:#8f89c2;box-shadow:0 8px 22px #30297f12}.core-thumb{width:58px;height:58px;border-radius:10px;overflow:hidden;background:#efedf5;display:grid;place-items:center}.core-thumb img{width:100%;height:100%;object-fit:cover}.core-thumb span{font-size:.65rem;color:#8a8598;text-align:center}.core-open{white-space:nowrap}.core-pagebar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin:12px 0}.core-pagebar button{padding:8px 10px}.product-name{font-weight:900;color:var(--croma-deep)}.product-meta{font-size:.78rem;color:var(--croma-muted)}.pill{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:#f0eef8;color:var(--croma-purple);font-size:.72rem;font-weight:900}.pill.ok{background:#edf7e8;color:#426920}.pill.off{background:#f4f4f4;color:#777}.list-head{display:none!important}.core-filterbar,#cromaProductStatus,.croma-edit-chip{display:none!important}
-  @media(max-width:980px){.products-workspace{grid-template-columns:1fr}.products-filters{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.products-filters h3{grid-column:1/-1}.products-filters label{margin:0}.product-row{grid-template-columns:58px 1fr 1fr!important}.product-row>div:nth-child(2){grid-column:2/-1}}
-  @media(max-width:650px){.products-filters{grid-template-columns:1fr}.product-row{grid-template-columns:52px 1fr!important}.core-thumb{width:52px;height:52px}.product-row>*{grid-column:auto!important}.product-row>div:nth-child(2){grid-column:2/-1!important}}
+  .products-workspace{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start}.products-filters{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:16px;position:sticky;top:86px;box-shadow:0 10px 28px rgba(33,28,92,.04)}.products-filters h3{margin:0 0 4px;color:var(--croma-purple);font-size:1rem}.products-filter-note{margin:0 0 15px;color:var(--croma-muted);font-size:.78rem;line-height:1.4}.products-filters label{display:grid;gap:6px;margin:0 0 13px;font-size:.68rem;font-weight:900;text-transform:uppercase;color:var(--croma-purple)}.products-filters select{width:100%;padding:10px 11px;border:1px solid #d8d6e4;border-radius:10px;background:#fff;font:inherit;text-transform:none;color:#3f3b54}.products-main{min-width:0}.products-list-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}.products-list-tools .search{flex:1;min-width:260px}.product-list{display:grid;gap:8px}.product-row{display:grid!important;grid-template-columns:58px minmax(200px,1.6fr) minmax(120px,.8fr) minmax(110px,.65fr) minmax(130px,.7fr) auto!important;gap:10px;align-items:center;padding:12px 14px;border:1px solid #e6e3ee;border-radius:14px;background:#fff;color:inherit;cursor:pointer}.product-row:hover,.product-row.selected{border-color:#8f89c2;box-shadow:0 8px 22px #30297f12}.core-thumb{width:58px;height:58px;border-radius:10px;overflow:hidden;background:#efedf5;display:grid;place-items:center}.core-thumb img{width:100%;height:100%;object-fit:cover}.core-thumb span{font-size:.65rem;color:#8a8598;text-align:center}.core-open{white-space:nowrap}.core-pagebar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin:12px 0}.core-pagebar button{padding:8px 10px}.product-name{font-weight:900;color:var(--croma-deep)}.product-meta{font-size:.78rem;color:var(--croma-muted)}.pill{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:#f0eef8;color:var(--croma-purple);font-size:.72rem;font-weight:900}.pill.ok{background:#edf7e8;color:#426920}.pill.off{background:#f4f4f4;color:#777}.list-head{display:none!important}.core-filterbar,#cromaProductStatus,.croma-edit-chip{display:none!important}.product-detail-mode #importCard,.product-detail-mode #corePager{display:none!important}.product-detail-mode #editor{display:block!important}.products-detail-back{display:inline-flex;margin-bottom:14px}.product-detail-mode .internal-title{margin-bottom:4px}
+  @media(max-width:980px){.products-workspace{grid-template-columns:1fr}.products-filters{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.products-filters h3,.products-filter-note{grid-column:1/-1}.products-filters label{margin:0}.product-row{grid-template-columns:58px 1fr 1fr!important}.product-row>div:nth-child(2){grid-column:2/-1}}
+  @media(max-width:650px){.products-filters{grid-template-columns:1fr}.products-filters h3,.products-filter-note{grid-column:auto}.product-row{grid-template-columns:52px 1fr!important}.core-thumb{width:52px;height:52px}.product-row>*{grid-column:auto!important}.product-row>div:nth-child(2){grid-column:2/-1!important}}
   `;
   document.head.appendChild(s);
 }
 
 function buildWorkspace(){
+  if(detailMode) return;
   const list=$('#productList');
   const card=list?.closest('.card');
   if(!list||!card||$('#productsWorkspace')) return;
@@ -81,7 +87,7 @@ function buildWorkspace(){
 
   const side=document.createElement('aside');
   side.className='products-filters';
-  side.innerHTML=`<h3>Filtros</h3>
+  side.innerHTML=`<h3>Filtros do cadastro</h3><p class="products-filter-note">Refine a lista por tipo, status, categoria e integração.</p>
     <label>Tipo<select id="filterType"><option value="">Todos</option><option value="produto">Produtos</option><option value="servico">Serviços</option></select></label>
     <label>Status<select id="filterStatus"><option value="">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos</option></select></label>
     <label>Categoria<select id="filterCategory"><option value="">Todas</option></select></label>
@@ -139,6 +145,7 @@ function filteredRows(){
 }
 
 function renderList(){
+  if(detailMode) return;
   const list=$('#productList');
   if(!list) return;
   const rows=filteredRows();
@@ -150,8 +157,8 @@ function renderList(){
   list.innerHTML=shown.length?shown.map(p=>{
     const image=mediaMap.get(p.id);
     const cat=categories.find(c=>c.id===p.catalog_category_id)?.nome||'Sem categoria';
-    const href=`?produto=${encodeURIComponent(p.id)}`;
-    return `<article class="product-row ${currentProduct?.id===p.id?'selected':''}" data-open-id="${p.id}" tabindex="0">
+    const href=detailHref(p.id);
+    return `<article class="product-row" data-open-id="${p.id}" tabindex="0">
       <div class="core-thumb">${image?`<img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<span>Sem foto</span>'">`:'<span>Sem foto</span>'}</div>
       <div><div class="product-name">${esc(p.nome)}</div><div class="product-meta">${p.product_type==='servico'?'Serviço':'Produto'} · Código: ${esc(p.sku||'—')}</div></div>
       <div><div class="product-meta">Categoria</div><strong>${esc(cat)}</strong></div>
@@ -169,44 +176,68 @@ function renderList(){
 }
 
 function bindListEvents(){
+  if(detailMode) return;
   const list=$('#productList');
   if(!list||list.dataset.bound==='1') return;
   list.dataset.bound='1';
   list.addEventListener('click',e=>{
     if(e.target.closest('a,button,input,select,textarea')) return;
     const row=e.target.closest('[data-open-id]');
-    if(row) location.href=`?produto=${encodeURIComponent(row.dataset.openId)}`;
+    if(row) location.href=detailHref(row.dataset.openId);
   });
   list.addEventListener('keydown',e=>{
     if(e.key!=='Enter'&&e.key!==' ') return;
     const row=e.target.closest('[data-open-id]');
-    if(row){e.preventDefault();location.href=`?produto=${encodeURIComponent(row.dataset.openId)}`;}
+    if(row){e.preventDefault();location.href=detailHref(row.dataset.openId);}
   });
 }
 
-async function loadBase(){
-  if($('#productCount')) $('#productCount').textContent='Carregando itens…';
+function prepareDetailMode(){
+  if(!detailMode) return;
+  document.body.classList.add('product-detail-mode');
+  $('#importCard')?.remove();
+  const listCard=$('#productList')?.closest('.card');
+  if(listCard) listCard.style.display='none';
+  const editor=$('#editor');
+  if(editor&&!editor.querySelector('.products-detail-back')){
+    const back=document.createElement('a');
+    back.className='btn light products-detail-back';
+    back.href='/interno/produtos/';
+    back.textContent='← Voltar para produtos';
+    editor.prepend(back);
+  }
+  const navButtons=[...document.querySelectorAll('a,button')].filter(el=>['produtos','categorias','segmentos'].includes(String(el.textContent||'').trim().toLowerCase()));
+  const wrappers=[...new Set(navButtons.map(x=>x.parentElement).filter(Boolean))];
+  wrappers.forEach(w=>{if(navButtons.filter(x=>x.parentElement===w).length>=2)w.style.display='none';});
+}
 
+async function loadListMode(){
+  if($('#productCount')) $('#productCount').textContent='Carregando itens…';
   products=await fetchAll(()=>supabase.from('products').select('id,nome,sku,slug,catalog_category_id,preco,bling_product_id,bling_sku,bling_sync_status,product_type,ativo').order('nome'));
   renderList();
 
-  const [catsResult,suppliersResult,mediaResult]=await Promise.allSettled([
+  const [catsResult,mediaResult]=await Promise.allSettled([
     fetchAll(()=>supabase.from('catalog_categories').select('id,nome,parent_id,ordem,catalog_scope,ativo').order('ordem').order('nome')),
-    fetchAll(()=>supabase.from('suppliers').select('id,name,active').eq('active',true).order('name')),
     fetchAll(()=>supabase.from('product_media').select('product_id,url,is_primary,ordem,ativo,kind').eq('ativo',true).eq('kind','image').order('is_primary',{ascending:false}).order('ordem'))
   ]);
-
   if(catsResult.status==='fulfilled') categories=catsResult.value;
-  if(suppliersResult.status==='fulfilled') suppliers=suppliersResult.value;
   if(mediaResult.status==='fulfilled'){
     mediaMap=new Map();
     for(const row of mediaResult.value) if(!mediaMap.has(row.product_id)&&row.url) mediaMap.set(row.product_id,row.url);
   }
   refreshCategoryFilter();
   renderList();
+}
 
-  const wanted=new URLSearchParams(location.search).get('produto');
-  if(wanted) await loadProduct(wanted);
+async function loadDetailMode(){
+  prepareDetailMode();
+  const [catsResult,suppliersResult]=await Promise.allSettled([
+    fetchAll(()=>supabase.from('catalog_categories').select('id,nome,parent_id,ordem,catalog_scope,ativo').order('ordem').order('nome')),
+    fetchAll(()=>supabase.from('suppliers').select('id,name,active').eq('active',true).order('name'))
+  ]);
+  if(catsResult.status==='fulfilled') categories=catsResult.value;
+  if(suppliersResult.status==='fulfilled') suppliers=suppliersResult.value;
+  await loadProduct(detailProductId);
 }
 
 async function loadProduct(id){
@@ -232,10 +263,9 @@ async function loadProduct(id){
   groups=results[3].data||[];
   variants=results[4].data||[];
   renderEditor();
-  renderList();
   $('#editor')?.classList.add('open');
   $('#savebar')?.classList.add('show');
-  $('#editor')?.scrollIntoView({behavior:'smooth',block:'start'});
+  if(!detailMode) $('#editor')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function setv(id,v){const el=$('#'+id);if(el)el.value=v??'';}
@@ -283,13 +313,18 @@ async function importBling(){
   const input=$('#blingImportCode');const button=$('#importBling');const status=$('#importStatus');const code=input?.value.trim();
   if(!code){if(status){status.className='status bad';status.textContent='Informe o código ou ID no Bling.';}return;}
   if(button)button.disabled=true;
-  try{const{data,error}=await supabase.functions.invoke('bling-import-product',{body:{code}});if(error)throw error;if(data?.error)throw new Error(data.detail||data.error);await loadBase();if(status){status.className='status ok';status.textContent='Importação concluída.';}if(input)input.value='';}catch(e){console.error(e);if(status){status.className='status bad';status.textContent='Não foi possível importar.';}}finally{if(button)button.disabled=false;}
+  try{const{data,error}=await supabase.functions.invoke('bling-import-product',{body:{code}});if(error)throw error;if(data?.error)throw new Error(data.detail||data.error);await loadListMode();if(status){status.className='status ok';status.textContent='Importação concluída.';}if(input)input.value='';}catch(e){console.error(e);if(status){status.className='status bad';status.textContent='Não foi possível importar.';}}finally{if(button)button.disabled=false;}
 }
 $('#importBling')?.addEventListener('click',importBling);
 $('#blingImportCode')?.addEventListener('keydown',e=>{if(e.key==='Enter')importBling();});
 if(session.profile?.role!=='owner') $('#importCard')?.querySelectorAll('input,button').forEach(x=>x.disabled=true);
 
 injectStyles();
-buildWorkspace();
-bindListEvents();
-loadBase().catch(e=>{console.error('Falha ao carregar produtos/serviços',e);if($('#productCount'))$('#productCount').textContent='Falha ao carregar';if($('#productList'))$('#productList').innerHTML='<p class="status bad">Não foi possível carregar os itens. Atualize a página e tente novamente.</p>';});
+if(detailMode){
+  prepareDetailMode();
+  loadDetailMode().catch(e=>{console.error('Falha ao carregar ficha do item',e);const status=$('#status');if(status){status.className='status bad';status.textContent='Não foi possível carregar esta ficha. Volte para a lista e tente novamente.';}});
+}else{
+  buildWorkspace();
+  bindListEvents();
+  loadListMode().catch(e=>{console.error('Falha ao carregar produtos/serviços',e);if($('#productCount'))$('#productCount').textContent='Falha ao carregar';if($('#productList'))$('#productList').innerHTML='<p class="status bad">Não foi possível carregar os itens. Atualize a página e tente novamente.</p>';});
+}
