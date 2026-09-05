@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<supplierCatalog version="2.0">
+  <catalogDate>2026-09-05</catalogDate>
+  <items>
+    <item>
+      <sku>EX-BANNER-001</sku>
+      <name>Banner em Lona 440g</name>
+      <description>Banner personalizado em lona front light</description>
+      <category>Banners</category>
+      <printMode>4X0</printMode>
+      <weight>500</weight>
+      <minimumOrderQuantity>1</minimumOrderQuantity>
+      <leadTimeDays>3</leadTimeDays>
+      <sourceSize>1000 x 1000</sourceSize>
+      <width>1000</width>
+      <height>1000</height>
+      <dimensionUnit>mm</dimensionUnit>
+      <sourcePrice>R$ 48,50</sourcePrice>
+      <purchasePrice>48.50</purchasePrice>
+      <measurementType>area</measurementType>
+      <pricingUnit>m2</pricingUnit>
+      <quantityType>free</quantityType>
+      <parentKey>BANNER-LONA</parentKey>
+      <validationStatus>ok</validationStatus>
+      <attributes>
+        <attribute name="material">Lona 440g</attribute>
+        <attribute name="acabamento">Sem acabamento padrão</attribute>
+      </attributes>
+    </item>
+  </items>
+</supplierCatalog>
