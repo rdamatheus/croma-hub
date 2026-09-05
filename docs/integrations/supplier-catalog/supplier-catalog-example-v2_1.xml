@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<supplierCatalog version="2.1">
+  <catalogDate>2026-09-05</catalogDate>
+  <items>
+    <item>
+      <sku>EX-FOTO-15-24</sku>
+      <name>Impressão Fotográfica</name>
+      <category>Fotos</category>
+      <printMode>4X0</printMode>
+      <weight>60</weight>
+      <baseQuantity>15</baseQuantity>
+      <leadTimeDays>1</leadTimeDays>
+      <sourcePrice>R$ 2,50</sourcePrice>
+      <purchasePrice>2.50</purchasePrice>
+      <measurementType>fixed</measurementType>
+      <pricingUnit>unit</pricingUnit>
+      <quantityType>range</quantityType>
+      <priceBasis>unit</priceBasis>
+      <minQuantity>15</minQuantity>
+      <maxQuantity>24</maxQuantity>
+      <parentKey>FOTO-10X15</parentKey>
+      <validationStatus>ok</validationStatus>
+      <attributes>
+        <attribute name="tamanho">10x15 cm</attribute>
+        <attribute name="papel">Fotográfico</attribute>
+      </attributes>
+    </item>
+    <item>
+      <sku>EX-BANNER-M2</sku>
+      <name>Banner em Lona 440g</name>
+      <category>Banners</category>
+      <printMode>4X0</printMode>
+      <leadTimeDays>3</leadTimeDays>
+      <sourcePrice>R$ 48,50</sourcePrice>
+      <purchasePrice>48.50</purchasePrice>
+      <measurementType>area</measurementType>
+      <pricingUnit>m2</pricingUnit>
+      <quantityType>free</quantityType>
+      <priceBasis>unit</priceBasis>
+      <dimensionUnit>m</dimensionUnit>
+      <minWidth>0.10</minWidth>
+      <maxWidth>1.20</maxWidth>
+      <minHeight>0.10</minHeight>
+      <maxHeight>20.00</maxHeight>
+      <minArea>0.01</minArea>
+      <parentKey>BANNER-LONA</parentKey>
+      <validationStatus>ok</validationStatus>
+      <attributes>
+        <attribute name="material">Lona 440g</attribute>
+      </attributes>
+    </item>
+  </items>
+</supplierCatalog>
