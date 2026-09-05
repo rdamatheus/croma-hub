@@ -15,7 +15,7 @@
   }
 
   const currentPath = location.pathname.replace(/\/+$/,'/');
-  if (['/servicos/','/segmentos/'].includes(currentPath) && !document.querySelector('script[data-croma-public-filters]')) {
+  if (currentPath === '/segmentos/' && !document.querySelector('script[data-croma-public-filters]')) {
     const f = document.createElement('script');
     f.src = '/js/public-catalog-filters.js?v=20260831-1';
     f.dataset.cromaPublicFilters = '1';
@@ -64,15 +64,13 @@
   const current = path.startsWith('/produtos/') ? 'produtos'
     : path.startsWith('/segmentos/') ? 'segmentos'
     : path.startsWith('/sobre/') ? 'sobre'
-    : path.startsWith('/servicos/') && hash === '#comunicacao-visual' ? 'comunicacao'
     : path.startsWith('/servicos/') ? 'graficos'
     : path === '/' && hash === '#portfolio' ? 'portfolio'
     : null;
 
   const items = [
     ['produtos','Produtos','/produtos/'],
-    ['graficos','Serviços Gráficos','/servicos/#servicos-graficos'],
-    ['comunicacao','Comunicação Visual','/servicos/#comunicacao-visual'],
+    ['graficos','Serviços Gráficos','/servicos/'],
     ['segmentos','Soluções por segmento','/segmentos/'],
     ['portfolio','Portfólio','/#portfolio'],
     ['sobre','Sobre a Croma','/sobre/']
