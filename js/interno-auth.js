@@ -6,10 +6,12 @@ if (location.pathname.startsWith('/interno/produtos')) {
   import('./interno-produtos-supplier-enhancer.js?v=20260905-4').catch(console.error);
   import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2').catch(console.error);
   import('./supplier-catalog-diagnostics-v212.js?v=20260905-1').catch(console.error);
+  import('./supplier-catalog-message-enhancer.js?v=20260905-1').catch(console.error);
   import('./supplier-catalog-browser.js?v=20260905-1').catch(console.error);
   import('./bling-product-catalog-v2.js?v=20260905-1').catch(console.error);
   import('./product-rules-v21.js?v=20260905-1').catch(console.error);
   import('./interno-produtos-modal.js').catch(console.error);
+  import('./products-screen-organizer.js?v=20260905-1').catch(console.error);
 }
 
 export const INTERNAL_ROLES = ['owner','manager','equipe'];
