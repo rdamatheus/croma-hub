@@ -1,8 +1,47 @@
 import { supabase } from './croma-supabase.js';
 
+async function invokeOnce(body){
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if(!token) throw new Error('Sua sessão expirou. Entre novamente no Croma Hub.');
+  return await supabase.functions.invoke('croma-suppliers',{
+    body,
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+}
+
 async function invoke(body){
-  const {data,error}=await supabase.functions.invoke('croma-suppliers',{body});
-  if(error){let m=error.message;try{const j=await error.context?.json?.();m=j?.detail||j?.error||j?.message||m}catch{}throw new Error(m||'Falha na operação de fornecedor.')}if(data?.error)throw new Error(data.detail||data.error);return data;
+  let response;
+  try{
+    response = await invokeOnce(body);
+  }catch(e){
+    if(String(e?.message||e).toLowerCase().includes('failed to fetch')){
+      await new Promise(r=>setTimeout(r,450));
+      response = await invokeOnce(body);
+    }else{
+      throw e;
+    }
+  }
+
+  const {data,error}=response||{};
+  if(error){
+    let m=error.message;
+    try{
+      const j=await error.context?.json?.();
+      m=j?.detail||j?.error||j?.message||m;
+    }catch{
+      try{
+        const t=await error.context?.text?.();
+        if(t)m=t;
+      }catch{}
+    }
+    if(String(m||'').toLowerCase().includes('failed to fetch')){
+      m='Não foi possível comunicar com a função de fornecedores. Atualize a página e tente novamente; se persistir, a sessão ou a função pode estar indisponível.';
+    }
+    throw new Error(m||'Falha na operação de fornecedor.');
+  }
+  if(data?.error)throw new Error(data.detail||data.error);
+  return data;
 }
 
 export async function listSupplierDirectory(){
