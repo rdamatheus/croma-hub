@@ -3,6 +3,7 @@ import './interno-polish.js';
 import { supabase } from './croma-supabase.js';
 
 if (location.pathname.startsWith('/interno/produtos')) {
+  import('./products-list-detail-controller.js?v=20260905-1').catch(console.error);
   import('./interno-produtos-supplier-enhancer.js?v=20260905-4').catch(console.error);
   import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2').catch(console.error);
   import('./supplier-catalog-diagnostics-v212.js?v=20260905-1').catch(console.error);
