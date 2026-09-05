@@ -4,7 +4,7 @@ import { supabase } from './croma-supabase.js';
 
 if (location.pathname.startsWith('/interno/produtos')) {
   import('./interno-produtos-supplier-enhancer.js').catch(console.error);
-  import('./supplier-catalog-importer.js').catch(console.error);
+  import('./supplier-catalog-importer.js?v=20260905-2').catch(console.error);
   import('./interno-produtos-modal.js').catch(console.error);
 }
 
