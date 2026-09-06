@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#30297F">
   <title>Central de Taxonomia | Croma</title>
   <link rel="stylesheet" href="/css/interno-base.css?v=20260906-1">
-  <link rel="stylesheet" href="/css/taxonomy-admin.css?v=20260906-1">
+  <link rel="stylesheet" href="/css/taxonomy-admin.css?v=20260906-2">
 </head>
 <body hidden>
 <header class="internal-header">
@@ -63,7 +63,8 @@
         </div>
         <div class="tx-toolbar"><input id="editImageFile" type="file" accept="image/png,image/jpeg,image/webp"><button class="tx-btn secondary" id="uploadCategoryImage" type="button">Enviar imagem</button></div>
         <div class="tx-field"><label for="editPublicPath">Caminho público</label><input id="editPublicPath" placeholder="/produtos/... ou /servicos/..."></div>
-        <div class="tx-checkboxes"><label><input id="editActive" type="checkbox" checked> Ativa</label><label><input id="editFeatured" type="checkbox"> Destaque na Home</label><label><input id="editNav" type="checkbox"> Navegação principal</label></div>
+        <div class="tx-checkboxes"><label><input id="editActive" type="checkbox" checked> Ativa no sistema</label><label><input id="editFeatured" type="checkbox"> Destaque na Home</label><label><input id="editNav" type="checkbox"> Navegação principal</label></div>
+        <p class="tx-help">Ativa no sistema e visível no site são controles independentes. Assim, categorias internas podem ser usadas em custos/composição sem aparecer para o cliente.</p>
         <p class="tx-help">A família é exclusiva da Croma. Para o Bling, somente Categoria e Subcategoria são sincronizadas. Categorias com mais de dois níveis ficam bloqueadas para push até serem normalizadas.</p>
         <div class="tx-actions"><button class="tx-btn" id="saveCategory" type="button">Salvar categoria</button><button class="tx-btn warn" id="toggleCategory" type="button" hidden>Desativar</button><button class="tx-btn secondary" id="syncCategoryBling" type="button">Sincronizar com Bling</button></div>
         <div id="txStatus" class="tx-status"></div>
@@ -85,7 +86,7 @@
       <div id="runSummary"><div class="tx-empty">Crie uma execução para começar.</div></div>
     </div>
 
-    <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 1</span><h2>Categorias sugeridas</h2></div><p class="tx-help">Aprovar cria a categoria Croma. “Vincular existente” evita duplicações.</p></div>
+    <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 1</span><h2>Categorias sugeridas</h2></div><p class="tx-help">Veja também quais itens originaram a sugestão. Você pode aceitar, criar diferente, reaproveitar uma existente ou rejeitar apenas a sugestão da IA.</p></div>
     <div class="tx-proposals" id="categoryProposals"><div class="tx-empty">Nenhuma proposta ainda.</div></div>
 
     <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 2</span><h2>Classificação de itens</h2></div><div class="tx-toolbar" style="margin:0"><select id="confidenceFilter"><option value="all">Todas as certezas</option><option value="high">Alta certeza</option><option value="review">Revisar</option><option value="uncertain">Dúvida</option></select><button class="tx-btn good" id="applyHigh" type="button">Aplicar altas validadas</button></div></div>
@@ -94,13 +95,14 @@
 
   <section class="taxonomy-panel" id="panel-bling">
     <div class="tx-card">
-      <div class="tx-card-head"><div><span class="internal-eyebrow">ERP</span><h2>Categorias do Bling</h2><p class="tx-help">Importar nunca sobrescreve a árvore Croma. Primeiro cacheamos e mapeamos; o push só acontece por ação explícita.</p></div><span class="tx-badge synced">OAuth existente</span></div>
+      <div class="tx-card-head"><div><span class="internal-eyebrow">ERP</span><h2>Categorias do Bling</h2><p class="tx-help">Cada categoria mostra a sugestão Croma, confiança e ações de moderação. Excluir sempre verifica dependências antes e exige confirmação.</p></div><span class="tx-badge synced">OAuth existente</span></div>
       <div class="tx-actions"><button class="tx-btn" id="importBling" type="button">Importar categorias do Bling</button><button class="tx-btn secondary" id="refreshBling" type="button">Atualizar painel</button></div>
       <div id="blingStatus" class="tx-status"></div>
       <div id="blingList"><div class="tx-empty">Carregando categorias do Bling...</div></div>
     </div>
   </section>
 </main>
-<script type="module" src="/js/interno-taxonomy-admin.js?v=20260906-1"></script>
+<script type="module" src="/js/interno-taxonomy-admin.js?v=20260906-2"></script>
+<script type="module" src="/js/interno-taxonomy-enhancements.js?v=20260906-1"></script>
 </body>
 </html>
