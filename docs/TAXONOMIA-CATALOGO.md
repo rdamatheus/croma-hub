@@ -117,7 +117,8 @@ Mudanças exclusivamente em `catalog_category_id` não entram nos campos que mar
 - produtos ativos: **2.137**;
 - serviços ativos: **1.173**;
 - tabelas `taxonomy_runs`, `taxonomy_category_proposals` e `taxonomy_item_proposals`: **removidas**;
-- `taxonomy-classify`: **v6 desativada funcionalmente**, retornando HTTP 410 e sem executar classificação;
+- `taxonomy-classify`: **v7 desativada funcionalmente**, retornando HTTP 410 e sem executar classificação;
+- não há referência do frontend à função de classificação;
 - controlador duplicado `interno-taxonomy-enhancements.js`: **removido**;
 - IA removida da Central de Taxonomia.
 
