@@ -6,19 +6,18 @@
   <meta name="theme-color" content="#30297F">
   <title>Central de Taxonomia | Croma</title>
   <link rel="stylesheet" href="/css/interno-base.css?v=20260906-1">
-  <link rel="stylesheet" href="/css/taxonomy-admin.css?v=20260906-2">
+  <link rel="stylesheet" href="/css/taxonomy-admin.css?v=20260906-3">
 </head>
 <body hidden>
 <header class="internal-header">
   <a href="/interno/">← Croma Interno</a>
-  <div class="internal-header-actions"><span id="roleInfo" class="internal-muted"></span><a class="internal-btn secondary" href="/interno/produtos/">Produtos</a></div>
+  <div class="internal-header-actions"><span id="roleInfo" class="internal-muted"></span></div>
 </header>
 <main class="taxonomy-shell">
   <div class="taxonomy-head">
     <div><span class="internal-eyebrow">Catálogo + Bling + IA</span><h1>Central de Taxonomia</h1><p>Gerencie famílias, categorias e subcategorias, mapeie a estrutura com o Bling e modere as classificações automáticas antes de aplicá-las.</p></div>
     <button class="tx-btn" id="newCategory" type="button">+ Nova categoria</button>
   </div>
-  <nav class="catalog-tabs" style="margin-bottom:14px"><a href="/interno/produtos/">Produtos</a><a class="active" href="/interno/categorias/">Categorias</a><a href="/interno/segmentos/">Segmentos</a><a href="/interno/catalogo/">Organização</a></nav>
   <div class="tx-kpis">
     <div class="tx-kpi"><small>Famílias ativas</small><strong id="kFamilies">—</strong></div>
     <div class="tx-kpi"><small>Categorias ativas</small><strong id="kCategories">—</strong></div>
@@ -79,14 +78,15 @@
         <select id="aiScope"><option value="produto">Produtos</option><option value="servico">Serviços</option></select>
         <select id="runSelect"><option value="">Selecione uma execução</option></select>
         <button class="tx-btn" id="startRun" type="button">Nova análise</button>
-        <button class="tx-btn secondary" id="processBatch" type="button">Analisar próximos 30</button>
+        <button class="tx-btn secondary" id="processBatch" type="button">Analisar próximos 20</button>
         <button class="tx-btn secondary" id="processAll" type="button">Processar tudo</button>
       </div>
+      <p class="tx-help"><strong>Base comercial:</strong> as sugestões são comparadas com referências de mercado de Kalunga, Mercado Livre e FuturaIM. A IA propõe; você continua aprovando antes de criar ou aplicar categorias.</p>
       <div id="moderationStatus" class="tx-status"></div>
       <div id="runSummary"><div class="tx-empty">Crie uma execução para começar.</div></div>
     </div>
 
-    <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 1</span><h2>Categorias sugeridas</h2></div><p class="tx-help">Veja também quais itens originaram a sugestão. Você pode aceitar, criar diferente, reaproveitar uma existente ou rejeitar apenas a sugestão da IA.</p></div>
+    <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 1</span><h2>Categorias sugeridas</h2></div><p class="tx-help">Veja quais itens originaram a sugestão e a base comercial utilizada. Você pode aceitar, criar diferente, reaproveitar uma existente ou rejeitar apenas a sugestão da IA.</p></div>
     <div class="tx-proposals" id="categoryProposals"><div class="tx-empty">Nenhuma proposta ainda.</div></div>
 
     <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 2</span><h2>Classificação de itens</h2></div><div class="tx-toolbar" style="margin:0"><select id="confidenceFilter"><option value="all">Todas as certezas</option><option value="high">Alta certeza</option><option value="review">Revisar</option><option value="uncertain">Dúvida</option></select><button class="tx-btn good" id="applyHigh" type="button">Aplicar altas validadas</button></div></div>
@@ -102,7 +102,7 @@
     </div>
   </section>
 </main>
-<script type="module" src="/js/interno-taxonomy-admin.js?v=20260906-2"></script>
-<script type="module" src="/js/interno-taxonomy-enhancements.js?v=20260906-1"></script>
+<script type="module" src="/js/interno-taxonomy-admin.js?v=20260906-4"></script>
+<script type="module" src="/js/interno-taxonomy-enhancements.js?v=20260906-2"></script>
 </body>
 </html>
