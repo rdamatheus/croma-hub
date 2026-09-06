@@ -6,29 +6,41 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const slugify=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const PAGE_SIZE=10;
+
 let session=null,families=[],categories=[],products=[],blingMappings=[],blingCategories=[];
-const audit={scope:'produto',page:1,search:'',status:'all',family:'',category:'',suggestions:new Map(),decisions:new Map(),editing:new Set()};
-const structure={scope:'produto',selected:null,page:1,search:'',moves:new Map()};
+let editing=null,currentScope='produto',selectedCategory=null,productPage=1,productSearch='';
 
 function errorText(value,fallback='Não foi possível concluir a operação.'){
-  if(!value)return fallback;if(typeof value==='string')return value;if(value instanceof Error&&value.message)return value.message;
-  if(typeof value==='object'){for(const k of ['message','details','detail','hint','error_description'])if(typeof value[k]==='string'&&value[k].trim())return value[k].trim();if(value.error)return errorText(value.error,fallback);if(value.code)return `${fallback} (${value.code})`}
+  if(!value)return fallback;
+  if(typeof value==='string')return value;
+  if(value instanceof Error&&value.message)return value.message;
+  if(typeof value==='object'){
+    for(const k of ['message','details','detail','hint','error_description'])if(typeof value[k]==='string'&&value[k].trim())return value[k].trim();
+    if(value.error)return errorText(value.error,fallback);
+    if(value.code)return `${fallback} (${value.code})`;
+  }
   return fallback;
 }
 function setStatus(id,msg='',kind=''){const el=$(id);if(!el)return;el.className=`tx-status ${kind}`;el.textContent=msg}
 function family(id){return families.find(f=>f.id===id)||null}
 function category(id){return categories.find(c=>c.id===id)||null}
-function rootCategory(c){return c?.parent_id?category(c.parent_id):c}
-function categoryPath(id){const c=category(id);if(!c)return'Sem categoria';const f=family(c.family_id);const p=c.parent_id?category(c.parent_id):null;return [f?.nome,p?.nome,c.nome].filter(Boolean).join(' → ')}
-function familyLabel(id){return family(id)?.nome||'—'}
-function confidenceLabel(v){const n=Number(v||0);return n>=.9?'Alta certeza':n>=.7?'Revisar':'Dúvida'}
-function confidenceClass(v){const n=Number(v||0);return n>=.9?'high':n>=.7?'review':'uncertain'}
-function roots(scope,familyId=''){return categories.filter(c=>c.ativo&&c.catalog_scope===scope&&!c.parent_id&&(!familyId||c.family_id===familyId)).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'))}
-function subs(parentId){return categories.filter(c=>c.ativo&&c.parent_id===parentId).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'))}
-function categoryAndChildren(id){const c=category(id);if(!c)return[];return c.parent_id?[c.id]:[c.id,...subs(c.id).map(x=>x.id)]}
-function categoryOptionLabel(c){const p=c.parent_id?category(c.parent_id):null;return `${familyLabel(c.family_id)} → ${p?`${p.nome} → `:''}${c.nome}`}
+function familyLabel(id){return family(id)?.nome||'Sem família'}
+function categoryPath(id){const c=category(id);if(!c)return'Sem categoria';const p=c.parent_id?category(c.parent_id):null;return [familyLabel(c.family_id),p?.nome,c.nome].filter(Boolean).join(' → ')}
+function mappingForLocal(id){return blingMappings.find(m=>m.local_id===id)}
+function mappingForExternal(id){return blingMappings.find(m=>String(m.external_id)===String(id))}
+function rootCategories(scope,familyId){return categories.filter(c=>c.ativo&&c.catalog_scope===scope&&c.family_id===familyId&&!c.parent_id).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'))}
+function childCategories(parentId){return categories.filter(c=>c.ativo&&c.parent_id===parentId).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'))}
 
-async function fetchAllProducts(){const all=[],page=1000;for(let from=0;;from+=page){const{data,error}=await supabase.from('products').select('id,nome,sku,product_type,catalog_category_id,bling_product_id,ativo').eq('ativo',true).order('nome').order('id').range(from,from+page-1);if(error)throw error;const rows=data||[];all.push(...rows);if(rows.length<page)break}return all}
+async function fetchAllProducts(){
+  const all=[],size=1000;
+  for(let from=0;;from+=size){
+    const {data,error}=await supabase.from('products').select('id,nome,sku,product_type,catalog_category_id,bling_product_id,ativo').eq('ativo',true).order('nome').order('id').range(from,from+size-1);
+    if(error)throw error;
+    const rows=data||[];all.push(...rows);if(rows.length<size)break;
+  }
+  return all;
+}
+
 async function loadBase(){
   const [p,f,c,m]=await Promise.all([
     fetchAllProducts(),
@@ -38,106 +50,162 @@ async function loadBase(){
   ]);
   for(const r of [f,c])if(r.error)throw r.error;
   products=p;families=f.data||[];categories=c.data||[];blingMappings=m.error?[]:(m.data||[]);
-  renderKpis();renderAuditFilters();renderAudit();renderStructureTree();renderStructureInspector();
+  renderKpis();fillEditorOptions();renderTree();renderInspector();
 }
+
 function renderKpis(){
-  const vals={kFamilies:families.length,kCategories:categories.filter(c=>c.ativo).length,kProducts:products.filter(p=>p.product_type==='produto').length,kServices:products.filter(p=>p.product_type==='servico').length,kUnclassified:products.filter(p=>!p.catalog_category_id).length,kBling:blingMappings.filter(m=>m.local_id).length};
+  const vals={
+    kFamilies:families.length,
+    kCategories:categories.filter(c=>c.ativo).length,
+    kProducts:products.filter(p=>p.product_type==='produto').length,
+    kServices:products.filter(p=>p.product_type==='servico').length,
+    kUnclassified:products.filter(p=>!p.catalog_category_id).length,
+    kBling:blingMappings.filter(m=>m.local_id).length
+  };
   Object.entries(vals).forEach(([id,v])=>{if($(id))$(id).textContent=String(v)})
 }
 
-function auditFiltered(){
-  const q=norm(audit.search);return products.filter(p=>{
-    if(p.product_type!==audit.scope)return false;
-    if(q&&!norm(`${p.nome} ${p.sku||''}`).includes(q))return false;
-    if(audit.status==='unclassified'&&p.catalog_category_id)return false;
-    if(audit.status==='classified'&&!p.catalog_category_id)return false;
-    const c=category(p.catalog_category_id);
-    if(audit.family&&c?.family_id!==audit.family)return false;
-    if(audit.category&&!categoryAndChildren(audit.category).includes(p.catalog_category_id))return false;
-    return true;
-  })
-}
-function visibleAuditItems(){const rows=auditFiltered(),pages=Math.max(1,Math.ceil(rows.length/PAGE_SIZE));audit.page=Math.min(Math.max(1,audit.page),pages);return{rows,pages,visible:rows.slice((audit.page-1)*PAGE_SIZE,audit.page*PAGE_SIZE)}}
-function renderAuditFilters(){
-  if(!$('auditFamily'))return;
-  const familyValue=audit.family,catValue=audit.category;
-  $('auditFamily').innerHTML='<option value="">Todas as famílias</option>'+families.filter(f=>f.catalog_scope===audit.scope).map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');$('auditFamily').value=familyValue;
-  $('auditCategory').innerHTML='<option value="">Todas as categorias</option>'+categories.filter(c=>c.ativo&&c.catalog_scope===audit.scope).map(c=>`<option value="${c.id}">${esc(categoryOptionLabel(c))}</option>`).join('');$('auditCategory').value=catValue;
-}
-function renderSuggestionGroups(visible){
-  const groups=new Map();
-  for(const p of visible){const s=audit.suggestions.get(p.id);if(!s||s.unresolved)continue;const key=[s.family_id,s.category_id||s.category_name||'',s.subcategory_id||s.subcategory_name||''].join('|');if(!groups.has(key))groups.set(key,{s,items:[]});groups.get(key).items.push(p)}
-  const el=$('suggestionGroups');if(!groups.size){el.innerHTML='<div class="tx-empty compact">Analise os 10 itens visíveis para ver as categorias agrupadas antes de salvar.</div>';return}
-  el.innerHTML=[...groups.values()].map(g=>{const s=g.s,cat=s.category_id?category(s.category_id)?.nome:s.category_name,sub=s.subcategory_id?category(s.subcategory_id)?.nome:s.subcategory_name;return `<article class="tx-suggestion-group"><div><strong>${esc(familyLabel(s.family_id))} → ${esc(cat||'—')}${sub?` → ${esc(sub)}`:''}</strong><small>${g.items.length} item(ns) desta página</small></div><div class="tx-group-products">${g.items.map(p=>`<span>${esc(p.nome)}${p.sku?` · ${esc(p.sku)}`:''}</span>`).join('')}</div></article>`}).join('')
-}
-function renderAudit(){
-  if(!$('auditList'))return;const{rows,pages,visible}=visibleAuditItems();$('auditPageInfo').textContent=`${rows.length?((audit.page-1)*PAGE_SIZE+1):0}–${Math.min(audit.page*PAGE_SIZE,rows.length)} de ${rows.length}`;$('auditPrev').disabled=audit.page<=1;$('auditNext').disabled=audit.page>=pages;
-  renderSuggestionGroups(visible);
-  if(!visible.length){$('auditList').innerHTML='<div class="tx-empty">Nenhum item encontrado com estes filtros.</div>';return}
-  $('auditList').innerHTML=visible.map(p=>renderAuditCard(p)).join('');bindAuditCards();loadPageImages(visible.map(p=>p.id));
-}
-function renderAuditCard(p){
-  const s=audit.suggestions.get(p.id),d=audit.decisions.get(p.id),editing=audit.editing.has(p.id);
-  const suggestion=s&&!s.unresolved?`<div class="tx-ai-box"><div class="tx-ai-head"><strong>Sugestão da IA</strong><span class="tx-badge ${confidenceClass(s.confidence)}">${confidenceLabel(s.confidence)} · ${Math.round(Number(s.confidence||0)*100)}%</span></div><div class="tx-path">${esc(familyLabel(s.family_id))} → ${esc(s.category_id?category(s.category_id)?.nome:s.category_name||'—')}${s.subcategory_id||s.subcategory_name?` → ${esc(s.subcategory_id?category(s.subcategory_id)?.nome:s.subcategory_name)}`:''}</div><p>${esc(s.reason||'')}</p>${s.market_basis?.length?`<small>Base: ${s.market_basis.map(esc).join(' · ')}</small>`:''}</div>`:s?.unresolved?`<div class="tx-ai-box error">${esc(s.error||'Não foi possível sugerir uma classificação.')}</div>`:'';
-  const decisionLabel=d?.action==='remove'?'Decisão: deixar sem categoria':d?.action==='assign'?'Decisão pronta para salvar':'';
-  return `<article class="tx-product-card" data-product="${p.id}"><div class="tx-product-media"><div class="tx-product-placeholder">Sem foto</div><img data-product-image="${p.id}" alt="" hidden></div><div class="tx-product-main"><div class="tx-product-head"><div><h3>${esc(p.nome)}</h3><div class="tx-meta">${p.sku?`SKU ${esc(p.sku)} · `:''}${esc(categoryPath(p.catalog_category_id))}</div></div>${decisionLabel?`<span class="tx-badge pending">${esc(decisionLabel)}</span>`:''}</div>${suggestion}<div class="tx-actions"><button class="tx-btn secondary" data-manual="${p.id}">${s&&!s.unresolved?'Revisar classificação':'Classificar manualmente'}</button><button class="tx-btn warn" data-remove="${p.id}">Sem categoria</button><button class="tx-btn secondary" data-defer="${p.id}">Deixar para depois</button></div>${editing?renderDecisionEditor(p,d):''}</div></article>`
-}
-function renderDecisionEditor(p,d){
-  d=d||defaultDecision(p);const fams=families.filter(f=>f.catalog_scope===audit.scope),fid=d.family_id||'',rootList=roots(audit.scope,fid),subList=d.category_id?subs(d.category_id):[];
-  return `<div class="tx-editor" data-editor="${p.id}"><div class="tx-three"><label>Família<select data-field="family"><option value="">Selecione...</option>${fams.map(f=>`<option value="${f.id}" ${f.id===fid?'selected':''}>${esc(f.nome)}</option>`).join('')}</select></label><label>Categoria<select data-field="category" ${fid?'':'disabled'}><option value="">Selecione...</option>${rootList.map(c=>`<option value="${c.id}" ${c.id===d.category_id?'selected':''}>${esc(c.nome)}</option>`).join('')}<option value="__new__" ${!d.category_id&&d.category_name?'selected':''}>+ Criar nova</option></select></label><label>Subcategoria<select data-field="subcategory" ${fid?'':'disabled'}><option value="">Sem subcategoria</option>${subList.map(c=>`<option value="${c.id}" ${c.id===d.subcategory_id?'selected':''}>${esc(c.nome)}</option>`).join('')}<option value="__new__" ${!d.subcategory_id&&d.subcategory_name?'selected':''}>+ Criar nova</option></select></label></div>${!d.category_id?`<label class="tx-inline-input">Nome da nova categoria<input data-field="category_name" value="${esc(d.category_name||'')}"></label>`:''}${!d.subcategory_id&&d.subcategory_name!==null&&d.subcategory_name!==undefined?`<label class="tx-inline-input">Nome da nova subcategoria<input data-field="subcategory_name" value="${esc(d.subcategory_name||'')}"></label>`:''}<p class="tx-help">Nada é aplicado até você clicar em <strong>Salvar decisões desta página</strong>.</p></div>`
-}
-function defaultDecision(p){const c=category(p.catalog_category_id),root=rootCategory(c);return{product_id:p.id,action:'assign',family_id:c?.family_id||families.find(f=>f.catalog_scope===audit.scope)?.id||'',category_id:root?.id||null,category_name:root?.nome||'',subcategory_id:c?.parent_id?c.id:null,subcategory_name:c?.parent_id?c.nome:null}}
-function decisionFromSuggestion(p,s){return{product_id:p.id,action:'assign',family_id:s.family_id,category_id:s.category_id||null,category_name:s.category_id?(category(s.category_id)?.nome||s.category_name||''):(s.category_name||''),subcategory_id:s.subcategory_id||null,subcategory_name:s.subcategory_id?(category(s.subcategory_id)?.nome||s.subcategory_name||null):(s.subcategory_name??null)}}
-function bindAuditCards(){
-  document.querySelectorAll('[data-manual]').forEach(b=>b.onclick=()=>{const id=b.dataset.manual,p=products.find(x=>x.id===id),s=audit.suggestions.get(id);if(!audit.decisions.has(id))audit.decisions.set(id,s&&!s.unresolved?decisionFromSuggestion(p,s):defaultDecision(p));audit.editing.add(id);renderAudit()});
-  document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{audit.decisions.set(b.dataset.remove,{product_id:b.dataset.remove,action:'remove'});audit.editing.delete(b.dataset.remove);renderAudit()});
-  document.querySelectorAll('[data-defer]').forEach(b=>b.onclick=()=>{audit.decisions.delete(b.dataset.defer);audit.editing.delete(b.dataset.defer);renderAudit()});
-  document.querySelectorAll('.tx-editor').forEach(ed=>{const id=ed.dataset.editor;ed.querySelectorAll('[data-field]').forEach(input=>input.onchange=input.oninput=()=>updateDecisionEditor(id,input.dataset.field,input.value))});
-}
-function updateDecisionEditor(id,field,value){const d={...(audit.decisions.get(id)||defaultDecision(products.find(p=>p.id===id)))};if(field==='family'){d.family_id=value;d.category_id=null;d.category_name='';d.subcategory_id=null;d.subcategory_name=null}else if(field==='category'){if(value==='__new__'){d.category_id=null;d.category_name=d.category_name||''}else{d.category_id=value||null;d.category_name=value?category(value)?.nome||'':''}d.subcategory_id=null;d.subcategory_name=null}else if(field==='subcategory'){if(value==='__new__'){d.subcategory_id=null;d.subcategory_name=d.subcategory_name||''}else{d.subcategory_id=value||null;d.subcategory_name=value?category(value)?.nome||null:null}}else d[field]=value;audit.decisions.set(id,d);if(['family','category','subcategory'].includes(field))renderAudit()}
-async function analyzeAuditPage(){
-  const{visible}=visibleAuditItems();if(!visible.length)return;setStatus('auditStatus','Analisando estes 10 itens com referência comercial...');$('analyzePage').disabled=true;
-  try{const{data,error}=await supabase.functions.invoke('taxonomy-classify',{body:{action:'suggest',product_ids:visible.map(p=>p.id)}});if(error){let m=errorText(error,'Falha na IA.');try{const r=error.context;if(r?.clone){const body=await r.clone().json();m=errorText(body?.error||body,m)}}catch{}throw new Error(m)}if(data?.error)throw new Error(errorText(data.error));for(const s of data.suggestions||[]){audit.suggestions.set(s.product_id,s);const p=products.find(x=>x.id===s.product_id);if(p&&!s.unresolved){audit.decisions.set(p.id,decisionFromSuggestion(p,s));audit.editing.add(p.id)}}renderAudit();setStatus('auditStatus','Sugestões carregadas. Revise os produtos e salve somente quando estiver de acordo.','ok')}catch(e){setStatus('auditStatus',errorText(e,'Falha ao analisar esta página.'),'bad')}finally{$('analyzePage').disabled=false}
-}
-function validateDecision(d){if(d.action==='remove')return null;if(!d.family_id)return'Escolha a família.';if(!d.category_id&&!String(d.category_name||'').trim())return'Escolha ou informe a categoria.';if(d.subcategory_name!==null&&d.subcategory_name!==undefined&&!d.subcategory_id&&String(d.subcategory_name).trim()==='')d.subcategory_name=null;return null}
-async function saveAuditPage(){
-  const{visible}=visibleAuditItems(),ids=new Set(visible.map(p=>p.id)),decisions=[...audit.decisions.values()].filter(d=>ids.has(d.product_id));if(!decisions.length)return setStatus('auditStatus','Nenhuma decisão desta página está pronta para salvar.','bad');for(const d of decisions){const e=validateDecision(d);if(e)return setStatus('auditStatus',`${products.find(p=>p.id===d.product_id)?.nome}: ${e}`,'bad')}
-  const assigned=decisions.filter(d=>d.action==='assign').length,removed=decisions.filter(d=>d.action==='remove').length,newCats=new Set(decisions.filter(d=>d.action==='assign'&&!d.category_id).map(d=>`${d.family_id}|${norm(d.category_name)}`)).size,newSubs=new Set(decisions.filter(d=>d.action==='assign'&&!d.subcategory_id&&d.subcategory_name).map(d=>`${d.family_id}|${norm(d.category_name)}|${norm(d.subcategory_name)}`)).size;
-  if(!confirm(`Salvar decisões desta página?\n\nClassificar: ${assigned}\nDeixar sem categoria: ${removed}\nNovas categorias possíveis: ${newCats}\nNovas subcategorias possíveis: ${newSubs}\n\nNada será enviado ao Bling nesta etapa.`))return;
-  setStatus('auditStatus','Aplicando decisões em transação...');$('savePage').disabled=true;
-  try{const{data,error}=await supabase.rpc('apply_taxonomy_audit',{p_payload:{scope:audit.scope,decisions}});if(error)throw error;for(const d of decisions){audit.decisions.delete(d.product_id);audit.suggestions.delete(d.product_id);audit.editing.delete(d.product_id)}await loadBase();setStatus('auditStatus',`Salvo: ${data?.assigned||0} classificados, ${data?.removed||0} sem categoria, ${data?.created_categories||0} categoria(s) e ${data?.created_subcategories||0} subcategoria(s) criada(s).`,'ok')}catch(e){setStatus('auditStatus',errorText(e,'Nada foi salvo; a transação foi revertida.'),'bad')}finally{$('savePage').disabled=false}
-}
-async function loadPageImages(ids){if(!ids.length)return;const{data}=await supabase.from('product_media').select('product_id,url,is_primary,ordem').in('product_id',ids).eq('ativo',true).eq('kind','image').order('is_primary',{ascending:false}).order('ordem');const chosen=new Map();for(const m of data||[])if(!chosen.has(m.product_id))chosen.set(m.product_id,m.url);for(const[id,url]of chosen){const img=document.querySelector(`[data-product-image="${CSS.escape(id)}"]`);if(img){img.src=url;img.hidden=false;img.previousElementSibling?.setAttribute('hidden','')}}}
-
-function renderStructureTree(){
-  if(!$('structureTree'))return;const fams=families.filter(f=>f.catalog_scope===structure.scope);$('structureTree').innerHTML=fams.map(f=>{const rs=roots(structure.scope,f.id);return `<section class="tx-family"><div class="tx-family-head"><strong>${esc(f.nome)}</strong><span class="tx-badge">${categories.filter(c=>c.ativo&&c.family_id===f.id).length}</span></div><div class="tx-children">${rs.length?rs.map(c=>`<button class="tx-node ${structure.selected===c.id?'selected':''}" data-structure-cat="${c.id}"><span><strong>${esc(c.nome)}</strong><small>${products.filter(p=>categoryAndChildren(c.id).includes(p.catalog_category_id)).length} item(ns)</small></span></button>${subs(c.id).map(s=>`<button class="tx-node child ${structure.selected===s.id?'selected':''}" data-structure-cat="${s.id}"><span><strong>${esc(s.nome)}</strong><small>${products.filter(p=>p.catalog_category_id===s.id).length} item(ns)</small></span></button>`).join('')}`).join(''):'<div class="tx-empty compact">Sem categorias.</div>'}</div></section>`}).join('');document.querySelectorAll('[data-structure-cat]').forEach(b=>b.onclick=()=>selectStructureCategory(b.dataset.structureCat))
-}
-function selectStructureCategory(id){if(structure.moves.size&&!confirm('Descartar alterações de produtos ainda não salvas?'))return;structure.moves.clear();structure.selected=id;structure.page=1;structure.search='';if($('structureSearch'))$('structureSearch').value='';renderStructureTree();renderStructureInspector()}
-function structureRows(){const c=category(structure.selected);if(!c)return[];const ids=categoryAndChildren(c.id),q=norm(structure.search);return products.filter(p=>p.product_type===c.catalog_scope&&ids.includes(p.catalog_category_id)&&(!q||norm(`${p.nome} ${p.sku||''}`).includes(q)))}
-function renderStructureInspector(){
-  const el=$('structureInspector');if(!el)return;const c=category(structure.selected);if(!c){el.innerHTML='<div class="tx-empty">Selecione uma categoria para ver e revisar os produtos vinculados.</div>';return}const rows=structureRows(),pages=Math.max(1,Math.ceil(rows.length/PAGE_SIZE));structure.page=Math.min(structure.page,pages);const visible=rows.slice((structure.page-1)*PAGE_SIZE,structure.page*PAGE_SIZE);
-  el.innerHTML=`<div class="tx-card-head"><div><span class="internal-eyebrow">Categoria selecionada</span><h2>${esc(categoryPath(c.id))}</h2><p class="tx-help">${rows.length} item(ns) vinculados nesta categoria${c.parent_id?'':' ou nas subcategorias'}.</p></div></div><div class="tx-category-meta"><label>Nome<input id="structureName" value="${esc(c.nome)}"></label><label><input id="structureVisible" type="checkbox" ${c.public_visible?'checked':''}> Visível no site</label><label><input id="structureNav" type="checkbox" ${c.show_in_navigation?'checked':''}> Navegação principal</label><label><input id="structureActive" type="checkbox" ${c.ativo?'checked':''}> Ativa</label><button class="tx-btn secondary" id="saveCategoryMeta">Salvar dados da categoria</button></div><div class="tx-toolbar"><input id="structureSearch" type="search" value="${esc(structure.search)}" placeholder="Pesquisar produto ou SKU nesta categoria..."><button class="tx-btn secondary" id="saveStructureMoves" ${structure.moves.size?'':'disabled'}>Salvar mudanças dos produtos (${structure.moves.size})</button></div><div class="tx-structure-products">${visible.length?visible.map(p=>renderStructureProduct(p,c.catalog_scope)).join(''):'<div class="tx-empty">Nenhum produto encontrado.</div>'}</div><div class="tx-pager"><button class="tx-btn secondary" id="structurePrev" ${structure.page<=1?'disabled':''}>← Anterior</button><span>${rows.length?((structure.page-1)*PAGE_SIZE+1):0}–${Math.min(structure.page*PAGE_SIZE,rows.length)} de ${rows.length}</span><button class="tx-btn secondary" id="structureNext" ${structure.page>=pages?'disabled':''}>Próxima →</button></div><div id="structureStatus" class="tx-status"></div>`;
-  $('structureSearch').oninput=e=>{structure.search=e.target.value;structure.page=1;renderStructureInspector()};$('structurePrev').onclick=()=>{structure.page--;renderStructureInspector()};$('structureNext').onclick=()=>{structure.page++;renderStructureInspector()};$('saveCategoryMeta').onclick=saveCategoryMeta;$('saveStructureMoves').onclick=saveStructureMoves;document.querySelectorAll('[data-move-product]').forEach(s=>s.onchange=()=>{structure.moves.set(s.dataset.moveProduct,s.value||null);renderStructureInspector()})
-}
-function renderStructureProduct(p,scope){const target=structure.moves.has(p.id)?structure.moves.get(p.id):p.catalog_category_id;return `<div class="tx-structure-row"><div><strong>${esc(p.nome)}</strong><small>${p.sku?`SKU ${esc(p.sku)} · `:''}${esc(categoryPath(p.catalog_category_id))}</small></div><select data-move-product="${p.id}"><option value="" ${!target?'selected':''}>Sem categoria</option>${categories.filter(c=>c.ativo&&c.catalog_scope===scope).map(c=>`<option value="${c.id}" ${target===c.id?'selected':''}>${esc(categoryOptionLabel(c))}</option>`).join('')}</select></div>`}
-async function saveStructureMoves(){const c=category(structure.selected);if(!c||!structure.moves.size)return;const decisions=[];for(const[productId,target]of structure.moves){if(!target){decisions.push({product_id:productId,action:'remove'});continue}const t=category(target),r=rootCategory(t);decisions.push({product_id:productId,action:'assign',family_id:t.family_id,category_id:r.id,category_name:r.nome,subcategory_id:t.parent_id?t.id:null,subcategory_name:t.parent_id?t.nome:null})}if(!confirm(`Aplicar ${decisions.length} mudança(s) de classificação?\nNada será enviado ao Bling.`))return;try{setStatus('structureStatus','Salvando...');const{error}=await supabase.rpc('apply_taxonomy_audit',{p_payload:{scope:c.catalog_scope,decisions}});if(error)throw error;structure.moves.clear();await loadBase();setStatus('structureStatus','Produtos atualizados.','ok')}catch(e){setStatus('structureStatus',errorText(e,'Nada foi salvo.'),'bad')}}
-async function saveCategoryMeta(){const c=category(structure.selected);if(!c)return;const nome=$('structureName').value.trim();if(!nome)return setStatus('structureStatus','Informe o nome.','bad');try{const{error}=await supabase.from('catalog_categories').update({nome,public_visible:$('structureVisible').checked,show_in_navigation:$('structureNav').checked,ativo:$('structureActive').checked,updated_at:new Date().toISOString()}).eq('id',c.id);if(error)throw error;await loadBase();setStatus('structureStatus','Categoria atualizada.','ok')}catch(e){setStatus('structureStatus',errorText(e),'bad')}}
-
-function showNewCategory(){const box=$('newCategoryBox');box.hidden=false;$('newScope').value=structure.scope;fillNewCategoryOptions()}
-function fillNewCategoryOptions(){const scope=$('newScope').value,fid=$('newFamily').value;$('newFamily').innerHTML='<option value="">Selecione...</option>'+families.filter(f=>f.catalog_scope===scope).map(f=>`<option value="${f.id}" ${f.id===fid?'selected':''}>${esc(f.nome)}</option>`).join('');const selected=$('newFamily').value;$('newParent').innerHTML='<option value="">Categoria principal</option>'+roots(scope,selected).map(c=>`<option value="${c.id}">Subcategoria de ${esc(c.nome)}</option>`).join('')}
-async function saveNewCategory(){const nome=$('newName').value.trim(),scope=$('newScope').value,fid=$('newFamily').value,parent=$('newParent').value||null;if(!nome||!fid)return setStatus('newCategoryStatus','Informe nome e família.','bad');if(parent&&category(parent)?.family_id!==fid)return setStatus('newCategoryStatus','A categoria pai deve estar na mesma família.','bad');let slug=slugify(nome);if(categories.some(c=>c.slug===slug))slug=`${slug}-${crypto.randomUUID().slice(0,6)}`;try{const{data,error}=await supabase.from('catalog_categories').insert({nome,slug,catalog_scope:scope,family_id:fid,parent_id:parent,ordem:50,ativo:true,public_visible:false,show_in_navigation:false}).select('id').single();if(error)throw error;$('newCategoryBox').hidden=true;$('newName').value='';await loadBase();structure.scope=scope;selectStructureCategory(data.id)}catch(e){setStatus('newCategoryStatus',errorText(e),'bad')}}
-
-async function callBling(action,payload={}){const{data,error}=await supabase.functions.invoke('bling-categories',{body:{action,...payload}});if(error)throw new Error(errorText(error));if(data?.error)throw new Error(errorText(data.error));return data}
-async function loadBling(){if(session?.profile?.role!=='owner'){blingCategories=[];renderBling();return}try{setStatus('blingStatus','Atualizando...');const r=await callBling('list');blingCategories=r.data||[];renderBling();setStatus('blingStatus',`${blingCategories.length} categoria(s) encontradas no Bling.`,'ok')}catch(e){setStatus('blingStatus',errorText(e),'bad')}}
-async function importBling(){try{setStatus('blingStatus','Importando categorias do Bling...');const r=await callBling('import');blingCategories=r.categories||[];await loadBase();renderBling();setStatus('blingStatus',`${r.count||0} categoria(s) importadas para conferência.`,'ok')}catch(e){setStatus('blingStatus',errorText(e),'bad')}}
-function renderBling(){const el=$('blingList');if(!el)return;if(session?.profile?.role!=='owner'){el.innerHTML='<div class="tx-empty">Sincronização com o Bling disponível somente para o proprietário.</div>';return}el.innerHTML=blingCategories.length?blingCategories.map(x=>`<div class="tx-bling-row"><div><strong>${esc(x.descricao||x.nome||x.name||`#${x.id}`)}</strong><small>ID ${esc(x.id)}</small></div><span class="tx-badge">Apenas conferência</span></div>`).join(''):'<div class="tx-empty">Nenhuma categoria no Bling. A publicação da nova taxonomia será uma etapa separada, depois da auditoria.</div>'}
-
-function bindStatic(){
-  document.querySelectorAll('.taxonomy-tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.taxonomy-tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.taxonomy-panel').forEach(p=>p.classList.remove('active'));$(`panel-${b.dataset.panel}`).classList.add('active');if(b.dataset.panel==='bling')loadBling()});
-  $('auditScope').onchange=e=>{audit.scope=e.target.value;audit.page=1;audit.family='';audit.category='';audit.suggestions.clear();audit.decisions.clear();audit.editing.clear();renderAuditFilters();renderAudit()};$('auditSearch').oninput=e=>{audit.search=e.target.value;audit.page=1;renderAudit()};$('auditStatusFilter').onchange=e=>{audit.status=e.target.value;audit.page=1;renderAudit()};$('auditFamily').onchange=e=>{audit.family=e.target.value;audit.category='';audit.page=1;renderAuditFilters();renderAudit()};$('auditCategory').onchange=e=>{audit.category=e.target.value;audit.page=1;renderAudit()};$('auditPrev').onclick=()=>{audit.page--;renderAudit()};$('auditNext').onclick=()=>{audit.page++;renderAudit()};$('analyzePage').onclick=analyzeAuditPage;$('savePage').onclick=saveAuditPage;
-  $('structureScope').onchange=e=>{structure.scope=e.target.value;structure.selected=null;structure.page=1;structure.moves.clear();renderStructureTree();renderStructureInspector()};$('newCategory').onclick=showNewCategory;$('cancelNewCategory').onclick=()=>{$('newCategoryBox').hidden=true};$('newScope').onchange=fillNewCategoryOptions;$('newFamily').onchange=fillNewCategoryOptions;$('saveNewCategory').onclick=saveNewCategory;
-  $('refreshBling').onclick=loadBling;$('importBling').onclick=importBling;
+function renderTree(){
+  const root=$('structureTree');if(!root)return;
+  const q=norm($('treeSearch')?.value||'');
+  const fams=families.filter(f=>f.catalog_scope===currentScope);
+  const html=fams.map(f=>{
+    const roots=rootCategories(currentScope,f.id);
+    const items=[];
+    for(const r of roots){
+      const children=childCategories(r.id);
+      if(!q||norm(`${f.nome} ${r.nome}`).includes(q)||children.some(c=>norm(c.nome).includes(q))){
+        items.push(`<button class="tx-node ${selectedCategory===r.id?'selected':''}" data-category="${r.id}"><span class="tx-node-copy"><strong>${esc(r.nome)}</strong><small>${products.filter(p=>p.catalog_category_id===r.id).length} item(ns)</small></span></button>`);
+        for(const c of children.filter(c=>!q||norm(`${f.nome} ${r.nome} ${c.nome}`).includes(q))){
+          items.push(`<button class="tx-node tx-indent-1 ${selectedCategory===c.id?'selected':''}" data-category="${c.id}"><span class="tx-node-copy"><strong>${esc(c.nome)}</strong><small>${products.filter(p=>p.catalog_category_id===c.id).length} item(ns)</small></span></button>`);
+        }
+      }
+    }
+    return `<div class="tx-family"><div class="tx-family-head"><span class="tx-family-name">${esc(f.nome)}</span><span class="tx-badge">${roots.length}</span></div><div class="tx-children">${items.join('')||'<div class="tx-empty compact">Sem categorias</div>'}</div></div>`;
+  }).join('');
+  root.innerHTML=html||'<div class="tx-empty">Nenhuma família encontrada.</div>';
+  root.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>selectCategory(b.dataset.category));
 }
 
-async function init(){try{session=await protectInternalPage({roles:['owner','manager']});if(!session)return;$('roleInfo').textContent=session.profile.nome?`${session.profile.nome} · ${session.profile.role}`:session.profile.role;bindStatic();await loadBase();setStatus('auditStatus','Catálogo pré-carregado. Analise e salve em blocos de até 10 itens.','ok')}catch(e){console.error(e);const p=$('pageError');p.hidden=false;p.textContent=errorText(e,'Falha ao carregar a Central de Taxonomia.')}}
+function fillEditorOptions(){
+  const scope=$('editScope')?.value||currentScope;
+  if($('editFamily')){
+    const current=$('editFamily').value;
+    $('editFamily').innerHTML='<option value="">Selecione a família...</option>'+families.filter(f=>f.catalog_scope===scope).map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
+    if([...$('editFamily').options].some(o=>o.value===current))$('editFamily').value=current;
+  }
+  if($('editParent')){
+    const current=$('editParent').value;
+    const famId=$('editFamily')?.value||'';
+    $('editParent').innerHTML='<option value="">Categoria principal</option>'+categories.filter(c=>c.ativo&&c.catalog_scope===scope&&!c.parent_id&&c.id!==editing?.id&&(!famId||c.family_id===famId)).map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+    if([...$('editParent').options].some(o=>o.value===current))$('editParent').value=current;
+  }
+}
+
+function resetEditor(){
+  editing=null;
+  $('editorTitle').textContent='Nova categoria';
+  ['editName','editSlug','editDescription'].forEach(id=>$(id).value='');
+  $('editScope').value=currentScope;$('editOrder').value='0';$('editActive').checked=true;$('editPublicVisible').checked=false;$('editNav').checked=false;$('editFeatured').checked=false;
+  fillEditorOptions();$('editFamily').value='';fillEditorOptions();$('editParent').value='';$('blingMapInfo').textContent='Não vinculada ao Bling';setStatus('txStatus','');
+}
+
+function selectCategory(id){
+  selectedCategory=id;productPage=1;productSearch='';
+  const c=category(id);if(!c)return;
+  editing=c;currentScope=c.catalog_scope||'produto';
+  $('structureScope').value=currentScope;$('editScope').value=currentScope;fillEditorOptions();
+  $('editorTitle').textContent='Editar categoria';$('editName').value=c.nome||'';$('editSlug').value=c.slug||'';$('editDescription').value=c.descricao||'';$('editOrder').value=c.ordem||0;$('editActive').checked=!!c.ativo;$('editPublicVisible').checked=!!c.public_visible;$('editNav').checked=!!c.show_in_navigation;$('editFeatured').checked=!!c.featured_home;
+  $('editFamily').value=c.family_id||'';fillEditorOptions();$('editParent').value=c.parent_id||'';
+  const map=mappingForLocal(c.id);$('blingMapInfo').textContent=map?`Bling #${map.external_id}`:'Não vinculada ao Bling';
+  renderTree();renderInspector();
+}
+
+async function saveCategory(){
+  try{
+    setStatus('txStatus','Salvando...');
+    const name=$('editName').value.trim(),scope=$('editScope').value,familyId=$('editFamily').value||null,parentId=$('editParent').value||null;
+    if(!name)throw new Error('Informe o nome da categoria.');
+    if(!familyId)throw new Error('Toda categoria deve pertencer a uma família.');
+    if(parentId){const p=category(parentId);if(!p||p.catalog_scope!==scope||p.family_id!==familyId)throw new Error('A subcategoria deve usar uma categoria pai da mesma família e do mesmo tipo.');if(p.parent_id)throw new Error('A estrutura suporta apenas Categoria → Subcategoria.');}
+    const row={nome:name,slug:$('editSlug').value.trim()||slugify(name),descricao:$('editDescription').value.trim()||null,catalog_scope:scope,family_id:familyId,parent_id:parentId,ordem:Number($('editOrder').value)||0,ativo:$('editActive').checked,public_visible:$('editPublicVisible').checked,show_in_navigation:$('editNav').checked,featured_home:$('editFeatured').checked,updated_at:new Date().toISOString()};
+    let id=editing?.id;
+    if(id){const {error}=await supabase.from('catalog_categories').update(row).eq('id',id);if(error)throw error}
+    else{const {data,error}=await supabase.from('catalog_categories').insert(row).select('id').single();if(error)throw error;id=data.id}
+    await loadBase();selectCategory(id);setStatus('txStatus','Categoria salva.','ok');
+  }catch(e){setStatus('txStatus',errorText(e,'Falha ao salvar categoria.'),'bad')}
+}
+
+function inspectorRows(){
+  if(!selectedCategory)return[];
+  const ids=[selectedCategory];
+  const c=category(selectedCategory);if(c&&!c.parent_id)ids.push(...childCategories(c.id).map(x=>x.id));
+  const q=norm(productSearch);
+  return products.filter(p=>ids.includes(p.catalog_category_id)&&(!q||norm(`${p.nome} ${p.sku||''}`).includes(q)));
+}
+
+function destinationOptions(product){
+  return '<option value="">Sem categoria</option>'+categories.filter(c=>c.ativo&&c.catalog_scope===product.product_type).map(c=>`<option value="${c.id}" ${c.id===product.catalog_category_id?'selected':''}>${esc(categoryPath(c.id))}</option>`).join('');
+}
+
+function renderInspector(){
+  const el=$('structureInspector');if(!el)return;
+  if(!selectedCategory){el.innerHTML='<div class="tx-empty">Selecione uma categoria para ver e reorganizar os produtos vinculados.</div>';return}
+  const c=category(selectedCategory);if(!c){el.innerHTML='<div class="tx-empty">Categoria não encontrada.</div>';return}
+  const rows=inspectorRows(),pages=Math.max(1,Math.ceil(rows.length/PAGE_SIZE));productPage=Math.min(productPage,pages);const visible=rows.slice((productPage-1)*PAGE_SIZE,productPage*PAGE_SIZE);
+  el.innerHTML=`<div class="tx-card-head"><div><span class="internal-eyebrow">Produtos vinculados</span><h2>${esc(categoryPath(c.id))}</h2><p class="tx-help">${rows.length} item(ns). Você pode pesquisar, mover ou deixar um item sem categoria.</p></div></div>
+    <div class="tx-toolbar"><input id="productSearch" type="search" placeholder="Buscar nome ou SKU..." value="${esc(productSearch)}"></div>
+    <div class="tx-item-grid">${visible.length?visible.map(p=>`<div class="tx-item"><div class="tx-item-head"><div><div class="tx-item-name">${esc(p.nome)}</div><div class="tx-meta">${p.sku?`SKU ${esc(p.sku)} · `:''}${esc(categoryPath(p.catalog_category_id))}</div></div></div><div class="tx-actions"><select data-move-product="${p.id}">${destinationOptions(p)}</select><button class="tx-btn secondary" data-save-move="${p.id}">Mover</button></div></div>`).join(''):'<div class="tx-empty">Nenhum item encontrado.</div>'}</div>
+    <div class="tx-pager"><button class="tx-btn secondary" id="productPrev" ${productPage<=1?'disabled':''}>← Anterior</button><strong>${rows.length?((productPage-1)*PAGE_SIZE+1):0}–${Math.min(productPage*PAGE_SIZE,rows.length)} de ${rows.length}</strong><button class="tx-btn secondary" id="productNext" ${productPage>=pages?'disabled':''}>Próxima →</button></div><div id="productMoveStatus" class="tx-status"></div>`;
+  $('productSearch').oninput=e=>{productSearch=e.target.value;productPage=1;renderInspector()};
+  $('productPrev').onclick=()=>{if(productPage>1){productPage--;renderInspector()}};$('productNext').onclick=()=>{if(productPage<pages){productPage++;renderInspector()}};
+  el.querySelectorAll('[data-save-move]').forEach(b=>b.onclick=()=>moveProduct(b.dataset.saveMove));
+}
+
+async function moveProduct(productId){
+  const select=document.querySelector(`[data-move-product="${CSS.escape(productId)}"]`);if(!select)return;
+  try{
+    setStatus('productMoveStatus','Salvando...');
+    const product=products.find(p=>p.id===productId),dest=select.value||null;
+    if(dest){const c=category(dest);if(!c||c.catalog_scope!==product.product_type)throw new Error('Categoria incompatível com o tipo do item.');}
+    const {error}=await supabase.from('products').update({catalog_category_id:dest}).eq('id',productId);if(error)throw error;
+    await loadBase();setStatus('productMoveStatus','Item atualizado.','ok');
+  }catch(e){setStatus('productMoveStatus',errorText(e,'Falha ao mover item.'),'bad')}
+}
+
+async function loadBling(){
+  const root=$('blingList');if(!root)return;
+  setStatus('blingStatus','Consultando Bling...');
+  try{
+    const {data,error}=await supabase.functions.invoke('bling-categories',{body:{action:'list'}});if(error)throw error;if(data?.error)throw new Error(errorText(data.error));
+    blingCategories=data?.data||[];
+    root.innerHTML=blingCategories.length?blingCategories.map(b=>`<div class="tx-bling-row"><div><strong>${esc(b.name||`#${b.external_id}`)}</strong><div class="tx-meta">Bling #${esc(b.external_id)}</div></div><div>${mappingForExternal(b.external_id)?`Vinculada a ${esc(categoryPath(mappingForExternal(b.external_id).local_id))}`:'Sem vínculo Croma'}</div></div>`).join(''):'<div class="tx-empty">Nenhuma categoria encontrada no Bling.</div>';
+    setStatus('blingStatus',`${blingCategories.length} categoria(s) retornada(s).`,'ok');
+  }catch(e){root.innerHTML='<div class="tx-empty">Falha ao consultar categorias.</div>';setStatus('blingStatus',errorText(e,'Falha ao consultar o Bling.'),'bad')}
+}
+
+function bindTabs(){
+  document.querySelectorAll('.taxonomy-tab').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.taxonomy-tab').forEach(x=>x.classList.toggle('active',x===b));
+    document.querySelectorAll('.taxonomy-panel').forEach(p=>p.classList.remove('active'));
+    $(`panel-${b.dataset.panel}`)?.classList.add('active');
+    if(b.dataset.panel==='bling')loadBling();
+  });
+}
+function bindEvents(){
+  $('newCategory').onclick=resetEditor;$('resetCategory').onclick=resetEditor;$('saveCategory').onclick=saveCategory;
+  $('structureScope').onchange=e=>{currentScope=e.target.value;selectedCategory=null;editing=null;productPage=1;resetEditor();renderTree();renderInspector()};
+  $('treeSearch').oninput=renderTree;
+  $('editScope').onchange=e=>{currentScope=e.target.value;fillEditorOptions()};$('editFamily').onchange=fillEditorOptions;
+  $('editName').oninput=()=>{if(!editing)$('editSlug').value=slugify($('editName').value)};
+  $('refreshBling').onclick=loadBling;bindTabs();
+}
+
+async function init(){
+  try{
+    session=await protectInternalPage({roles:['owner','manager']});if(!session)return;
+    $('roleInfo').textContent=session.profile.role==='owner'?'Proprietário':'Gerência';
+    bindEvents();await loadBase();resetEditor();
+  }catch(e){const el=$('pageError');if(el){el.hidden=false;el.textContent=errorText(e,'Falha ao carregar a Central de Taxonomia.')}console.error(e)}
+}
 init();
