@@ -2,6 +2,40 @@
 
 Este arquivo resume mudanças funcionais relevantes. O histórico técnico detalhado permanece nos commits, migrations e logs de sincronização.
 
+## 2026-09-06 — Central de Taxonomia v3.2
+
+### Objetivo
+Corrigir a criação das execuções da Moderação IA, eliminar o erro `[object Object]`, processar todo o catálogo sem limite de 1.000 registros e simplificar o cabeçalho da página.
+
+### Corrigido
+- permissões mínimas de `service_role` para `taxonomy_runs`, `taxonomy_category_proposals`, `taxonomy_item_proposals` e leitura de `taxonomy_market_references`;
+- Edge Function `taxonomy-classify` atualizada para v3;
+- mensagens de erro estruturadas e legíveis no servidor e no painel;
+- leitura paginada dos produtos e serviços, removendo o limite implícito de 1.000 registros;
+- leitura paginada dos itens já processados para impedir repetição após grandes execuções;
+- contadores da execução calculados por contagem real no banco;
+- lote padronizado em 20 itens;
+- `Processar tudo` continua até a execução terminar, sem o antigo teto fixo de 130 lotes;
+- progresso exibido como `analisados / total` e percentual;
+- nomes dos produtos carregados por paginação também nas melhorias visuais da moderação.
+
+### Interface
+- removida a navegação redundante `Produtos / Categorias / Segmentos / Organização` do topo da Central de Taxonomia;
+- removido o botão redundante `Produtos` do cabeçalho superior;
+- mantida a navegação oficial pela barra lateral;
+- removido o carregamento do filtro legado de categorias;
+- a base comercial da IA passa a aparecer diretamente junto à rotina e às propostas.
+
+### Validação
+- `service_role` foi testada em transação controlada e conseguiu inserir/ler `taxonomy_runs`; a transação de teste foi revertida;
+- não ficou nenhuma execução de teste registrada;
+- a Edge Function v3 foi publicada com JWT obrigatório;
+- o deploy do painel foi concluído com sucesso;
+- a validação final autenticada de `Nova análise → Analisar próximos 20` deve ser feita pelo proprietário no painel, pois depende da sessão real do usuário.
+
+### Segurança observada
+O Security Advisor continua apontando avisos já existentes e não relacionados a esta correção: `erp_connection_audit` com RLS sem policy, `normalize_product_external_category_id` com `search_path` mutável e proteção de senha vazada desativada. Nenhum deles foi alterado nesta versão.
+
 ## 2026-09-06 — Central de Taxonomia v3.1
 
 ### Objetivo
