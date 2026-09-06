@@ -2,6 +2,42 @@
 
 Este arquivo resume mudanças funcionais relevantes. O histórico técnico detalhado permanece nos commits, migrations e logs de sincronização.
 
+## 2026-09-06 — Central de Taxonomia v3.1
+
+### Objetivo
+Concluir o reset completo da taxonomia local e do Bling para iniciar uma nova classificação assistida por IA com base comercial real e famílias Croma preservadas.
+
+### Limpeza concluída
+- categorias e subcategorias Croma: 0;
+- mapeamentos operacionais Bling↔Croma de categoria: 0;
+- execuções e propostas antigas de IA: 0;
+- as 11 famílias oficiais foram preservadas;
+- os 25 registros de categoria encontrados no Bling foram removidos;
+- a API do Bling foi consultada após a limpeza e retornou 0 categorias de produto;
+- 9 itens que ainda estavam ligados às 8 últimas categorias foram verificados após a exclusão e passaram a ficar sem categoria no ERP;
+- 3.310 referências antigas de categoria presentes no espelho local dos produtos foram limpas, sem alterar nome, SKU, preço, estoque, fornecedor ou demais dados dos itens;
+- os registros históricos de sincronização foram preservados para auditoria.
+
+### Segurança e validação
+- a exclusão foi executada respeitando o limite de requisições da API do Bling;
+- categorias-filhas foram removidas antes das categorias-pai quando necessário;
+- cada um dos 9 itens afetados foi consultado no Bling após a exclusão e retornou sem categoria;
+- uma consulta final a `/categorias/produtos` retornou lista vazia;
+- a Edge Function temporária de manutenção foi novamente desativada após a verificação.
+
+### Classificação comercial por IA
+A nova rotina usa referências auditáveis de mercado, com base inicial em Kalunga, Mercado Livre e FuturaIM.
+
+Regras principais:
+- toda sugestão deve apontar para uma das 11 famílias existentes;
+- referências comerciais funcionam como evidência, não como regra para copiar árvores de terceiros;
+- novas categorias continuam dependendo de moderação humana;
+- a IA registra confiança, justificativa e `market_basis`;
+- lotes são limitados a até 20 itens e descrições extensas são reduzidas antes da análise.
+
+### Próximo passo
+Em **Central de Taxonomia → Moderação IA**, criar uma nova análise e executar **Analisar próximos 20**. Revisar primeiro as categorias sugeridas e somente depois aprovar/aplicar a nova estrutura.
+
 ## 2026-09-06 — Central de Taxonomia v3
 
 ### Objetivo
@@ -35,25 +71,6 @@ A referência de mercado orienta a sugestão; não cria categorias automaticamen
 - evidência da sugestão registra `market_basis`;
 - falhas operacionais retornam mensagem legível ao painel em vez de apenas erro HTTP genérico;
 - itens que não puderem ser validados ficam registrados como não resolvidos, evitando travar repetidamente no mesmo lote.
-
-### Limpeza das categorias do Bling
-- 25 categorias externas foram verificadas individualmente;
-- 17 categorias sem item e sem dependências foram excluídas com sucesso do Bling;
-- 8 categorias permanecem porque ainda possuem item ativo e/ou subcategoria dependente;
-- nenhuma categoria com dependência foi forçada a excluir;
-- a função temporária de manutenção usada na exclusão foi desativada após a execução.
-
-### Estado após a versão
-- categorias Croma: 0;
-- execuções antigas de IA: 0;
-- propostas antigas: 0;
-- referências comerciais ativas: 22;
-- famílias ativas: 11;
-- categorias Bling ainda pendentes: 8;
-- itens Croma aguardando nova classificação: 3.325.
-
-### Próximo passo
-Iniciar uma nova análise em **Central de Taxonomia → Moderação IA**, revisar as categorias comerciais propostas e aprovar apenas as que formarem uma árvore coerente. Separadamente, decidir se os 9 itens que ainda usam as 8 categorias antigas do Bling podem ficar temporariamente sem categoria no ERP para permitir a exclusão final dessas categorias.
 
 ## 2026-09-06 — Central de Taxonomia v2.1
 
