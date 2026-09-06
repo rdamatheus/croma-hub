@@ -73,7 +73,15 @@ A classificação automática não deve alterar produtos em massa nem enviar cat
 
 ## Legado
 
-Categorias antigas sem família permanecem como legado durante a migração. Devem ser reaproveitadas quando forem boas e desativadas apenas depois que seus itens forem recategorizados. Não apagar legado local sem verificar dependências e histórico.
+Categoria sem família é tratada como legado durante a migração.
+
+Regra de limpeza:
+
+- pode ser excluída permanentemente quando não possui item vinculado, não possui subcategoria dependente e não possui vínculo ativo com categoria do Bling;
+- se ainda tiver item ou dependência estrutural, deve permanecer até a migração;
+- após recategorizar os itens dependentes, repetir a verificação e eliminar o legado restante quando estiver seguro.
+
+Na limpeza de 06/09/2026 foram removidas 50 categorias legado seguras. Permaneceram 20 categorias legado porque ainda possuem itens e/ou subcategorias dependentes.
 
 ## Estado atual — 06/09/2026
 
@@ -86,4 +94,7 @@ Categorias antigas sem família permanecem como legado durante a migração. Dev
 - controle `public_visible` implementado;
 - proteção 1:1 de mapeamento implementada;
 - exclusão segura no Bling implementada no servidor;
-- moderação visual ampliada no painel.
+- moderação visual ampliada no painel;
+- 50 categorias legado vazias/seguras removidas;
+- 20 categorias legado ainda preservadas por dependência;
+- nenhum item ativo ficou sem categoria após a limpeza.
