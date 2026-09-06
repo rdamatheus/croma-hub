@@ -2,132 +2,149 @@
 
 ## Objetivo
 
-A Central de Taxonomia organiza produtos e serviços da Croma e controla a relação entre a estrutura comercial do Croma Hub e as categorias do Bling.
+A Auditoria de Categorias organiza produtos e serviços da Croma com revisão humana antes de qualquer publicação da taxonomia no Bling.
 
 ## Estrutura oficial
 
-A organização segue:
-
 `Tipo → Família Croma → Categoria → Subcategoria → Item`
 
-- **Tipo**: `produto` ou `servico`.
-- **Família Croma**: camada comercial exclusiva da Croma e preservada durante a reconstrução.
-- **Categoria/Subcategoria**: estrutura comercial moderada e, depois de aprovada, sincronizável com o Bling.
-- **Item**: produto ou serviço cadastrado.
+Regras obrigatórias:
 
-Não criar um terceiro tipo de item para custos internos. Papel, toner e equipamentos continuam produtos; mão de obra, terceirização e outros componentes não materiais podem ser serviços quando fizer sentido no ERP.
+- Tipo é `produto` ou `servico`.
+- Família é obrigatória para toda categoria nova.
+- Categoria é o primeiro nível sincronizável com o ERP.
+- Subcategoria é opcional e é o último nível permitido.
+- Não existe terceiro nível de categoria.
+- Marca, SKU, cor, tamanho ou variação não devem virar categoria.
+- Produto ou serviço pode permanecer temporariamente sem categoria durante a auditoria.
 
-## Reconstrução da taxonomia
+## Fluxo atual de auditoria
 
-Em 06/09/2026 a estrutura de categorias foi zerada para reconstrução controlada.
+O fluxo anterior baseado em execuções persistidas, fila e propostas gravadas foi removido.
 
-Durante essa fase:
+A tela carrega a base do catálogo e trabalha em páginas de **10 itens**:
 
-- produtos e serviços podem ter `catalog_category_id = NULL`;
-- nenhuma categoria técnica falsa deve ser criada apenas para satisfazer o banco;
-- as 11 famílias oficiais permanecem como base obrigatória;
-- toda categoria nova deve nascer vinculada a uma família;
-- nenhuma proposta da IA vira categoria oficial sem moderação.
+1. escolher Produtos ou Serviços;
+2. pesquisar por nome ou SKU, quando necessário;
+3. filtrar Todos, Sem categoria ou Classificados;
+4. opcionalmente filtrar por Família e Categoria;
+5. clicar em **Analisar estes 10 com IA**;
+6. revisar a sugestão de família, categoria e subcategoria de cada item;
+7. visualizar os produtos agrupados pela categoria sugerida;
+8. aceitar, corrigir manualmente, deixar sem categoria ou deixar para depois;
+9. clicar em **Salvar decisões desta página**;
+10. confirmar o resumo antes da gravação.
+
+As sugestões da IA ficam somente na memória do navegador até o usuário salvar. Não existe fila persistente de classificação.
+
+## Aplicação transacional
+
+As decisões são aplicadas pela função `public.apply_taxonomy_audit(jsonb)`.
+
+Cada página é salva em uma única transação. Antes de gravar, o banco valida:
+
+- usuário Owner ou Manager ativo;
+- tipo do item igual ao escopo da página;
+- família ativa e do mesmo tipo;
+- categoria principal ativa, da mesma família e sem pai;
+- subcategoria ativa, da mesma família e filha da categoria indicada;
+- nenhuma estrutura com terceiro nível.
+
+Se qualquer decisão estiver inconsistente, toda a página é revertida.
+
+Categorias e subcategorias criadas pela auditoria nascem:
+
+- `ativo = true`;
+- `public_visible = false`;
+- `show_in_navigation = false`.
+
+Assim, criação de estrutura não publica conteúdo automaticamente no site.
 
 ## Base comercial da IA
 
-A IA não deve inventar a árvore apenas a partir dos nomes dos itens. Ela recebe uma base de referências comerciais reais armazenada em `taxonomy_market_references`.
+A Edge Function `taxonomy-classify` é stateless e recebe no máximo 10 IDs por chamada.
 
-Fontes iniciais:
+Ela utiliza:
 
-- **Kalunga**: papelaria, escolar, escrita, organização e artes;
-- **Mercado Livre**: Arte, Papelaria e Armarinho, Materiais Escolares, Escolar, Informática e categorias relacionadas;
-- **FuturaIM**: Adesivos e Rótulos, Cartões de Visita, Folhetos, Comunicação Visual, Brindes e outras linhas gráficas.
+- nome;
+- SKU;
+- descrição;
+- marca/modelo quando disponíveis;
+- famílias oficiais;
+- categorias já aprovadas;
+- referências comerciais de `taxonomy_market_references`.
 
-As referências funcionam como evidência e padrão de mercado, não como obrigação de copiar a árvore de outro site.
+A base inicial possui **22 referências comerciais**, com repertório de Kalunga, Mercado Livre e FuturaIM.
 
-Critérios:
+A IA deve:
 
-1. priorizar nomes comerciais que clientes reconheçam;
-2. evitar categorias por marca, SKU, cor, tamanho ou variação;
-3. evitar tanto categorias genéricas demais quanto microcategorias para um único item;
-4. reutilizar categoria existente quando ela for semanticamente correta;
-5. propor categoria nova somente quando for reutilizável;
-6. conectar toda proposta à família correta;
-7. registrar `market_basis` quando a referência comercial influenciar a decisão;
-8. reduzir a confiança quando houver conflito entre referências de mercado e a realidade da Croma;
-9. não usar categoria antiga do Bling como referência após o reset.
+- priorizar terminologia reconhecida no comércio brasileiro;
+- reutilizar categoria existente quando adequada;
+- propor nova categoria apenas quando reutilizável;
+- usar subcategoria apenas quando melhora a navegação;
+- indicar confiança, justificativa e `market_basis`;
+- reduzir a confiança quando houver ambiguidade.
 
-## Confiança e moderação
+Faixas de confiança:
 
 - `>= 0.90`: Alta certeza;
 - `0.70 a 0.89`: Revisar;
 - `< 0.70`: Dúvida.
 
-Toda sugestão deve apresentar, quando disponível:
+A IA nunca aplica a sugestão diretamente.
 
-- família;
-- categoria;
-- confiança;
-- justificativa;
-- base comercial utilizada;
-- itens que originaram a sugestão.
+## Visualização dos produtos
 
-A moderação humana pode aceitar, criar diferente, reaproveitar uma categoria existente ou rejeitar apenas a sugestão.
+Toda sugestão de categoria deve mostrar os itens envolvidos na página atual.
 
-## Rotina técnica de IA
+Na aba **Estrutura e produtos**, clicar em uma categoria permite:
 
-A Edge Function `taxonomy-classify` usa:
-
-- lotes de até 20 itens;
-- descrições limpas e reduzidas para limitar ruído e tamanho de contexto;
-- saída estruturada por JSON Schema com fallback controlado;
-- referências comerciais carregadas do banco;
-- conexão obrigatória da sugestão com uma família Croma;
-- registro de itens não resolvidos para impedir repetição infinita do mesmo erro;
-- retorno de mensagem de erro legível ao painel.
-
-A classificação é assistida: proposta não equivale a aprovação nem aplicação.
+- visualizar seus produtos;
+- pesquisar por nome ou SKU;
+- navegar em páginas de 10;
+- mover um produto para outra categoria/subcategoria;
+- remover a classificação e deixá-lo sem categoria;
+- revisar nome e controles de visibilidade da categoria.
 
 ## Visibilidade
 
-Uma categoria possui controles independentes:
+Os controles permanecem independentes:
 
-- `ativo`: existe e pode ser usada internamente;
-- `public_visible`: pode aparecer no site público;
-- `show_in_navigation`: pode aparecer na navegação principal;
-- `featured_home`: pode receber destaque na Home.
+- `ativo`: categoria disponível internamente;
+- `public_visible`: categoria permitida no site público;
+- `show_in_navigation`: categoria exibida na navegação;
+- `featured_home`: categoria destacável na Home.
 
-Categorias internas de insumos, equipamentos, custos ou composição podem ficar **ativas e ocultas no site**.
+Categorias internas de custos, composição, equipamentos ou insumos podem permanecer ativas e ocultas do público.
 
-## Bling
+## Integração com Bling
 
-Regras de integração:
+A auditoria local **não publica categorias nem altera categoria de produtos no Bling**.
 
-1. importar categorias nunca sobrescreve automaticamente a árvore Croma;
-2. o vínculo canônico Bling↔Croma é 1:1;
-3. categoria pai deve ser resolvida antes da subcategoria;
-4. criar/renomear/excluir categoria no Bling exige ação explícita;
-5. a nova taxonomia deve ser aprovada no Croma antes de ser usada como estrutura canônica do ERP;
-6. logs históricos de sincronização são preservados mesmo quando caches e mapeamentos operacionais são zerados.
+A publicação no ERP será uma etapa posterior e explícita:
 
-## Reset completo — 06/09/2026
+1. aprovar a árvore Croma;
+2. criar categorias principais no Bling;
+3. criar subcategorias com os pais já resolvidos;
+4. armazenar os IDs externos;
+5. vincular os produtos;
+6. validar o resultado.
 
-Resultado validado:
+As rotinas `bling-product-auto-sync`, `bling-service-auto-sync` e `bling-import-product` aceitam `catalog_category_id = NULL`. Elas não recriam mais categorias técnicas como `bling-importados` ou `bling-servicos-importados`.
 
-- categorias e subcategorias Croma: **0**;
-- categorias de produto retornadas pela API do Bling: **0**;
-- mapeamentos operacionais Bling↔Croma de categoria: **0**;
-- execuções/propostas antigas de IA: **0**;
-- referências comerciais ativas: **22**;
+Mudanças exclusivamente em `catalog_category_id` não entram nos campos que marcam um produto como pendente de sincronização automática com o Bling.
+
+## Estado validado em 06/09/2026
+
 - famílias ativas: **11**;
-- itens Croma aguardando nova classificação: **3.325**;
-- referências antigas de categoria no espelho local dos produtos: **0**.
+- referências comerciais ativas: **22**;
+- produtos ativos: **2.137**;
+- serviços ativos: **1.173**;
+- tabelas antigas `taxonomy_runs`, `taxonomy_category_proposals` e `taxonomy_item_proposals`: **removidas**;
+- `taxonomy-classify`: **v4 stateless**;
+- controlador duplicado `interno-taxonomy-enhancements.js`: **removido**;
+- deploy da nova Central de Taxonomia: **GitHub Pages run 442 — sucesso**.
 
-As 25 categorias encontradas no Bling foram removidas. As 8 últimas possuíam dependências; após autorização explícita, foram excluídas e o Bling deixou automaticamente os 9 itens envolvidos sem categoria. Os 9 itens foram consultados após a operação e confirmados sem categoria.
+## Próximo uso
 
-Os campos de categoria antigos foram removidos do espelho local sem alterar os demais dados dos produtos. O histórico técnico de sincronização foi preservado para auditoria.
-
-## Próximo passo
-
-1. abrir **Central de Taxonomia → Moderação IA**;
-2. criar **Nova análise**;
-3. executar **Analisar próximos 20**;
-4. revisar primeiro as categorias comerciais propostas e a família indicada;
-5. aprovar, editar ou rejeitar as propostas antes de aplicá-las aos itens;
-6. somente depois sincronizar a nova estrutura aprovada com o Bling.
+Abrir **Categorias → Auditoria**, manter **Produtos**, revisar a primeira página de 10 itens e clicar em **Analisar estes 10 com IA**. Conferir as sugestões e os produtos envolvidos antes de usar **Salvar decisões desta página**.
