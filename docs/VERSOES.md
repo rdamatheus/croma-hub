@@ -2,6 +2,30 @@
 
 Este arquivo resume mudanças funcionais relevantes. O histórico técnico detalhado permanece nos commits, migrations e logs de sincronização.
 
+## 2026-09-06 — Segurança do banco v1
+
+### Objetivo
+Eliminar os alertas de RLS sem policy e `search_path` mutável apontados pelo Security Advisor, preservando o funcionamento das integrações e adotando privilégio mínimo.
+
+### Contexto de segurança definido
+- `erp_connection_audit` é um log técnico de integração e permanece com RLS ativa;
+- clientes `anon` não possuem acesso à tabela;
+- usuários `authenticated` possuem apenas privilégio SQL de `SELECT`, condicionado por RLS ao papel Owner ativo;
+- Manager e demais usuários autenticados não recebem linhas dessa tabela;
+- inserção, atualização e exclusão pelo navegador permanecem bloqueadas;
+- `service_role` mantém as permissões de servidor necessárias para registrar e administrar o log de integração.
+
+### Search path
+- `public.normalize_product_external_category_id()` passou a usar `search_path=pg_catalog`;
+- o escopo foi reduzido ao catálogo nativo do PostgreSQL porque a função não depende de tabelas, views ou funções de schemas da aplicação;
+- nenhuma função `SECURITY DEFINER` em `public` ou `app_private` foi encontrada sem `search_path` fixo na auditoria complementar.
+
+### Validação
+- policy `erp_connection_audit_owner_read` criada e conferida;
+- grants conferidos: `authenticated=SELECT`; `service_role` mantém operações de servidor; `anon` sem grants;
+- configuração da função conferida como `search_path=pg_catalog`;
+- Security Advisor reexecutado após a migration e os alertas de `rls_enabled_no_policy` e `function_search_path_mutable` não aparecem mais.
+
 ## 2026-09-06 — Central de Taxonomia v3.2
 
 ### Objetivo
@@ -34,7 +58,7 @@ Corrigir a criação das execuções da Moderação IA, eliminar o erro `[object
 - a validação final autenticada de `Nova análise → Analisar próximos 20` deve ser feita pelo proprietário no painel, pois depende da sessão real do usuário.
 
 ### Segurança observada
-O Security Advisor continua apontando avisos já existentes e não relacionados a esta correção: `erp_connection_audit` com RLS sem policy, `normalize_product_external_category_id` com `search_path` mutável e proteção de senha vazada desativada. Nenhum deles foi alterado nesta versão.
+Naquele momento o Security Advisor ainda apontava `erp_connection_audit` com RLS sem policy e `normalize_product_external_category_id` com `search_path` mutável. Esses dois pontos foram corrigidos posteriormente em **Segurança do banco v1**.
 
 ## 2026-09-06 — Central de Taxonomia v3.1
 
