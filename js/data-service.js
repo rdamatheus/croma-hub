@@ -4,18 +4,49 @@ const FALLBACK_DATA={categorias:['Todos','Comunicação Visual','Gráfica','Even
 const DEFAULT_HOME_LIMIT=8;
 const asMeta=row=>row&&row.metadata&&typeof row.metadata==='object'?row.metadata:{};
 
+function stripHtml(value){
+  return String(value??'')
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,' ')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi,' ')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/&nbsp;/gi,' ')
+    .replace(/&amp;/gi,'&')
+    .replace(/&quot;/gi,'"')
+    .replace(/&#39;/gi,"'")
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
 function mapCanonical(row,mediaUrl=''){
   const meta=asMeta(row),isService=row.product_type==='servico',slug=row.slug||meta.slug||row.sku||row.id;
   return{
     id:slug,sourceId:row.id,tipo:isService?'servico':'produto',nome:row.nome,
     categoria:row.categoria||(isService?'Serviços':'Produtos'),
-    descricao:row.short_description||row.descricao||'',icone:meta.icone||(isService?'◆':'◼'),
+    descricao:stripHtml(row.short_description||row.descricao||''),icone:meta.icone||(isService?'◆':'◼'),
     imagem:mediaUrl||meta.imagem||meta.image_url||meta.imagem_principal||'',
     href:meta.href||(isService?'/servicos/':'/produtos/'),
     destaques:Array.isArray(meta.destaques)?meta.destaques:[],quantidadePreco:Number(meta.quantidadePreco||1),
     precoVenda:Number(row.preco||0)||null,
     homeFeatured:meta.home_featured===true||meta.featured_home===true,
     homeOrder:Number(meta.home_order??meta.featured_order??9999)
+  };
+}
+
+function mapFamily(row){
+  return{
+    id:`family-${row.id}`,
+    sourceId:row.id,
+    tipo:'familia',
+    nome:row.nome,
+    categoria:'Serviços Gráficos',
+    descricao:stripHtml(row.descricao||''),
+    imagem:row.image_url||'',
+    href:`/servicos/?familia=${encodeURIComponent(row.slug)}`,
+    destaques:[],
+    quantidadePreco:1,
+    precoVenda:null,
+    homeFeatured:true,
+    homeOrder:Number(row.ordem||9999)
   };
 }
 
@@ -57,21 +88,33 @@ async function catalogoSupabase(){
 async function catalogoLocal(){const response=await fetch('/data/catalogo.json',{cache:'no-store'});if(!response.ok)throw new Error(`Falha ao carregar fallback: ${response.status}`);return response.json()}
 
 async function carregarHomePorTipo(tipo,limit=DEFAULT_HOME_LIMIT){
-  // A Home usa toda a base oficial ativa, mas só mostra itens que possuem imagem real.
   const rows=await fetchAllProducts([['ativo',true],['product_type',tipo]]);
   const mm=await mediaMap(rows.map(x=>x.id));
   const withImage=rows.map(row=>mapCanonical(row,mm.get(row.id)||'')).filter(item=>Boolean(item.imagem));
   return sortHome(withImage).slice(0,limit);
 }
 
+async function carregarFamiliasServicosHome(limit=DEFAULT_HOME_LIMIT){
+  const{data,error}=await supabase
+    .from('catalog_families')
+    .select('id,nome,slug,descricao,ordem,ativo,image_url,image_alt,catalog_scope')
+    .eq('catalog_scope','servico')
+    .eq('ativo',true)
+    .order('ordem')
+    .order('nome')
+    .limit(limit);
+  if(error)throw error;
+  return(data||[]).map(mapFamily);
+}
+
 async function carregarProdutosHome(limit=DEFAULT_HOME_LIMIT){return carregarHomePorTipo('produto',limit)}
-async function carregarServicosHome(limit=DEFAULT_HOME_LIMIT){return carregarHomePorTipo('servico',limit)}
+async function carregarServicosHome(limit=DEFAULT_HOME_LIMIT){return carregarFamiliasServicosHome(limit)}
 
 export async function carregarVitrineHome(limit=DEFAULT_HOME_LIMIT){
   const[productsResult,servicesResult]=await Promise.allSettled([carregarProdutosHome(limit),carregarServicosHome(limit)]);
   const produtos=productsResult.status==='fulfilled'?productsResult.value:[],servicos=servicesResult.status==='fulfilled'?servicesResult.value:[];
   if(productsResult.status==='rejected')console.warn('Não foi possível carregar produtos da vitrine.',productsResult.reason);
-  if(servicesResult.status==='rejected')console.warn('Não foi possível carregar serviços da vitrine.',servicesResult.reason);
+  if(servicesResult.status==='rejected')console.warn('Não foi possível carregar famílias de serviços da vitrine.',servicesResult.reason);
   return{produtos,servicos};
 }
 
