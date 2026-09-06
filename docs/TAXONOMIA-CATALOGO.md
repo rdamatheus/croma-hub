@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-A Auditoria de Categorias organiza produtos e serviços da Croma com revisão humana antes de qualquer publicação da taxonomia no Bling.
+A Central de Taxonomia organiza produtos e serviços da Croma e mantém a estrutura comercial usada pelo site e, futuramente, pelo Bling.
 
 ## Estrutura oficial
 
@@ -16,95 +16,71 @@ Regras obrigatórias:
 - Subcategoria é opcional e é o último nível permitido.
 - Não existe terceiro nível de categoria.
 - Marca, SKU, cor, tamanho ou variação não devem virar categoria.
-- Produto ou serviço pode permanecer temporariamente sem categoria durante a auditoria.
+- Produto ou serviço pode permanecer temporariamente sem categoria durante a reconstrução.
 
-## Fluxo atual de auditoria
+## Processo de classificação
 
-O fluxo anterior baseado em execuções persistidas, fila e propostas gravadas foi removido.
+A funcionalidade de Auditoria/IA foi removida da interface em 06/09/2026.
 
-A tela carrega a base do catálogo e trabalha em páginas de **10 itens**:
+A classificação em massa passa a ser conduzida pelo ChatGPT:
 
-1. escolher Produtos ou Serviços;
-2. pesquisar por nome ou SKU, quando necessário;
-3. filtrar Todos, Sem categoria ou Classificados;
-4. opcionalmente filtrar por Família e Categoria;
-5. clicar em **Analisar estes 10 com IA**;
-6. revisar a sugestão de família, categoria e subcategoria de cada item;
-7. visualizar os produtos agrupados pela categoria sugerida;
-8. aceitar, corrigir manualmente, deixar sem categoria ou deixar para depois;
-9. clicar em **Salvar decisões desta página**;
-10. confirmar o resumo antes da gravação.
+1. consultar o catálogo completo no Supabase, sem alterações;
+2. analisar produtos e serviços considerando o conjunto inteiro;
+3. usar referências comerciais reais e boas práticas de mercado quando necessário;
+4. propor Família → Categoria → Subcategoria;
+5. apresentar agrupamentos, exemplos e casos duvidosos para revisão humana;
+6. aplicar somente após aprovação explícita;
+7. validar contagens, produtos sem categoria e coerência da árvore;
+8. somente depois publicar a taxonomia aprovada no Bling.
 
-As sugestões da IA ficam somente na memória do navegador até o usuário salvar. Não existe fila persistente de classificação.
+O objetivo é evitar microcategorias inconsistentes criadas por análises isoladas em pequenos lotes.
 
-## Aplicação transacional
+## Base comercial
 
-As decisões são aplicadas pela função `public.apply_taxonomy_audit(jsonb)`.
+`taxonomy_market_references` permanece preservada como repertório de apoio. A base inicial contém 22 referências comerciais, incluindo Kalunga, Mercado Livre e FuturaIM.
 
-Cada página é salva em uma única transação. Antes de gravar, o banco valida:
+Essas referências servem como evidência de mercado, não como obrigação de copiar a árvore de terceiros.
 
-- usuário Owner ou Manager ativo;
-- tipo do item igual ao escopo da página;
-- família ativa e do mesmo tipo;
-- categoria principal ativa, da mesma família e sem pai;
-- subcategoria ativa, da mesma família e filha da categoria indicada;
-- nenhuma estrutura com terceiro nível.
+Critérios:
 
-Se qualquer decisão estiver inconsistente, toda a página é revertida.
+- priorizar nomes comerciais reconhecíveis;
+- reutilizar categorias quando semanticamente correto;
+- criar categoria nova somente quando for reutilizável;
+- usar subcategoria apenas quando melhora navegação e entendimento;
+- evitar categorias por marca, SKU, cor, tamanho ou variação;
+- considerar o catálogo inteiro antes de consolidar a estrutura.
 
-Categorias e subcategorias criadas pela auditoria nascem:
+## Aplicação segura
 
-- `ativo = true`;
-- `public_visible = false`;
-- `show_in_navigation = false`.
+`public.apply_taxonomy_audit(jsonb)` permanece disponível como mecanismo transacional para aplicação de decisões aprovadas.
 
-Assim, criação de estrutura não publica conteúdo automaticamente no site.
+A função valida:
 
-## Base comercial da IA
+- usuário autorizado;
+- tipo do item;
+- família do mesmo tipo;
+- categoria da mesma família;
+- subcategoria filha da categoria correta;
+- ausência de terceiro nível.
 
-A Edge Function `taxonomy-classify` é stateless e recebe no máximo 10 IDs por chamada.
+Se qualquer decisão do lote estiver inconsistente, toda a transação é revertida.
 
-Ela utiliza:
+Categorias novas criadas por esse mecanismo nascem ativas, mas ocultas do site e fora da navegação até revisão posterior.
 
-- nome;
-- SKU;
-- descrição;
-- marca/modelo quando disponíveis;
-- famílias oficiais;
-- categorias já aprovadas;
-- referências comerciais de `taxonomy_market_references`.
+## Central de Taxonomia
 
-A base inicial possui **22 referências comerciais**, com repertório de Kalunga, Mercado Livre e FuturaIM.
+O painel mantém somente funções operacionais:
 
-A IA deve:
-
-- priorizar terminologia reconhecida no comércio brasileiro;
-- reutilizar categoria existente quando adequada;
-- propor nova categoria apenas quando reutilizável;
-- usar subcategoria apenas quando melhora a navegação;
-- indicar confiança, justificativa e `market_basis`;
-- reduzir a confiança quando houver ambiguidade.
-
-Faixas de confiança:
-
-- `>= 0.90`: Alta certeza;
-- `0.70 a 0.89`: Revisar;
-- `< 0.70`: Dúvida.
-
-A IA nunca aplica a sugestão diretamente.
-
-## Visualização dos produtos
-
-Toda sugestão de categoria deve mostrar os itens envolvidos na página atual.
-
-Na aba **Estrutura e produtos**, clicar em uma categoria permite:
-
-- visualizar seus produtos;
-- pesquisar por nome ou SKU;
-- navegar em páginas de 10;
+- criar e editar categorias/subcategorias;
+- controlar `ativo`, `public_visible`, `show_in_navigation` e `featured_home`;
+- visualizar produtos vinculados por categoria;
+- pesquisar produtos por nome ou SKU;
+- navegar em páginas de 10 itens;
 - mover um produto para outra categoria/subcategoria;
-- remover a classificação e deixá-lo sem categoria;
-- revisar nome e controles de visibilidade da categoria.
+- deixar um item sem categoria;
+- consultar categorias existentes no Bling.
+
+Não há mais botão de análise por IA, fila, execução, propostas persistidas ou processamento em lote dentro do painel.
 
 ## Visibilidade
 
@@ -119,7 +95,7 @@ Categorias internas de custos, composição, equipamentos ou insumos podem perma
 
 ## Integração com Bling
 
-A auditoria local **não publica categorias nem altera categoria de produtos no Bling**.
+A classificação local não publica categorias automaticamente no Bling.
 
 A publicação no ERP será uma etapa posterior e explícita:
 
@@ -130,7 +106,7 @@ A publicação no ERP será uma etapa posterior e explícita:
 5. vincular os produtos;
 6. validar o resultado.
 
-As rotinas `bling-product-auto-sync`, `bling-service-auto-sync` e `bling-import-product` aceitam `catalog_category_id = NULL`. Elas não recriam mais categorias técnicas como `bling-importados` ou `bling-servicos-importados`.
+As rotinas `bling-product-auto-sync`, `bling-service-auto-sync` e `bling-import-product` aceitam `catalog_category_id = NULL` e não recriam categorias técnicas como `bling-importados` ou `bling-servicos-importados`.
 
 Mudanças exclusivamente em `catalog_category_id` não entram nos campos que marcam um produto como pendente de sincronização automática com o Bling.
 
@@ -140,11 +116,11 @@ Mudanças exclusivamente em `catalog_category_id` não entram nos campos que mar
 - referências comerciais ativas: **22**;
 - produtos ativos: **2.137**;
 - serviços ativos: **1.173**;
-- tabelas antigas `taxonomy_runs`, `taxonomy_category_proposals` e `taxonomy_item_proposals`: **removidas**;
-- `taxonomy-classify`: **v4 stateless**;
+- tabelas `taxonomy_runs`, `taxonomy_category_proposals` e `taxonomy_item_proposals`: **removidas**;
+- `taxonomy-classify`: **v5 desativada funcionalmente**, retornando HTTP 410;
 - controlador duplicado `interno-taxonomy-enhancements.js`: **removido**;
-- deploy da nova Central de Taxonomia: **GitHub Pages run 442 — sucesso**.
+- IA removida da Central de Taxonomia.
 
-## Próximo uso
+## Próximo passo
 
-Abrir **Categorias → Auditoria**, manter **Produtos**, revisar a primeira página de 10 itens e clicar em **Analisar estes 10 com IA**. Conferir as sugestões e os produtos envolvidos antes de usar **Salvar decisões desta página**.
+Executar a classificação em massa pelo ChatGPT, começando por produtos, consolidar a árvore proposta e somente aplicar no Supabase depois da revisão e aprovação do usuário.
