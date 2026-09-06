@@ -1,1 +1,106 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Categorias | Croma</title><link rel="stylesheet" href="/css/interno-base.css?v=20260831-4"><link rel="stylesheet" href="/css/catalog-admin.css?v=20260831-1"></head><body data-catalog-mode="category"><header class="internal-header"><a href="/interno/">← Croma Interno</a><strong>Categorias</strong></header><main class="catalog-shell"><div class="catalog-head"><div><span class="internal-eyebrow">Catálogo Croma</span><h1 class="catalog-title">Categorias</h1><p class="catalog-lead">Organize a árvore de produtos e serviços, altere nomes, fotos, hierarquia, navegação e atributos diretamente no Supabase.</p></div><button class="catalog-btn" id="new" type="button">+ Nova categoria</button></div><nav class="catalog-tabs"><a href="/interno/produtos/">Produtos</a><a class="active" href="/interno/categorias/">Categorias</a><a href="/interno/segmentos/">Segmentos</a><a href="/interno/catalogo/">Organização</a></nav><div class="catalog-kpis"><div class="catalog-kpi"><small>Total de categorias</small><strong id="kpiTotal">—</strong></div><div class="catalog-kpi"><small>Ativas</small><strong id="kpiActive">—</strong></div><div class="catalog-kpi"><small>Com foto própria</small><strong id="kpiImages">—</strong></div><div class="catalog-kpi"><small>Com produtos</small><strong id="kpiLinked">—</strong></div></div><p id="pageError" class="catalog-status bad" hidden></p><div class="catalog-layout"><section class="catalog-card catalog-editor"><h2 id="formTitle">Nova categoria</h2><div class="image-preview"><img id="preview" alt="Prévia da categoria"></div><div class="image-actions"><label class="upload-label">Escolher imagem<input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button id="uploadButton" class="catalog-btn light" type="button">Enviar agora</button><span id="uploadStatus" class="catalog-meta"></span></div><div class="field"><label>Nome</label><input id="nome"></div><div class="two"><div class="field"><label>Slug</label><input id="slug"></div><div class="field"><label>Ícone / símbolo</label><input id="icon" placeholder="Ex.: ✦"></div></div><div class="two"><div class="field"><label>Escopo</label><select id="scope"><option value="produto">Produto</option><option value="servico">Serviço</option></select></div><div class="field"><label>Categoria pai</label><select id="parent"></select></div></div><div class="field"><label>Descrição</label><textarea id="descricao" rows="3"></textarea></div><div class="field"><label>URL da imagem</label><input id="imageUrl" type="url"></div><div class="two"><div class="field"><label>Texto alternativo</label><input id="imageAlt"></div><div class="field"><label>Foco da imagem</label><select id="imageFocal"><option value="center">Centro</option><option value="top">Topo</option><option value="bottom">Base</option><option value="left">Esquerda</option><option value="right">Direita</option></select></div></div><div class="two"><div class="field"><label>Origem da imagem</label><select id="imageSourceType"><option value="">Não informada</option><option value="propria">Própria</option><option value="fornecedor">Fornecedor</option><option value="stock">Banco de imagens</option><option value="gerada">Gerada</option></select></div><div class="field"><label>Crédito / fonte</label><input id="imageCredit"></div></div><div class="field"><label>URL da fonte</label><input id="imageSourceUrl" type="url"></div><div class="field"><label>Caminho público</label><input id="publicPath" placeholder="/produtos/ ou /servicos/#..."></div><div class="two"><div class="field"><label>Ordem</label><input id="ordem" type="number" value="0"></div><div class="field"><label>Ordem na Home</label><input id="homeOrder" type="number" value="0"></div></div><div class="checks"><label class="check"><input id="ativo" type="checkbox" checked> Ativa</label><label class="check"><input id="featured" type="checkbox"> Destaque na Home</label><label class="check"><input id="nav" type="checkbox"> Navegação principal</label></div><div class="field"><label>Produtos nesta categoria</label><div id="productLinks" class="catalog-product-links"></div></div><p id="status" class="catalog-status"></p><div class="catalog-actions"><button class="catalog-btn" id="save" type="button">Salvar categoria</button><button class="catalog-btn warn" id="toggleActive" type="button" hidden>Desativar</button></div></section><section class="catalog-card"><h2>Categorias cadastradas</h2><div class="catalog-toolbar"><input id="search" placeholder="Buscar nome, slug ou produto"><select id="scopeFilter"><option value="all">Produto e serviço</option><option value="produto">Produtos</option><option value="servico">Serviços</option></select><select id="statusFilter"><option value="all">Ativas e inativas</option><option value="active">Ativas</option><option value="inactive">Inativas</option></select></div><div id="list" class="catalog-list"><div class="empty">Carregando categorias...</div></div></section></div></main><script type="module" src="/js/interno-catalogo-admin.js?v=20260831-1"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#30297F">
+  <title>Central de Taxonomia | Croma</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260906-1">
+  <link rel="stylesheet" href="/css/taxonomy-admin.css?v=20260906-1">
+</head>
+<body hidden>
+<header class="internal-header">
+  <a href="/interno/">← Croma Interno</a>
+  <div class="internal-header-actions"><span id="roleInfo" class="internal-muted"></span><a class="internal-btn secondary" href="/interno/produtos/">Produtos</a></div>
+</header>
+<main class="taxonomy-shell">
+  <div class="taxonomy-head">
+    <div><span class="internal-eyebrow">Catálogo + Bling + IA</span><h1>Central de Taxonomia</h1><p>Gerencie famílias, categorias e subcategorias, mapeie a estrutura com o Bling e modere as classificações automáticas antes de aplicá-las.</p></div>
+    <button class="tx-btn" id="newCategory" type="button">+ Nova categoria</button>
+  </div>
+  <nav class="catalog-tabs" style="margin-bottom:14px"><a href="/interno/produtos/">Produtos</a><a class="active" href="/interno/categorias/">Categorias</a><a href="/interno/segmentos/">Segmentos</a><a href="/interno/catalogo/">Organização</a></nav>
+  <div class="tx-kpis">
+    <div class="tx-kpi"><small>Famílias ativas</small><strong id="kFamilies">—</strong></div>
+    <div class="tx-kpi"><small>Categorias ativas</small><strong id="kCategories">—</strong></div>
+    <div class="tx-kpi"><small>Produtos</small><strong id="kProducts">—</strong></div>
+    <div class="tx-kpi"><small>Serviços</small><strong id="kServices">—</strong></div>
+    <div class="tx-kpi"><small>Pendências IA</small><strong id="kAi">—</strong></div>
+    <div class="tx-kpi"><small>Mapeadas no Bling</small><strong id="kBling">—</strong></div>
+  </div>
+  <p id="pageError" class="tx-status bad" hidden></p>
+  <div class="taxonomy-tabs" role="tablist">
+    <button class="taxonomy-tab active" data-panel="structure" type="button">Estrutura</button>
+    <button class="taxonomy-tab" data-panel="moderation" type="button">Moderação IA</button>
+    <button class="taxonomy-tab" data-panel="bling" type="button">Sincronização Bling</button>
+  </div>
+
+  <section class="taxonomy-panel active" id="panel-structure">
+    <div class="tx-grid">
+      <aside class="tx-card">
+        <div class="tx-card-head"><div><span class="internal-eyebrow">Árvore Croma</span><h2>Família → Categoria → Subcategoria</h2></div></div>
+        <div class="tx-scope-switch"><button type="button" class="active" data-scope="produto">Produtos</button><button type="button" data-scope="servico">Serviços</button></div>
+        <div class="tx-toolbar"><input id="treeSearch" type="search" placeholder="Buscar categoria..."></div>
+        <div class="tx-tree" id="categoryTree"><div class="tx-empty">Carregando estrutura...</div></div>
+      </aside>
+      <section class="tx-card">
+        <div class="tx-card-head"><div><span class="internal-eyebrow">Cadastro</span><h2 id="editorTitle">Nova categoria</h2></div><span id="blingMapInfo" class="tx-badge">Ainda não vinculada ao Bling.</span></div>
+        <div class="tx-two">
+          <div class="tx-field"><label for="editName">Nome</label><input id="editName" autocomplete="off"></div>
+          <div class="tx-field"><label for="editSlug">Slug</label><input id="editSlug" autocomplete="off"></div>
+        </div>
+        <div class="tx-two">
+          <div class="tx-field"><label for="editScope">Escopo</label><select id="editScope"><option value="produto">Produto</option><option value="servico">Serviço</option></select></div>
+          <div class="tx-field"><label for="editFamily">Família Croma</label><select id="editFamily"></select></div>
+        </div>
+        <div class="tx-two">
+          <div class="tx-field"><label for="editParent">Categoria pai no Bling</label><select id="editParent"></select></div>
+          <div class="tx-field"><label for="editOrder">Ordem</label><input id="editOrder" type="number" value="0"></div>
+        </div>
+        <div class="tx-field"><label for="editDescription">Descrição</label><textarea id="editDescription" rows="3"></textarea></div>
+        <div class="tx-two">
+          <div class="tx-field"><label for="editImageUrl">Imagem</label><input id="editImageUrl" type="url" placeholder="URL da imagem"></div>
+          <div class="tx-field"><label for="editImageAlt">Texto alternativo</label><input id="editImageAlt"></div>
+        </div>
+        <div class="tx-toolbar"><input id="editImageFile" type="file" accept="image/png,image/jpeg,image/webp"><button class="tx-btn secondary" id="uploadCategoryImage" type="button">Enviar imagem</button></div>
+        <div class="tx-field"><label for="editPublicPath">Caminho público</label><input id="editPublicPath" placeholder="/produtos/... ou /servicos/..."></div>
+        <div class="tx-checkboxes"><label><input id="editActive" type="checkbox" checked> Ativa</label><label><input id="editFeatured" type="checkbox"> Destaque na Home</label><label><input id="editNav" type="checkbox"> Navegação principal</label></div>
+        <p class="tx-help">A família é exclusiva da Croma. Para o Bling, somente Categoria e Subcategoria são sincronizadas. Categorias com mais de dois níveis ficam bloqueadas para push até serem normalizadas.</p>
+        <div class="tx-actions"><button class="tx-btn" id="saveCategory" type="button">Salvar categoria</button><button class="tx-btn warn" id="toggleCategory" type="button" hidden>Desativar</button><button class="tx-btn secondary" id="syncCategoryBling" type="button">Sincronizar com Bling</button></div>
+        <div id="txStatus" class="tx-status"></div>
+      </section>
+    </div>
+  </section>
+
+  <section class="taxonomy-panel" id="panel-moderation">
+    <div class="tx-card">
+      <div class="tx-card-head"><div><span class="internal-eyebrow">Classificação assistida</span><h2>Rotina de IA</h2><p class="tx-help">A IA sugere. Nada vira categoria oficial nem altera produtos sem moderação.</p></div></div>
+      <div class="tx-toolbar">
+        <select id="aiScope"><option value="produto">Produtos</option><option value="servico">Serviços</option></select>
+        <select id="runSelect"><option value="">Selecione uma execução</option></select>
+        <button class="tx-btn" id="startRun" type="button">Nova análise</button>
+        <button class="tx-btn secondary" id="processBatch" type="button">Analisar próximos 30</button>
+        <button class="tx-btn secondary" id="processAll" type="button">Processar tudo</button>
+      </div>
+      <div id="moderationStatus" class="tx-status"></div>
+      <div id="runSummary"><div class="tx-empty">Crie uma execução para começar.</div></div>
+    </div>
+
+    <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 1</span><h2>Categorias sugeridas</h2></div><p class="tx-help">Aprovar cria a categoria Croma. “Vincular existente” evita duplicações.</p></div>
+    <div class="tx-proposals" id="categoryProposals"><div class="tx-empty">Nenhuma proposta ainda.</div></div>
+
+    <div class="tx-section-title"><div><span class="internal-eyebrow">Etapa 2</span><h2>Classificação de itens</h2></div><div class="tx-toolbar" style="margin:0"><select id="confidenceFilter"><option value="all">Todas as certezas</option><option value="high">Alta certeza</option><option value="review">Revisar</option><option value="uncertain">Dúvida</option></select><button class="tx-btn good" id="applyHigh" type="button">Aplicar altas validadas</button></div></div>
+    <div class="tx-item-grid" id="itemProposals"><div class="tx-empty">Nenhuma classificação ainda.</div></div>
+  </section>
+
+  <section class="taxonomy-panel" id="panel-bling">
+    <div class="tx-card">
+      <div class="tx-card-head"><div><span class="internal-eyebrow">ERP</span><h2>Categorias do Bling</h2><p class="tx-help">Importar nunca sobrescreve a árvore Croma. Primeiro cacheamos e mapeamos; o push só acontece por ação explícita.</p></div><span class="tx-badge synced">OAuth existente</span></div>
+      <div class="tx-actions"><button class="tx-btn" id="importBling" type="button">Importar categorias do Bling</button><button class="tx-btn secondary" id="refreshBling" type="button">Atualizar painel</button></div>
+      <div id="blingStatus" class="tx-status"></div>
+      <div id="blingList"><div class="tx-empty">Carregando categorias do Bling...</div></div>
+    </div>
+  </section>
+</main>
+<script type="module" src="/js/interno-taxonomy-admin.js?v=20260906-1"></script>
+</body>
+</html>
