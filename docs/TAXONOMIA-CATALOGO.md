@@ -22,7 +22,7 @@ Regras obrigatórias:
 
 A funcionalidade de Auditoria/IA foi removida da interface em 06/09/2026.
 
-A classificação em massa passa a ser conduzida pelo ChatGPT:
+A classificação em massa passa a ser conduzida pelo ChatGPT / Copiloto Croma:
 
 1. consultar o catálogo completo no Supabase, sem alterações;
 2. analisar produtos e serviços considerando o conjunto inteiro;
@@ -75,12 +75,12 @@ O painel mantém somente funções operacionais:
 - controlar `ativo`, `public_visible`, `show_in_navigation` e `featured_home`;
 - visualizar produtos vinculados por categoria;
 - pesquisar produtos por nome ou SKU;
-- navegar em páginas de 10 itens;
+- navegar em páginas de 10 itens na inspeção de categoria;
 - mover um produto para outra categoria/subcategoria;
 - deixar um item sem categoria;
 - consultar categorias existentes no Bling.
 
-Não há mais botão de análise por IA, fila, execução, propostas persistidas ou processamento em lote dentro do painel.
+Não há botão de análise por IA, fila, execução, propostas persistidas ou processamento em lote dentro do painel.
 
 ## Visibilidade
 
@@ -117,10 +117,10 @@ Mudanças exclusivamente em `catalog_category_id` não entram nos campos que mar
 - produtos ativos: **2.137**;
 - serviços ativos: **1.173**;
 - tabelas `taxonomy_runs`, `taxonomy_category_proposals` e `taxonomy_item_proposals`: **removidas**;
-- `taxonomy-classify`: **v5 desativada funcionalmente**, retornando HTTP 410;
+- `taxonomy-classify`: **v6 desativada funcionalmente**, retornando HTTP 410 e sem executar classificação;
 - controlador duplicado `interno-taxonomy-enhancements.js`: **removido**;
 - IA removida da Central de Taxonomia.
 
 ## Próximo passo
 
-Executar a classificação em massa pelo ChatGPT, começando por produtos, consolidar a árvore proposta e somente aplicar no Supabase depois da revisão e aprovação do usuário.
+Executar a classificação em massa pelo ChatGPT / Copiloto Croma, começando por produtos, consolidar a árvore proposta e somente aplicar no Supabase depois da revisão e aprovação do usuário.
