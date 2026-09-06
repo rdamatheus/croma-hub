@@ -18,6 +18,9 @@ const currentPath=location.pathname.replace(/\/+$/,'/');
 if(currentPath==='/interno/categorias/'||currentPath==='/interno/segmentos/'){
   queueMicrotask(()=>import('/js/catalog-admin-list-filters.js?v=20260831-1'));
 }
+if(currentPath==='/interno/categorias/'){
+  queueMicrotask(()=>import('/js/taxonomy-market-basis-ui.js?v=20260906-1'));
+}
 
 export async function getSessionUser(){
   const { data, error } = await supabase.auth.getSession();
