@@ -2,6 +2,58 @@
 
 Este arquivo resume mudanças funcionais relevantes. O histórico técnico detalhado permanece nos commits, migrations e logs de sincronização.
 
+## 2026-09-06 — Auditoria de Taxonomia v4
+
+### Objetivo
+Substituir o fluxo instável baseado em execuções e filas por uma auditoria simples, stateless e controlada em páginas de 10 produtos ou serviços.
+
+### Novo fluxo
+- catálogo ativo pré-carregado no painel;
+- páginas de 10 itens;
+- pesquisa por nome ou SKU;
+- filtros por situação, família e categoria;
+- IA analisa somente os itens visíveis na página;
+- sugestões permanecem temporárias no navegador até a confirmação;
+- categorias sugeridas exibem explicitamente os produtos envolvidos;
+- cada produto pode aceitar a sugestão, ser reclassificado manualmente, ficar sem categoria ou ser deixado para depois;
+- aba Estrutura permite pesquisar produtos de uma categoria, mover ou remover classificações.
+
+### Aplicação segura
+- criada `public.apply_taxonomy_audit(jsonb)`;
+- decisões de uma página são aplicadas em uma única transação;
+- validação obrigatória de Tipo → Família → Categoria → Subcategoria;
+- terceiro nível é bloqueado;
+- categorias novas nascem ativas, mas ocultas do site e fora da navegação;
+- alteração exclusiva da classificação local não marca o produto para sincronização automática com o Bling.
+
+### IA
+- `taxonomy-classify` publicada como v4;
+- rotina stateless, sem criação de execução ou fila;
+- máximo de 10 itens por chamada;
+- usa famílias oficiais, categorias já aprovadas e as 22 referências comerciais de mercado;
+- retorna família, categoria, subcategoria opcional, confiança, justificativa e base comercial;
+- nenhuma sugestão é aplicada automaticamente.
+
+### Limpeza técnica
+- removidas `taxonomy_runs`, `taxonomy_category_proposals` e `taxonomy_item_proposals` sem `CASCADE`;
+- removido `interno-taxonomy-enhancements.js`, eliminando o segundo controlador da mesma página;
+- execuções antigas foram canceladas antes da remoção das tabelas;
+- `taxonomy_market_references` foi preservada.
+
+### Bling
+- `bling-product-auto-sync` v2 aceita produto local sem categoria;
+- `bling-service-auto-sync` v2 aceita serviço local sem categoria;
+- `bling-import-product` v4 aceita item importado sem categoria Croma;
+- removida a dependência runtime de `bling-importados` e `bling-servicos-importados`;
+- auditoria de categoria continua local; publicação no Bling será uma etapa posterior e explícita.
+
+### Validação
+- RPC transacional testada com item real dentro de transação e `ROLLBACK`;
+- criação temporária de categoria/subcategoria também testada com `ROLLBACK`, sem registros residuais;
+- após a limpeza: 11 famílias, 22 referências comerciais, 2.137 produtos ativos e 1.173 serviços ativos preservados;
+- busca no código confirmou ausência de referências às três tabelas antigas e às categorias técnicas removidas;
+- GitHub Pages run 442 concluiu com sucesso para a nova interface e controlador.
+
 ## 2026-09-06 — Segurança do banco v1
 
 ### Objetivo
@@ -124,7 +176,7 @@ A referência de mercado orienta a sugestão; não cria categorias automaticamen
 - modelo configurado: `gpt-5.6-terra`;
 - lote reduzido para no máximo 20 itens;
 - descrições HTML são limpas e reduzidas antes de enviar ao modelo;
-- saída estruturada por JSON Schema, com fallback controlado;
+- saída estruturada por JSON Schema com fallback controlado;
 - cada sugestão já deve apontar para uma família oficial;
 - evidência da sugestão registra `market_basis`;
 - falhas operacionais retornam mensagem legível ao painel em vez de apenas erro HTTP genérico;
