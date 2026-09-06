@@ -15,11 +15,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 
 window.__cromaSupabase = supabase;
 const currentPath=location.pathname.replace(/\/+$/,'/');
-if(currentPath==='/interno/categorias/'||currentPath==='/interno/segmentos/'){
+if(currentPath==='/interno/segmentos/'){
   queueMicrotask(()=>import('/js/catalog-admin-list-filters.js?v=20260831-1'));
-}
-if(currentPath==='/interno/categorias/'){
-  queueMicrotask(()=>import('/js/taxonomy-market-basis-ui.js?v=20260906-1'));
 }
 
 export async function getSessionUser(){
