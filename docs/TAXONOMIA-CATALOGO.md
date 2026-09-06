@@ -50,7 +50,8 @@ Critérios:
 5. propor categoria nova somente quando for reutilizável;
 6. conectar toda proposta à família correta;
 7. registrar `market_basis` quando a referência comercial influenciar a decisão;
-8. reduzir a confiança quando houver conflito entre referências de mercado e a realidade da Croma.
+8. reduzir a confiança quando houver conflito entre referências de mercado e a realidade da Croma;
+9. não usar categoria antiga do Bling como referência após o reset.
 
 ## Confiança e moderação
 
@@ -73,13 +74,15 @@ A moderação humana pode aceitar, criar diferente, reaproveitar uma categoria e
 
 A Edge Function `taxonomy-classify` usa:
 
-- modelo `gpt-5.6-terra`;
 - lotes de até 20 itens;
 - descrições limpas e reduzidas para limitar ruído e tamanho de contexto;
 - saída estruturada por JSON Schema com fallback controlado;
 - referências comerciais carregadas do banco;
+- conexão obrigatória da sugestão com uma família Croma;
 - registro de itens não resolvidos para impedir repetição infinita do mesmo erro;
 - retorno de mensagem de erro legível ao painel.
+
+A classificação é assistida: proposta não equivale a aprovação nem aplicação.
 
 ## Visibilidade
 
@@ -99,25 +102,32 @@ Regras de integração:
 1. importar categorias nunca sobrescreve automaticamente a árvore Croma;
 2. o vínculo canônico Bling↔Croma é 1:1;
 3. categoria pai deve ser resolvida antes da subcategoria;
-4. exclusão exige verificação de itens e subcategorias;
-5. categoria com dependência não pode ser apagada silenciosamente;
-6. criar/renomear categoria no Bling só acontece por ação explícita;
-7. a nova taxonomia deve ser aprovada no Croma antes de ser usada como estrutura canônica do ERP.
+4. criar/renomear/excluir categoria no Bling exige ação explícita;
+5. a nova taxonomia deve ser aprovada no Croma antes de ser usada como estrutura canônica do ERP;
+6. logs históricos de sincronização são preservados mesmo quando caches e mapeamentos operacionais são zerados.
 
-## Limpeza do Bling — 06/09/2026
+## Reset completo — 06/09/2026
 
-Das 25 categorias externas encontradas:
+Resultado validado:
 
-- 17 categorias sem dependências foram excluídas do Bling;
-- 8 permanecem por possuírem item ativo e/ou dependência hierárquica;
-- 9 itens ativos ainda estão ligados a essas categorias restantes;
-- nenhuma atribuição de categoria dos produtos foi alterada sem autorização específica.
+- categorias e subcategorias Croma: **0**;
+- categorias de produto retornadas pela API do Bling: **0**;
+- mapeamentos operacionais Bling↔Croma de categoria: **0**;
+- execuções/propostas antigas de IA: **0**;
+- referências comerciais ativas: **22**;
+- famílias ativas: **11**;
+- itens Croma aguardando nova classificação: **3.325**;
+- referências antigas de categoria no espelho local dos produtos: **0**.
 
-## Estado atual
+As 25 categorias encontradas no Bling foram removidas. As 8 últimas possuíam dependências; após autorização explícita, foram excluídas e o Bling deixou automaticamente os 9 itens envolvidos sem categoria. Os 9 itens foram consultados após a operação e confirmados sem categoria.
 
-- famílias ativas: 11;
-- categorias Croma: 0;
-- execuções/propostas antigas de IA: 0;
-- referências comerciais ativas: 22;
-- itens aguardando classificação Croma: 3.325;
-- categorias antigas ainda presentes no Bling: 8.
+Os campos de categoria antigos foram removidos do espelho local sem alterar os demais dados dos produtos. O histórico técnico de sincronização foi preservado para auditoria.
+
+## Próximo passo
+
+1. abrir **Central de Taxonomia → Moderação IA**;
+2. criar **Nova análise**;
+3. executar **Analisar próximos 20**;
+4. revisar primeiro as categorias comerciais propostas e a família indicada;
+5. aprovar, editar ou rejeitar as propostas antes de aplicá-las aos itens;
+6. somente depois sincronizar a nova estrutura aprovada com o Bling.
