@@ -2,6 +2,31 @@
 
 Este arquivo resume mudanças funcionais relevantes. O histórico técnico detalhado permanece nos commits, migrations e logs de sincronização.
 
+## 2026-09-06 — Central de Taxonomia v4.1
+
+### Objetivo
+Remover a funcionalidade de Auditoria/IA do painel e simplificar a Central de Taxonomia para gestão manual da estrutura e conferência do Bling.
+
+### Alterado
+- removida a aba Auditoria;
+- removidos os controles de análise em páginas de 10 itens;
+- removidas chamadas do frontend para `taxonomy-classify`;
+- a página voltou a se chamar **Central de Taxonomia**;
+- mantida gestão manual de Família → Categoria → Subcategoria;
+- mantida visualização de produtos vinculados por categoria;
+- mantida pesquisa por nome/SKU e paginação de 10 itens na inspeção de categoria;
+- mantida opção de mover um produto para outra categoria ou deixá-lo sem categoria;
+- mantida a aba de conferência do Bling.
+
+### Infraestrutura
+- `taxonomy-classify` foi desativada funcionalmente: sua versão v5 retorna HTTP 410 e não executa classificação;
+- `taxonomy_market_references` permanece preservada para uso em análises conduzidas pelo ChatGPT;
+- `public.apply_taxonomy_audit(jsonb)` permanece disponível como mecanismo transacional seguro para aplicação futura de classificações aprovadas;
+- não foram recriadas filas, execuções ou tabelas de propostas.
+
+### Novo processo
+A classificação em massa passa a ser conduzida no ChatGPT: leitura do catálogo → análise global → proposta de Família/Categoria/Subcategoria → revisão humana → aplicação controlada no Supabase → validação → futura publicação no Bling.
+
 ## 2026-09-06 — Auditoria de Taxonomia v4
 
 ### Objetivo
