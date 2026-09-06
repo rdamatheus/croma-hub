@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#30297F">
-  <title>Auditoria de Categorias | Croma</title>
+  <title>Central de Taxonomia | Croma</title>
   <link rel="stylesheet" href="/css/interno-base.css?v=20260906-1">
   <link rel="stylesheet" href="/css/taxonomy-admin.css?v=20260906-4">
 </head>
@@ -15,8 +15,12 @@
 </header>
 <main class="taxonomy-shell">
   <div class="taxonomy-head">
-    <div><span class="internal-eyebrow">Catálogo + IA + Bling</span><h1>Auditoria de Categorias</h1><p>Classifique produtos e serviços em blocos de 10. A IA apenas sugere; você revisa os itens e salva as decisões em uma única transação.</p></div>
-    <button class="tx-btn secondary" id="newCategory" type="button">+ Categoria manual</button>
+    <div>
+      <span class="internal-eyebrow">Catálogo + Bling</span>
+      <h1>Central de Taxonomia</h1>
+      <p>Gerencie famílias, categorias, subcategorias e os produtos vinculados. A classificação em massa por IA é feita fora deste painel e só é aplicada após revisão.</p>
+    </div>
+    <button class="tx-btn" id="newCategory" type="button">+ Nova categoria</button>
   </div>
 
   <div class="tx-kpis">
@@ -30,69 +34,65 @@
   <p id="pageError" class="tx-status bad" hidden></p>
 
   <div class="taxonomy-tabs" role="tablist">
-    <button class="taxonomy-tab active" data-panel="audit" type="button">Auditoria</button>
-    <button class="taxonomy-tab" data-panel="structure" type="button">Estrutura e produtos</button>
+    <button class="taxonomy-tab active" data-panel="structure" type="button">Estrutura e produtos</button>
     <button class="taxonomy-tab" data-panel="bling" type="button">Bling</button>
   </div>
 
-  <section class="taxonomy-panel active" id="panel-audit">
-    <div class="tx-card">
-      <div class="tx-card-head"><div><span class="internal-eyebrow">Fluxo simples</span><h2>Produtos para revisar</h2><p class="tx-help">Tudo é pré-carregado. Pesquise, filtre e trabalhe somente os 10 itens visíveis.</p></div></div>
-      <div class="tx-toolbar audit-toolbar">
-        <select id="auditScope"><option value="produto">Produtos</option><option value="servico">Serviços</option></select>
-        <input id="auditSearch" type="search" placeholder="Pesquisar nome ou SKU...">
-        <select id="auditStatusFilter"><option value="all">Todos</option><option value="unclassified">Sem categoria</option><option value="classified">Classificados</option></select>
-        <select id="auditFamily"><option value="">Todas as famílias</option></select>
-        <select id="auditCategory"><option value="">Todas as categorias</option></select>
-      </div>
-      <div class="tx-actions audit-actions">
-        <button class="tx-btn" id="analyzePage" type="button">Analisar estes 10 com IA</button>
-        <button class="tx-btn good" id="savePage" type="button">Salvar decisões desta página</button>
-      </div>
-      <p class="tx-help"><strong>Base comercial:</strong> referências de Kalunga, Mercado Livre e FuturaIM orientam as sugestões. Nenhuma classificação ou categoria é criada sem sua confirmação.</p>
-      <div id="auditStatus" class="tx-status"></div>
-    </div>
-
-    <div class="tx-section-title"><div><span class="internal-eyebrow">Resumo da página</span><h2>Categorias sugeridas e produtos envolvidos</h2></div></div>
-    <div id="suggestionGroups" class="tx-suggestion-groups"></div>
-
-    <div class="tx-pager top"><button class="tx-btn secondary" id="auditPrev" type="button">← Anterior</button><strong id="auditPageInfo">—</strong><button class="tx-btn secondary" id="auditNext" type="button">Próxima →</button></div>
-    <div id="auditList" class="tx-product-list"><div class="tx-empty">Carregando catálogo...</div></div>
-    <div class="tx-pager"><button class="tx-btn secondary" type="button" onclick="document.getElementById('auditPrev').click()">← Anterior</button><span>10 itens por página</span><button class="tx-btn secondary" type="button" onclick="document.getElementById('auditNext').click()">Próxima →</button></div>
-  </section>
-
-  <section class="taxonomy-panel" id="panel-structure">
+  <section class="taxonomy-panel active" id="panel-structure">
     <div class="tx-grid">
       <aside class="tx-card">
         <div class="tx-card-head"><div><span class="internal-eyebrow">Estrutura oficial</span><h2>Família → Categoria → Subcategoria</h2></div></div>
-        <div class="tx-toolbar"><select id="structureScope"><option value="produto">Produtos</option><option value="servico">Serviços</option></select></div>
+        <div class="tx-toolbar">
+          <select id="structureScope"><option value="produto">Produtos</option><option value="servico">Serviços</option></select>
+          <input id="treeSearch" type="search" placeholder="Buscar categoria...">
+        </div>
         <div id="structureTree" class="tx-tree"><div class="tx-empty">Carregando...</div></div>
       </aside>
-      <section class="tx-card" id="structureInspector"><div class="tx-empty">Selecione uma categoria para ver os produtos vinculados.</div></section>
+
+      <section class="tx-card">
+        <div id="categoryEditor">
+          <div class="tx-card-head"><div><span class="internal-eyebrow">Cadastro</span><h2 id="editorTitle">Nova categoria</h2></div><span id="blingMapInfo" class="tx-badge">Não vinculada ao Bling</span></div>
+          <div class="tx-two">
+            <div class="tx-field"><label>Nome</label><input id="editName"></div>
+            <div class="tx-field"><label>Slug</label><input id="editSlug"></div>
+          </div>
+          <div class="tx-two">
+            <div class="tx-field"><label>Tipo</label><select id="editScope"><option value="produto">Produto</option><option value="servico">Serviço</option></select></div>
+            <div class="tx-field"><label>Família</label><select id="editFamily"></select></div>
+          </div>
+          <div class="tx-two">
+            <div class="tx-field"><label>Categoria pai</label><select id="editParent"><option value="">Categoria principal</option></select></div>
+            <div class="tx-field"><label>Ordem</label><input id="editOrder" type="number" value="0"></div>
+          </div>
+          <div class="tx-field"><label>Descrição</label><textarea id="editDescription" rows="3"></textarea></div>
+          <div class="tx-checkboxes">
+            <label><input id="editActive" type="checkbox" checked> Ativa no sistema</label>
+            <label><input id="editPublicVisible" type="checkbox"> Visível no site</label>
+            <label><input id="editNav" type="checkbox"> Navegação principal</label>
+            <label><input id="editFeatured" type="checkbox"> Destaque na Home</label>
+          </div>
+          <div class="tx-actions">
+            <button class="tx-btn" id="saveCategory" type="button">Salvar categoria</button>
+            <button class="tx-btn secondary" id="resetCategory" type="button">Limpar</button>
+          </div>
+          <div id="txStatus" class="tx-status"></div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--tx-line);margin:22px 0">
+        <div id="structureInspector"><div class="tx-empty">Selecione uma categoria para ver e reorganizar os produtos vinculados.</div></div>
+      </section>
     </div>
   </section>
 
   <section class="taxonomy-panel" id="panel-bling">
     <div class="tx-card">
-      <div class="tx-card-head"><div><span class="internal-eyebrow">ERP</span><h2>Categorias no Bling</h2><p class="tx-help">Nesta fase é apenas conferência. A publicação da nova taxonomia no Bling será feita depois que a estrutura estiver auditada.</p></div><span class="tx-badge synced">OAuth existente</span></div>
-      <div class="tx-actions"><button class="tx-btn" id="importBling" type="button">Importar para conferência</button><button class="tx-btn secondary" id="refreshBling" type="button">Atualizar lista</button></div>
+      <div class="tx-card-head"><div><span class="internal-eyebrow">ERP</span><h2>Categorias no Bling</h2><p class="tx-help">A taxonomia será publicada no Bling somente quando a estrutura Croma estiver aprovada.</p></div><span class="tx-badge synced">OAuth existente</span></div>
+      <div class="tx-actions"><button class="tx-btn" id="refreshBling" type="button">Atualizar lista</button></div>
       <div id="blingStatus" class="tx-status"></div>
       <div id="blingList"><div class="tx-empty">Abra esta aba para consultar.</div></div>
     </div>
   </section>
-
-  <section id="newCategoryBox" class="tx-modal-card" hidden>
-    <div class="tx-card-head"><div><span class="internal-eyebrow">Cadastro manual</span><h2>Nova categoria</h2></div><button class="tx-btn secondary" id="cancelNewCategory" type="button">Fechar</button></div>
-    <div class="tx-three">
-      <label>Tipo<select id="newScope"><option value="produto">Produto</option><option value="servico">Serviço</option></select></label>
-      <label>Família<select id="newFamily"></select></label>
-      <label>Nível<select id="newParent"><option value="">Categoria principal</option></select></label>
-    </div>
-    <label class="tx-inline-input">Nome<input id="newName" placeholder="Ex.: Escrita e Correção"></label>
-    <div class="tx-actions"><button class="tx-btn" id="saveNewCategory" type="button">Criar categoria</button></div>
-    <div id="newCategoryStatus" class="tx-status"></div>
-  </section>
 </main>
-<script type="module" src="/js/interno-taxonomy-admin.js?v=20260906-5"></script>
+<script type="module" src="/js/interno-taxonomy-admin.js?v=20260906-6"></script>
 </body>
 </html>
