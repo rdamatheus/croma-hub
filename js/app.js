@@ -4,7 +4,7 @@ import { setupNavigation } from './navigation.js';
 import { supabase } from './croma-supabase.js';
 
 if(!document.querySelector('script[data-croma-cart]')){const script=document.createElement('script');script.src='/js/cart.js?v=20260821-2';script.dataset.cromaCart='1';document.head.appendChild(script)}
-if(!document.querySelector('script[data-public-header-loader]')){const headerScript=document.createElement('script');headerScript.src='/js/service-header.js?v=20260831-5';headerScript.defer=true;headerScript.dataset.publicHeaderLoader='1';document.head.appendChild(headerScript)}
+if(!document.querySelector('script[data-public-header-loader]')){const headerScript=document.createElement('script');headerScript.src='/js/service-header.js?v=20260905-2';headerScript.defer=true;headerScript.dataset.publicHeaderLoader='1';document.head.appendChild(headerScript)}
 setupNavigation();
 
 document.querySelectorAll('.hero-slide').forEach(slide=>{if(slide.textContent.includes('Croma Papelaria & Presentes')){const a=slide.querySelector('.hero-slide-actions a');if(a){a.href='/produtos/';a.textContent='Explorar produtos'}}});
@@ -52,12 +52,12 @@ function renderShowcase(){
   if(!grid)return;
   const itens=showcaseItems();
   if(!itens.length){
-    const label=showcaseState.tipo==='servicos'?'serviços':'produtos';
-    grid.innerHTML=`<div class="empty-state showcase-empty">Nenhum ${label} em destaque no momento.</div>`;
+    const label=showcaseState.tipo==='servicos'?'famílias de serviços':'produtos';
+    grid.innerHTML=`<div class="empty-state showcase-empty">Nenhuma ${label} disponível no momento.</div>`;
     return;
   }
   grid.innerHTML=itens.map(item=>{
-    const action=item.tipo==='servico'?'Ver serviço':'Ver produtos';
+    const action=item.tipo==='familia'?'Explorar opções':item.tipo==='servico'?'Ver serviço':'Ver produtos';
     const description=item.descricao?`<p>${esc(item.descricao)}</p>`:'';
     const price=item.precoVenda?`<div class="catalog-price"><small>${item.tipo==='servico'?'a partir de':'por'}</small><strong>${moeda(item.precoVenda)}</strong></div>`:'';
     return `<article class="product-card showcase-card" aria-label="${esc(item.nome)}">${renderProductVisual(item)}<div class="product-body"><span class="product-category">${esc(item.categoria||'Croma')}</span><h3>${esc(item.nome)}</h3>${description}${price}<a class="product-more showcase-link" href="${esc(item.href||'#')}">${action} →</a></div></article>`;
@@ -68,7 +68,7 @@ modalClose?.addEventListener('click',()=>modal?.close());
 whatsappCta?.addEventListener('click',event=>{event.preventDefault();window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`,'_blank','noopener,noreferrer')});
 if(whatsappFloat&&whatsappClose){const hiddenUntil=Number(localStorage.getItem('cromaWhatsappHiddenUntil')||0);if(hiddenUntil>Date.now())whatsappFloat.hidden=true;whatsappClose.addEventListener('click',()=>{whatsappFloat.hidden=true;localStorage.setItem('cromaWhatsappHiddenUntil',String(Date.now()+86400000))})}
 
-document.querySelectorAll('.service-card').forEach((card,i)=>{card.style.cursor='pointer';card.setAttribute('tabindex','0');const href=i===0?'/servicos/#comunicacao-visual':i===1?'/servicos/#servicos-graficos':i===2?'/produtos/':'/servicos/#eventos-personalizados';const go=()=>location.href=href;card.addEventListener('click',go);card.addEventListener('keydown',event=>{if(event.key==='Enter')go()})});
+document.querySelectorAll('.service-card').forEach((card,i)=>{card.style.cursor='pointer';card.setAttribute('tabindex','0');const href=i===0?'/servicos/?familia=comunicacao-visual':i===1?'/servicos/?familia=solucoes-impressas':i===2?'/produtos/':'/servicos/';const go=()=>location.href=href;card.addEventListener('click',go);card.addEventListener('keydown',event=>{if(event.key==='Enter')go()})});
 
 function injectVisualStyles(){
   if(document.querySelector('style[data-real-media-home]'))return;
@@ -84,7 +84,7 @@ function injectVisualStyles(){
   document.head.appendChild(s);
 }
 
-async function renderServiceHomePhotos(){const cards=[...document.querySelectorAll('#servicos .service-card')];if(!cards.length)return;const {data}=await supabase.from('catalog_categories').select('slug,image_url').in('slug',['comunicacao-visual','servicos-graficos','papelaria','eventos-personalizados']);const by=new Map((data||[]).map(x=>[x.slug,x.image_url]));const slugs=['comunicacao-visual','servicos-graficos','papelaria','eventos-personalizados'];cards.forEach((card,i)=>{const url=by.get(slugs[i]);if(url){card.classList.add('home-photo-card');card.style.setProperty('--photo',`url("${url}")`)}})}
+async function renderServiceHomePhotos(){const cards=[...document.querySelectorAll('#servicos .service-card')];if(!cards.length)return;const {data}=await supabase.from('catalog_families').select('slug,image_url').in('slug',['comunicacao-visual','solucoes-impressas','papelaria-personalizada','brindes']);const by=new Map((data||[]).map(x=>[x.slug,x.image_url]));const slugs=['comunicacao-visual','solucoes-impressas','papelaria-personalizada','brindes'];cards.forEach((card,i)=>{const url=by.get(slugs[i]);if(url){card.classList.add('home-photo-card');card.style.setProperty('--photo',`url("${url}")`)}})}
 
 async function renderPortfolioHome(){const section=document.querySelector('#portfolio');if(!section)return;const {data,error}=await supabase.from('portfolio_items').select('*').eq('active',true).order('sort_order').limit(4);if(error||!data?.length)return;const old=section.querySelector('.portfolio-grid');if(old)old.outerHTML=`<div class="portfolio-real-grid">${data.map(x=>`<article class="portfolio-real-card"><img src="${esc(x.image_url)}" alt="${esc(x.image_alt||x.title)}" loading="lazy"><div class="portfolio-real-copy"><strong>${esc(x.title)}</strong><small>${esc(x.description||'')}</small></div></article>`).join('')}</div>`;const note=section.querySelector('.section-note');if(note)note.textContent='Uma seleção visual das principais soluções e trabalhos apresentados pela Croma.'}
 
