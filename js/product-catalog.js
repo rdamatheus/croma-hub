@@ -3,7 +3,8 @@ import { supabase } from './croma-supabase.js';
 const root=document.querySelector('#productCatalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const PAGE_SIZE=48;
-let families=[],categories=[],products=[],page=1,selectedCategory='',searchTerm='';
+const initialParams=new URLSearchParams(location.search);
+let families=[],categories=[],products=[],page=1,selectedCategory='',searchTerm=(initialParams.get('q')||'').trim().toLowerCase();
 const mediaCache=new Map();
 
 function familyCategories(id){return categories.filter(c=>c.family_id===id&&c.ativo!==false).sort((a,b)=>(a.ordem||0)-(b.ordem||0)||String(a.nome).localeCompare(String(b.nome),'pt-BR'))}
