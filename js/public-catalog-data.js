@@ -14,7 +14,18 @@ async function fetchPaged(build){
   return rows;
 }
 
-export async function loadPublicCatalog(scope){
+export async function loadPublicCatalog(scope,{requirePublished=scope==='servico'}={}){
+  const buildItems=()=>{
+    let query=supabase.from('products')
+      .select('id,nome,sku,slug,descricao,short_description,preco,catalog_category_id,product_type,ativo,published_on_site,is_sellable,is_input,metadata')
+      .eq('product_type',scope)
+      .eq('ativo',true)
+      .eq('is_sellable',true)
+      .eq('is_input',false);
+    if(requirePublished)query=query.eq('published_on_site',true);
+    return query.order('nome');
+  };
+
   const [familiesResult,categoriesResult,items]=await Promise.all([
     supabase.from('catalog_families')
       .select('id,catalog_scope,nome,slug,descricao,ordem,ativo,image_url,image_alt')
@@ -29,14 +40,7 @@ export async function loadPublicCatalog(scope){
       .eq('public_visible',true)
       .order('ordem')
       .order('nome'),
-    fetchPaged(()=>supabase.from('products')
-      .select('id,nome,sku,slug,descricao,short_description,preco,catalog_category_id,product_type,ativo,published_on_site,is_sellable,is_input,metadata')
-      .eq('product_type',scope)
-      .eq('ativo',true)
-      .eq('published_on_site',true)
-      .eq('is_sellable',true)
-      .eq('is_input',false)
-      .order('nome'))
+    fetchPaged(buildItems)
   ]);
 
   if(familiesResult.error)throw familiesResult.error;
