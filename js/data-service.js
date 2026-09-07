@@ -30,17 +30,20 @@ function mapCanonical(row,mediaUrl='',taxonomy={families:[],categories:[]}){
 function mapFamily(row){return{id:`family-${row.id}`,sourceId:row.id,tipo:'familia',nome:row.nome,categoria:'Serviços',descricao:stripHtml(row.descricao||''),imagem:row.image_url||'',href:`/servicos/?familia=${encodeURIComponent(row.slug)}`,destaques:[],quantidadePreco:1,precoVenda:null,homeFeatured:true,homeOrder:Number(row.ordem||9999)}}
 function sortHome(items){return[...items].sort((a,b)=>{if(a.homeFeatured!==b.homeFeatured)return a.homeFeatured?-1:1;if((a.homeOrder??9999)!==(b.homeOrder??9999))return(a.homeOrder??9999)-(b.homeOrder??9999);return String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR')})}
 
-async function mappedItems(scope){
-  const taxonomy=await loadPublicCatalog(scope);
+async function mappedItems(scope,options){
+  const taxonomy=await loadPublicCatalog(scope,options);
   const media=await loadPrimaryMedia(taxonomy.items.map(x=>x.id));
   return {taxonomy,items:taxonomy.items.map(row=>mapCanonical(row,media.get(row.id)?.url||'',taxonomy))};
 }
 
 export async function carregarVitrineHome(limit=DEFAULT_HOME_LIMIT){
-  const [productsResult,servicesResult]=await Promise.allSettled([mappedItems('produto'),loadPublicCatalog('servico')]);
+  const [productsResult,servicesResult]=await Promise.allSettled([
+    mappedItems('produto',{requirePublished:true}),
+    loadPublicCatalog('servico')
+  ]);
   const produtos=productsResult.status==='fulfilled'?sortHome(productsResult.value.items).slice(0,limit):[];
   const servicos=servicesResult.status==='fulfilled'?servicesResult.value.families.filter(f=>servicesResult.value.categories.some(c=>c.family_id===f.id)).map(mapFamily).slice(0,limit):[];
-  if(productsResult.status==='rejected')console.warn('Não foi possível carregar produtos públicos da vitrine.',productsResult.reason);
+  if(productsResult.status==='rejected')console.warn('Não foi possível carregar produtos da vitrine.',productsResult.reason);
   if(servicesResult.status==='rejected')console.warn('Não foi possível carregar famílias públicas de serviços.',servicesResult.reason);
   return{produtos,servicos};
 }
