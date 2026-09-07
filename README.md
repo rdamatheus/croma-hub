@@ -1,23 +1,15 @@
 # Croma Hub
 
-MVP local-first e static-first da Croma, preparado para evoluir de uma landing page pública para catálogo, portfólio, orçamento e futuras ferramentas digitais.
+Site público e painel interno da Croma.
 
-## Estrutura
+## Estrutura pública
 
-- `index.html` — página principal
-- `css/styles.css` — identidade visual e responsividade
-- `js/app.js` — comportamento da interface
-- `js/data-service.js` — camada de acesso aos dados
-- `data/catalogo.json` — catálogo inicial desacoplado da interface
+- Croma Gráfica: `/servicos/`
+- Croma Papelaria & Presentes: `/produtos/`
+- Croma Digital: `/digital/`
 
-## Princípios
+O catálogo público usa a taxonomia canônica `Família → Categoria → Subcategoria` e exibe somente itens liberados para o site. O Bling permanece como origem dos registros definitivos; o Croma Hub organiza apresentação, conteúdo e experiência comercial.
 
-- HTML, CSS e JavaScript sem framework
-- sem backend obrigatório
-- dados separados da interface
-- compatível com GitHub Pages
-- preparado para futura troca de JSON por API/Supabase
+## Integração
 
-## Publicação
-
-Ative o GitHub Pages em **Settings → Pages → Deploy from a branch → main / root**.
+A integração com o Bling mantém produtos, serviços, categorias e demais entidades sincronizados por workers dedicados. Itens internos, insumos, acabamentos e componentes de composição permanecem fora da vitrine pública até sua consolidação em estruturas comerciais.
