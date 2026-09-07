@@ -8,6 +8,14 @@ Este documento define as regras para novas funcionalidades e refatorações do C
 - **localStorage**: apenas estado temporário e descartável do navegador, como carrinho ainda não confirmado e preferências de interface.
 - Um mesmo dado comercial não deve possuir duas fontes oficiais concorrentes.
 
+### Camada pública comercial (2026-09)
+
+- `/`, `/produtos/`, `/produtos/item/`, `/servicos/`, `/portfolio/`, `/digital/`, `/sobre/` e `/contato/` formam a experiência pública de conversão.
+- `js/service-header.js` é o componente de navegação pública compartilhado; `css/public-navigation.css` e `css/commercial.css` concentram sua apresentação e os padrões de foco, contraste e responsividade.
+- O detalhe de produto recebe `id` pela URL, consulta `public.products` e `public.product_media`, e nunca cria checkout ou cópia local de dados comerciais.
+- O portfólio público filtra `active = true`, `is_reference = false` e `image_source_type = propria` antes de renderizar trabalhos.
+- O formulário de orçamento não persiste dados: monta uma mensagem local e abre o WhatsApp após ação explícita do visitante.
+
 ## 2. Autenticação e autorização
 
 - Toda autenticação de cliente e equipe usa **Supabase Auth**.

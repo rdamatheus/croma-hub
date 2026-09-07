@@ -24,7 +24,7 @@ function mapCanonical(row,mediaUrl=''){
     categoria:row.categoria||(isService?'Serviços':'Produtos'),
     descricao:stripHtml(row.short_description||row.descricao||''),icone:meta.icone||(isService?'◆':'◼'),
     imagem:mediaUrl||meta.imagem||meta.image_url||meta.imagem_principal||'',
-    href:meta.href||(isService?'/servicos/':'/produtos/'),
+    href:isService?(meta.href||'/servicos/'):'/produtos/item/?id='+encodeURIComponent(row.id),
     destaques:Array.isArray(meta.destaques)?meta.destaques:[],quantidadePreco:Number(meta.quantidadePreco||1),
     precoVenda:Number(row.preco||0)||null,
     homeFeatured:meta.home_featured===true||meta.featured_home===true,
