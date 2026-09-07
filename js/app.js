@@ -21,7 +21,13 @@ function renderProducts(items){
 async function renderPortfolio(){
   const root=document.querySelector('#homePortfolioGrid');
   if(!root)return;
-  const {data,error}=await supabase.from('portfolio_items').select('title,description,image_url,image_alt').eq('active',true).order('sort_order').limit(4);
+  const {data,error}=await supabase
+    .from('portfolio_items')
+    .select('title,description,image_url,image_alt')
+    .eq('active',true)
+    .eq('is_reference',false)
+    .order('sort_order')
+    .limit(4);
   if(error){console.warn('Não foi possível carregar o portfólio.',error);return}
   if(!data?.length){root.innerHTML='<div class="home-empty">O portfólio está sendo atualizado com trabalhos reais da Croma.</div>';return}
   root.innerHTML=data.map(item=>`<article class="home-portfolio-card"><img src="${esc(item.image_url)}" alt="${esc(item.image_alt||item.title)}" loading="lazy"><div class="home-portfolio-copy"><strong>${esc(item.title)}</strong>${item.description?`<span>${esc(item.description)}</span>`:''}</div></article>`).join('');
