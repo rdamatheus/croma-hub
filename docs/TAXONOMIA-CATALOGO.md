@@ -20,17 +20,17 @@ Regras obrigatórias:
 
 ## Processo de classificação
 
-A funcionalidade de Auditoria/IA foi removida da interface em 06/09/2026.
+A funcionalidade de Auditoria/IA foi removida da Central de Taxonomia.
 
 A classificação em massa passa a ser conduzida pelo ChatGPT / Copiloto Croma:
 
-1. consultar o catálogo completo no Supabase, sem alterações;
+1. consultar o catálogo completo no Supabase sem alterar dados;
 2. analisar produtos e serviços considerando o conjunto inteiro;
 3. usar referências comerciais reais e boas práticas de mercado quando necessário;
-4. propor Família → Categoria → Subcategoria;
+4. propor `Família → Categoria → Subcategoria`;
 5. apresentar agrupamentos, exemplos e casos duvidosos para revisão humana;
 6. aplicar somente após aprovação explícita;
-7. validar contagens, produtos sem categoria e coerência da árvore;
+7. validar contagens, itens sem categoria e coerência da árvore;
 8. somente depois publicar a taxonomia aprovada no Bling.
 
 O objetivo é evitar microcategorias inconsistentes criadas por análises isoladas em pequenos lotes.
@@ -50,9 +50,9 @@ Critérios:
 - evitar categorias por marca, SKU, cor, tamanho ou variação;
 - considerar o catálogo inteiro antes de consolidar a estrutura.
 
-## Aplicação segura
+## Aplicação segura pelo Copiloto
 
-`public.apply_taxonomy_audit(jsonb)` permanece disponível como mecanismo transacional para aplicação de decisões aprovadas.
+`public.apply_taxonomy_classification_batch(jsonb)` é o mecanismo transacional para aplicar classificações já revisadas e aprovadas.
 
 A função valida:
 
@@ -73,14 +73,28 @@ O painel mantém somente funções operacionais:
 
 - criar e editar categorias/subcategorias;
 - controlar `ativo`, `public_visible`, `show_in_navigation` e `featured_home`;
-- visualizar produtos vinculados por categoria;
-- pesquisar produtos por nome ou SKU;
+- visualizar produtos e serviços vinculados por categoria;
+- pesquisar itens por nome ou SKU dentro da categoria selecionada;
 - navegar em páginas de 10 itens na inspeção de categoria;
-- mover um produto para outra categoria/subcategoria;
+- mover um item para outra categoria/subcategoria;
 - deixar um item sem categoria;
 - consultar categorias existentes no Bling.
 
-Não há botão de análise por IA, fila, execução, propostas persistidas ou processamento em lote dentro do painel.
+Não há botão de análise por IA, fila, execução, propostas persistidas ou processamento de classificação dentro do painel.
+
+## Infraestrutura removida/desativada
+
+Foram removidas as tabelas antigas:
+
+- `taxonomy_runs`;
+- `taxonomy_category_proposals`;
+- `taxonomy_item_proposals`.
+
+O controlador duplicado `interno-taxonomy-enhancements.js` também foi removido.
+
+A Edge Function `taxonomy-classify` não executa mais classificação. A versão atual é apenas um endpoint de encerramento que responde HTTP 410 para impedir uso acidental de clientes antigos. Não existe referência a ela no frontend atual.
+
+O CSS da Central foi reduzido aos componentes efetivamente usados pela gestão manual, removendo estilos de auditoria, sugestões de IA, modal e controles descontinuados.
 
 ## Visibilidade
 
@@ -110,16 +124,17 @@ As rotinas `bling-product-auto-sync`, `bling-service-auto-sync` e `bling-import-
 
 Mudanças exclusivamente em `catalog_category_id` não entram nos campos que marcam um produto como pendente de sincronização automática com o Bling.
 
-## Estado validado em 06/09/2026
+## Estado atual validado
 
 - famílias ativas: **11**;
 - referências comerciais ativas: **22**;
 - produtos ativos: **2.137**;
 - serviços ativos: **1.173**;
-- tabelas `taxonomy_runs`, `taxonomy_category_proposals` e `taxonomy_item_proposals`: **removidas**;
-- `taxonomy-classify`: **v8 desativada funcionalmente**, retornando HTTP 410 e sem executar classificação;
-- não há referência do frontend à função de classificação;
-- controlador duplicado `interno-taxonomy-enhancements.js`: **removido**;
+- tabelas de fila/propostas de taxonomia: **removidas**;
+- `taxonomy-classify`: **encerrada funcionalmente**, retornando HTTP 410;
+- frontend sem referência à função de classificação;
+- controlador duplicado de taxonomia: **removido**;
+- aplicação transacional disponível em `apply_taxonomy_classification_batch(jsonb)`;
 - IA removida da Central de Taxonomia.
 
 ## Próximo passo
