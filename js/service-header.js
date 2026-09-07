@@ -31,7 +31,7 @@
   const path=location.pathname.replace(/\/+$/,'/')||'/';
   const hash=location.hash;
   const current=path.startsWith('/produtos/')?'produtos'
-    :path.startsWith('/servicos/sites-catalogos/')?'digital'
+    :path.startsWith('/digital/')||path.startsWith('/servicos/sites-catalogos/')?'digital'
     :path.startsWith('/sobre/')?'sobre'
     :path.startsWith('/servicos/')?'servicos'
     :path==='/'&&hash==='#portfolio'?'trabalhos'
@@ -41,7 +41,7 @@
     ['produtos','Produtos','/produtos/'],
     ['servicos','Serviços','/servicos/'],
     ['trabalhos','Trabalhos','/#portfolio'],
-    ['digital','Croma Digital','/servicos/sites-catalogos/'],
+    ['digital','Croma Digital','/digital/'],
     ['sobre','Sobre','/sobre/']
   ];
   const links=items.map(([id,label,href])=>`<a class="${id===current?'active':''}" href="${href}">${label}</a>`).join('');
