@@ -1,0 +1,1 @@
+update public.system_evolution_items set status='in_progress',completed_at=null,updated_at=now() where title in ('Carrinho persistente por cliente','Checkout híbrido: banco + WhatsApp','Evolução Croma Hub no painel interno');
