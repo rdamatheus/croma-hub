@@ -2,6 +2,18 @@
 
 Este arquivo resume mudanças funcionais relevantes. O histórico técnico detalhado permanece nos commits, migrations e logs de sincronização.
 
+## 2026-09-07 — Redesenho comercial público — RC1 (em revisão)
+
+- Implementação comitada e enviada ao GitHub no branch `feat/redesenho-comercial`, proposta #27.
+- Home com hero aprovado, três áreas Croma e CTAs de catálogo e WhatsApp.
+- Navegação pública compartilhada; novas rotas de Digital, portfólio, contato e detalhe de produto.
+- Links de produto acessíveis por teclado e correção das quebras de linha da mensagem de orçamento.
+- Validação: 27 verificações de navegação em Edge, nas larguras 375, 768 e 1440 px; menu e formulário verificados.
+- **Não publicada:** categorias retornam HTTP 401 / 42501 no Supabase, relacionado à permissão de profiles. Nenhuma permissão de banco foi alterada.
+- Pendências: fluxo completo com dados reais, relacionados e variações, revisão visual integral, auditoria de acessibilidade e performance.
+- Área interna, autenticação, Bling, carrinho, pedidos e banco preservados.
+- Relatório de validação e rollback: [REDESENHO-COMERCIAL-RELATORIO.md](REDESENHO-COMERCIAL-RELATORIO.md).
+
 ## 2026-09-06 — Central de Taxonomia v4.1
 
 ### Objetivo
@@ -245,10 +257,3 @@ Transformar o painel de categorias em uma central de gestão, moderação e sinc
 - exclusão de categoria com item ativo ou subcategoria é bloqueada;
 - dois IDs do Bling não podem apontar para a mesma categoria Croma;
 - novas categorias criadas pela moderação ficam ocultas no site por padrão.
-# 2026-09-07 — Redesenho comercial público
-
-- Unificação da navegação pública e do menu mobile, com foco visível e link persistente para WhatsApp.
-- Nova home comercial com hero aprovado, três áreas Croma, serviços, destaques, portfólio, processo, diferenciais, Croma Digital e CTA.
-- Novas rotas públicas `/digital/`, `/portfolio/`, `/contato/` e `/produtos/item/`.
-- Portfólio filtrado para trabalhos reais disponíveis; detalhe de produto ligado ao Supabase sem novo checkout.
-- Documentação atualizada. Área interna, autenticação, Bling, carrinho, pedidos e banco foram preservados.
