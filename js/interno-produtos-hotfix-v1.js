@@ -39,7 +39,7 @@ const chipTranslations = new Map([
 
 function translateChips() {
   document.querySelectorAll('#filterChips .filter-chip').forEach(chip => {
-    let text = chip.textContent || '';
+    const text = chip.textContent || '';
     const suffix = text.endsWith(' ×') ? ' ×' : '';
     const base = suffix ? text.slice(0, -2) : text;
     const translated = chipTranslations.get(base);
@@ -63,12 +63,15 @@ function normalizeCountLabel() {
   const el = $('#productCount');
   const type = $('#filterType')?.value || '';
   if (!el) return;
-  const match = String(el.textContent || '').match(/^(\d+) encontrado\(s\)/);
+  const current = String(el.textContent || '');
+  const match = current.match(/^(\d+) encontrado\(s\)/);
   if (!match) return;
   const found = Number(match[1]);
-  if (type === 'produto' && productTotal !== null) el.textContent = `${found} encontrado(s) · ${productTotal} produtos no total`;
-  else if (type === 'servico' && serviceTotal !== null) el.textContent = `${found} encontrado(s) · ${serviceTotal} serviços no total`;
-  else if (productTotal !== null && serviceTotal !== null) el.textContent = `${found} encontrado(s) · ${productTotal + serviceTotal} itens no total`;
+  let desired = current;
+  if (type === 'produto' && productTotal !== null) desired = `${found} encontrado(s) · ${productTotal} produtos no total`;
+  else if (type === 'servico' && serviceTotal !== null) desired = `${found} encontrado(s) · ${serviceTotal} serviços no total`;
+  else if (productTotal !== null && serviceTotal !== null) desired = `${found} encontrado(s) · ${productTotal + serviceTotal} itens no total`;
+  if (desired !== current) el.textContent = desired;
 }
 
 function refreshPresentation() {
