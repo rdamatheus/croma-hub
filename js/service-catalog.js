@@ -173,7 +173,7 @@ function configMarkup(cat){
 
 function summaryMarkup(cat,state){
   const blueprint=PILOT_CONFIGS[cat.slug];if(!blueprint)return'';
-  return `<aside class="sc-summary"><h3>Resumo do seu material</h3><div class="sc-summary-list" data-config-summary>${Object.entries(state).map(([k,v])=>`<div class="sc-summary-item"><span>${esc(k)}</span><strong data-summary-key="${esc(k)}">${esc(v)}</strong></div>`).join('')}</div><p class="sc-summary-note">Este piloto organiza a experiência visual. A precificação será ligada às regras oficiais do catálogo quando os serviços forem ativados/classificados.</p><button type="button" class="sc-cta" data-quote-cta>Solicitar orçamento →</button></aside>`
+  return `<aside class="sc-summary"><h3>Resumo do seu material</h3><div class="sc-summary-list" data-config-summary>${Object.entries(state).map(([k,v])=>`<div class="sc-summary-item"><span>${esc(k)}</span><strong data-summary-key="${esc(k)}">${esc(v)}</strong></div>`).join('')}</div><p class="sc-summary-note">Envie as opções desejadas. A equipe confirma materiais, valores e prazo no orçamento.</p><button type="button" class="sc-cta" data-quote-cta>Solicitar orçamento →</button></aside>`
 }
 
 function relatedMarkup(f,cat){
@@ -184,7 +184,7 @@ function relatedMarkup(f,cat){
 
 function servicesMarkup(rows,media){
   if(!rows.length)return'';
-  return `<section class="sc-service-results"><div class="sc-service-results-head"><h3>Serviços publicados nesta categoria</h3><span>${rows.length} serviço(s)</span></div><div class="sc-services-grid">${rows.slice(0,12).map(p=>{const img=media.get(p.id),desc=plain(p.short_description||p.descricao||'Solicite um orçamento para este serviço.');return `<article class="sc-service-card"><div class="sc-service-media">${img?`<img src="${esc(img)}" alt="${esc(p.nome)}" loading="lazy">`:''}</div><div class="sc-service-copy"><h4>${esc(p.nome)}</h4><p>${esc(desc)}</p></div></article>`}).join('')}</div></section>`
+  return `<section class="sc-service-results"><div class="sc-service-results-head"><h3>Serviços publicados nesta categoria</h3><span>${rows.length} serviço(s)</span></div><div class="sc-services-grid">${rows.slice(0,12).map(p=>{const img=media.get(p.id),desc=plain(p.short_description||p.descricao||'Solicite um orçamento para este serviço.');return `<article class="sc-service-card"><div class="sc-service-media">${img?`<img src="${esc(img)}" alt="${esc(p.nome)}" loading="lazy">`:''}</div><div class="sc-service-copy"><h4>${esc(p.nome)}</h4><p>${esc(desc)}</p><a class="cm-link" href="https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Gostaria de orçamento para ${p.nome}.`)}">Solicitar orçamento →</a></div></article>`}).join('')}</div></section>`
 }
 
 function bindConfigurator(cat,state){
@@ -215,7 +215,7 @@ async function renderCategory(){
     <section class="sc-family-hero">${hero?`<img src="${esc(hero)}" alt="${esc(fam.image_alt||fam.nome)}">`:''}<div class="sc-family-hero-copy"><p class="sc-eyebrow">Serviços Gráficos</p><h1>${esc(fam.nome)}</h1><p>${esc(fam.descricao||'Soluções profissionais para diferentes necessidades.')}</p></div></section>
     <div class="sc-sibling-grid">${siblingCards(fam,cat)}</div>
     <div class="sc-category-heading"><h2>${esc(cat.nome)}</h2><p>${esc(catDesc)}</p></div>
-    ${blueprint?`<div class="sc-workspace">${configMarkup(cat)}<div>${summaryMarkup(cat,state)}${relatedMarkup(fam,cat)}</div>${servicesMarkup(rows,media)}</div>`:`<div class="sc-workspace"><div>${rows.length?servicesMarkup(rows,media):`<div class="sc-empty">Esta categoria já está estruturada visualmente. Os serviços serão ligados aqui conforme a classificação do catálogo avançar.</div>`}</div><div>${relatedMarkup(fam,cat)}</div></div>`}
+    ${blueprint?`<div class="sc-workspace">${configMarkup(cat)}<div>${summaryMarkup(cat,state)}${relatedMarkup(fam,cat)}</div>${servicesMarkup(rows,media)}</div>`:`<div class="sc-workspace"><div>${rows.length?servicesMarkup(rows,media):`<div class="sc-empty">Consulte a equipe para conhecer as opções desta categoria.</div>`}</div><div>${relatedMarkup(fam,cat)}</div></div>`}
   </div>`;
   if(blueprint)bindConfigurator(cat,state);
 }
@@ -231,7 +231,7 @@ async function init(){
     if(categorySlug)await renderCategory();else renderHome();
   }catch(error){
     console.error('Falha ao carregar catálogo de serviços.',error);
-    root.innerHTML='<div class="service-catalog"><div class="sc-error">Não foi possível carregar os serviços agora. Tente novamente em instantes.</div></div>';
+    root.innerHTML='<div class="service-catalog"><div class="sc-error"><h1>Serviços gráficos</h1>Não foi possível carregar os serviços agora. <a href="/contato/">Solicite orçamento com a equipe.</a></div></div>';
   }
 }
 

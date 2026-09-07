@@ -4,8 +4,7 @@ import { setupNavigation } from './navigation.js';
 import { supabase } from './croma-supabase.js';
 
 if(!document.querySelector('script[data-croma-cart]')){const script=document.createElement('script');script.src='/js/cart.js?v=20260821-2';script.dataset.cromaCart='1';document.head.appendChild(script)}
-if(!document.querySelector('script[data-public-header-loader]')){const headerScript=document.createElement('script');headerScript.src='/js/service-header.js?v=20260905-2';headerScript.defer=true;headerScript.dataset.publicHeaderLoader='1';document.head.appendChild(headerScript)}
-setupNavigation();
+
 
 document.querySelectorAll('.hero-slide').forEach(slide=>{if(slide.textContent.includes('Croma Papelaria & Presentes')){const a=slide.querySelector('.hero-slide-actions a');if(a){a.href='/produtos/';a.textContent='Explorar produtos'}}});
 
@@ -22,12 +21,12 @@ function setupShowcaseControls(){
   const title=heading?.querySelector('h2');
   if(eyebrow)eyebrow.textContent='Destaques Croma';
   if(title)title.textContent='Produtos e serviços em destaque.';
-  search?.closest('.search-box')?.remove();
+
   if(filters)filters.hidden=true;
 
   const wrap=document.createElement('div');
   wrap.className='showcase-toolbar';
-  wrap.innerHTML=`<div class="showcase-copy"><p>Uma seleção de produtos e serviços para você conhecer.</p></div><div class="showcase-switch" data-showcase-switch role="tablist" aria-label="Alternar vitrine"><span class="showcase-switch-thumb" aria-hidden="true"></span><button type="button" class="active" data-showcase-type="produtos" role="tab" aria-selected="true">Produtos</button><button type="button" data-showcase-type="servicos" role="tab" aria-selected="false">Serviços</button></div>`;
+  wrap.innerHTML=`<div class="showcase-copy"><p>Uma seleção de produtos e serviços para você conhecer.</p></div><div class="showcase-switch" data-showcase-switch role="group" aria-label="Alternar vitrine"><span class="showcase-switch-thumb" aria-hidden="true"></span><button type="button" class="active" data-showcase-type="produtos" aria-pressed="true">Produtos</button><button type="button" data-showcase-type="servicos" aria-pressed="false">Serviços</button></div>`;
   heading?.after(wrap);
 
   wrap.addEventListener('click',event=>{
@@ -37,7 +36,7 @@ function setupShowcaseControls(){
     wrap.querySelectorAll('[data-showcase-type]').forEach(btn=>{
       const active=btn===button;
       btn.classList.toggle('active',active);
-      btn.setAttribute('aria-selected',String(active));
+      btn.setAttribute('aria-pressed',String(active));
     });
     wrap.querySelector('.showcase-switch')?.classList.toggle('is-services',showcaseState.tipo==='servicos');
     renderShowcase();
@@ -53,11 +52,11 @@ function renderShowcase(){
   const itens=showcaseItems();
   if(!itens.length){
     const label=showcaseState.tipo==='servicos'?'famílias de serviços':'produtos';
-    grid.innerHTML=`<div class="empty-state showcase-empty">Nenhuma ${label} disponível no momento.</div>`;
+    grid.innerHTML=`<div class="empty-state showcase-empty">Consulte as opções no <a href="${showcaseState.tipo==='servicos'?'/servicos/':'/produtos/'}">catálogo completo</a> ou <a href="/contato/">fale com a Croma</a>.</div>`;
     return;
   }
   grid.innerHTML=itens.map(item=>{
-    const action=item.tipo==='familia'?'Explorar opções':item.tipo==='servico'?'Ver serviço':'Ver produtos';
+    const action=item.tipo==='familia'?'Explorar opções':item.tipo==='servico'?'Ver serviço':'Ver produto';
     const description=item.descricao?`<p>${esc(item.descricao)}</p>`:'';
     const price=item.precoVenda?`<div class="catalog-price"><small>${item.tipo==='servico'?'a partir de':'por'}</small><strong>${moeda(item.precoVenda)}</strong></div>`:'';
     return `<article class="product-card showcase-card" aria-label="${esc(item.nome)}">${renderProductVisual(item)}<div class="product-body"><span class="product-category">${esc(item.categoria||'Croma')}</span><h3>${esc(item.nome)}</h3>${description}${price}<a class="product-more showcase-link" href="${esc(item.href||'#')}">${action} →</a></div></article>`;
@@ -86,7 +85,7 @@ function injectVisualStyles(){
 
 async function renderServiceHomePhotos(){const cards=[...document.querySelectorAll('#servicos .service-card')];if(!cards.length)return;const {data}=await supabase.from('catalog_families').select('slug,image_url').in('slug',['comunicacao-visual','solucoes-impressas','papelaria-personalizada','brindes']);const by=new Map((data||[]).map(x=>[x.slug,x.image_url]));const slugs=['comunicacao-visual','solucoes-impressas','papelaria-personalizada','brindes'];cards.forEach((card,i)=>{const url=by.get(slugs[i]);if(url){card.classList.add('home-photo-card');card.style.setProperty('--photo',`url("${url}")`)}})}
 
-async function renderPortfolioHome(){const section=document.querySelector('#portfolio');if(!section)return;const {data,error}=await supabase.from('portfolio_items').select('*').eq('active',true).order('sort_order').limit(4);if(error||!data?.length)return;const old=section.querySelector('.portfolio-grid');if(old)old.outerHTML=`<div class="portfolio-real-grid">${data.map(x=>`<article class="portfolio-real-card"><img src="${esc(x.image_url)}" alt="${esc(x.image_alt||x.title)}" loading="lazy"><div class="portfolio-real-copy"><strong>${esc(x.title)}</strong><small>${esc(x.description||'')}</small></div></article>`).join('')}</div>`;const note=section.querySelector('.section-note');if(note)note.textContent='Uma seleção visual das principais soluções e trabalhos apresentados pela Croma.'}
+async function renderPortfolioHome(){ const { renderPortfolio }=await import('./public-portfolio.js');await renderPortfolio(document.querySelector('#portfolioPreview'),true); }
 
 const about=document.querySelector('#sobre');if(about){const more=document.createElement('p');more.innerHTML='<a class="btn btn-ghost" href="/sobre/">Conhecer a Croma</a>';about.querySelector('.about-copy')?.appendChild(more)}
 

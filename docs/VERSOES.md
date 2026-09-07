@@ -245,3 +245,10 @@ Transformar o painel de categorias em uma central de gestão, moderação e sinc
 - exclusão de categoria com item ativo ou subcategoria é bloqueada;
 - dois IDs do Bling não podem apontar para a mesma categoria Croma;
 - novas categorias criadas pela moderação ficam ocultas no site por padrão.
+# 2026-09-07 — Redesenho comercial público
+
+- Unificação da navegação pública e do menu mobile, com foco visível e link persistente para WhatsApp.
+- Nova home comercial com hero aprovado, três áreas Croma, serviços, destaques, portfólio, processo, diferenciais, Croma Digital e CTA.
+- Novas rotas públicas `/digital/`, `/portfolio/`, `/contato/` e `/produtos/item/`.
+- Portfólio filtrado para trabalhos reais disponíveis; detalhe de produto ligado ao Supabase sem novo checkout.
+- Documentação atualizada. Área interna, autenticação, Bling, carrinho, pedidos e banco foram preservados.
