@@ -9,13 +9,17 @@ function stripHtml(value){
 
 function mapCanonical(row,mediaUrl='',taxonomy={families:[],categories:[]}){
   const meta=asMeta(row),isService=row.product_type==='servico',slug=row.slug||meta.slug||row.sku||row.id;
+  const category=(taxonomy.categories||[]).find(c=>c.id===row.catalog_category_id)||null;
+  const family=(taxonomy.families||[]).find(f=>f.id===category?.family_id)||null;
   const path=categoryPath(taxonomy.categories||[],taxonomy.families||[],row.catalog_category_id).map(x=>x.nome);
+  const href=isService
+    ? `/servicos/?familia=${encodeURIComponent(family?.slug||'')}&categoria=${encodeURIComponent(category?.slug||'')}`
+    : `/produtos/?q=${encodeURIComponent(row.nome||row.sku||'')}`;
   return{
     id:slug,sourceId:row.id,tipo:isService?'servico':'produto',nome:row.nome,
     categoria:path.slice(1).join(' › ')||(isService?'Serviços':'Produtos'),
     descricao:stripHtml(row.short_description||row.descricao||''),icone:meta.icone||(isService?'◆':'◼'),
-    imagem:mediaUrl||meta.imagem||meta.image_url||meta.imagem_principal||'',
-    href:isService?`/servicos/?categoria=${encodeURIComponent((taxonomy.categories||[]).find(c=>c.id===row.catalog_category_id)?.slug||'')}`:'/produtos/',
+    imagem:mediaUrl||meta.imagem||meta.image_url||meta.imagem_principal||'',href,
     destaques:Array.isArray(meta.destaques)?meta.destaques:[],quantidadePreco:Number(meta.quantidadePreco||1),
     precoVenda:Number(row.preco||0)||null,
     homeFeatured:meta.home_featured===true||meta.featured_home===true,
@@ -34,7 +38,7 @@ async function mappedItems(scope){
 
 export async function carregarVitrineHome(limit=DEFAULT_HOME_LIMIT){
   const [productsResult,servicesResult]=await Promise.allSettled([mappedItems('produto'),loadPublicCatalog('servico')]);
-  const produtos=productsResult.status==='fulfilled'?sortHome(productsResult.value.items.filter(item=>Boolean(item.imagem))).slice(0,limit):[];
+  const produtos=productsResult.status==='fulfilled'?sortHome(productsResult.value.items).slice(0,limit):[];
   const servicos=servicesResult.status==='fulfilled'?servicesResult.value.families.filter(f=>servicesResult.value.categories.some(c=>c.family_id===f.id)).map(mapFamily).slice(0,limit):[];
   if(productsResult.status==='rejected')console.warn('Não foi possível carregar produtos públicos da vitrine.',productsResult.reason);
   if(servicesResult.status==='rejected')console.warn('Não foi possível carregar famílias públicas de serviços.',servicesResult.reason);
