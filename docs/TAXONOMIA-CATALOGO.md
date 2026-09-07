@@ -52,20 +52,20 @@ Critérios:
 
 ## Aplicação segura pelo Copiloto
 
-`public.apply_taxonomy_classification_batch(jsonb)` é o mecanismo transacional para aplicar classificações já revisadas e aprovadas.
+Não existe RPC pública de classificação exposta ao navegador.
 
-A função valida:
+Depois da revisão e aprovação, o Copiloto aplica as decisões diretamente no Supabase em transações controladas. Antes de gravar, a execução deve validar:
 
-- usuário autorizado;
 - tipo do item;
 - família do mesmo tipo;
 - categoria da mesma família;
 - subcategoria filha da categoria correta;
-- ausência de terceiro nível.
+- ausência de terceiro nível;
+- inexistência de categorias duplicadas ou incompatíveis.
 
-Se qualquer decisão do lote estiver inconsistente, toda a transação é revertida.
+Se qualquer decisão do lote estiver inconsistente, a transação deve ser revertida antes de concluir a aplicação.
 
-Categorias novas criadas por esse mecanismo nascem ativas, mas ocultas do site e fora da navegação até revisão posterior.
+Categorias novas criadas nessa etapa devem nascer ativas, mas ocultas do site e fora da navegação até revisão posterior.
 
 ## Central de Taxonomia
 
@@ -91,6 +91,8 @@ Foram removidas as tabelas antigas:
 - `taxonomy_item_proposals`.
 
 O controlador duplicado `interno-taxonomy-enhancements.js` também foi removido.
+
+A antiga RPC pública de aplicação em lote foi removida para não expor uma função `SECURITY DEFINER` a usuários autenticados.
 
 A Edge Function `taxonomy-classify` não executa mais classificação. A versão atual é apenas um endpoint de encerramento que responde HTTP 410 para impedir uso acidental de clientes antigos. Não existe referência a ela no frontend atual.
 
@@ -131,10 +133,10 @@ Mudanças exclusivamente em `catalog_category_id` não entram nos campos que mar
 - produtos ativos: **2.137**;
 - serviços ativos: **1.173**;
 - tabelas de fila/propostas de taxonomia: **removidas**;
+- RPC pública de classificação em lote: **removida**;
 - `taxonomy-classify`: **encerrada funcionalmente**, retornando HTTP 410;
 - frontend sem referência à função de classificação;
 - controlador duplicado de taxonomia: **removido**;
-- aplicação transacional disponível em `apply_taxonomy_classification_batch(jsonb)`;
 - IA removida da Central de Taxonomia.
 
 ## Próximo passo
