@@ -115,6 +115,17 @@ async function applyDefaultProductFilter() {
   }
 }
 
+function loadStructureEnhancement() {
+  if (!document.querySelector('link[data-product-structure-style]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/css/interno-produtos-structure.css?v=20260910-1';
+    link.dataset.productStructureStyle = '1';
+    document.head.appendChild(link);
+  }
+  import('/js/interno-produtos-structure-v1.js?v=20260910-1').catch(error => console.error('Falha ao carregar visão estrutural de produtos', error));
+}
+
 await loadTypeTotals();
 await applyDefaultProductFilter();
 await checkOperationalReads();
@@ -134,3 +145,4 @@ $('#clearProductFilters')?.addEventListener('click', () => setTimeout(() => {
 }, 0));
 
 refreshPresentation();
+loadStructureEnhancement();
