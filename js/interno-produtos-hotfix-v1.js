@@ -2,6 +2,8 @@ import { supabase } from './croma-supabase.js';
 
 const $ = selector => document.querySelector(selector);
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const pageParams = new URLSearchParams(location.search);
+const isProductDetail = pageParams.get('modo') === 'ficha' && !!pageParams.get('produto');
 
 const chipTranslations = new Map([
   ['Status: active', 'Status: Ativos'],
@@ -102,6 +104,7 @@ async function checkOperationalReads() {
 }
 
 async function applyDefaultProductFilter() {
+  if (isProductDetail) return;
   for (let i = 0; i < 80; i++) {
     const select = $('#filterType');
     if (select) {
