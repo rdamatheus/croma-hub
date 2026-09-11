@@ -90,6 +90,28 @@ Foi implementada a camada de apresentação de **Sob consulta** no catálogo pú
 
 Também foi adicionada ao painel interno uma visão estrutural que interpreta as relações já existentes de pai/filho e a composição recebida do Bling. Essa visualização é não destrutiva: não popula automaticamente as tabelas de normalização.
 
+### Publicação inicial dos serviços principais
+Após aprovação, foram publicados no site os **281 serviços raiz** que atendem simultaneamente aos critérios:
+- `product_type = servico`;
+- ativo;
+- vendável;
+- não insumo;
+- categoria ativa e pública;
+- sem `parent_product_id`.
+
+Os **607 registros filhos** continuam sem publicação individual. Eles serão usados como fonte para opções, variações e grades após a normalização.
+
+A camada pública `public_catalog_products` passou a fornecer também:
+- quantidade de filhos comerciais do serviço (`child_count`);
+- menor preço positivo entre os filhos (`commercial_min_price`).
+
+Com isso, um serviço principal com filhos pode ser apresentado como **A partir de R$ ...** sem expor os registros filhos como cards independentes. Se nenhum filho possuir preço positivo, a apresentação é **Sob consulta**.
+
+Exemplo validado: `Moldura de Madeira` possui 7 filhos e preço comercial mínimo de R$ 34,90, devendo aparecer como **A partir de R$ 34,90**.
+
+### Inconsistência de categorização pendente
+Das categorias que possuem serviços comerciais, uma ficou sem serviço raiz próprio: **Adesivos Especiais**. Ela contém a variação `CARTELA ADESIVO RESINADO TIPO:METALIZADO`, cujo produto pai `CARTELA ADESIVO RESINADO` está em outra categoria. A categoria deve permanecer para revisão de taxonomia; não foi movido nem duplicado nenhum cadastro automaticamente.
+
 ## Próxima etapa — obrigatoriamente com auditoria antes de gravar
 Gerar um dry-run dos 888 serviços classificando cada registro em:
 - serviço principal;
