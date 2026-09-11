@@ -28,6 +28,7 @@ export function normalizeLabelRules(data={}){
   return {
     ...base,
     ...data,
+    version: Math.max(Number(base.version) || 1, Number(data.version) || 0),
     sheet_formats: {
       ...base.sheet_formats,
       ...(data.sheet_formats || {})
