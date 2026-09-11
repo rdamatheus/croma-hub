@@ -1,7 +1,7 @@
 import { loadPublicCatalog, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20260910-2';
 
 const root=document.querySelector('#catalogRoot');
-const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const plain=s=>{const d=document.createElement('div');d.innerHTML=String(s??'');return(d.textContent||'').replace(/\s+/g,' ').trim()};
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const params=new URLSearchParams(location.search);
