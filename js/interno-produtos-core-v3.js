@@ -235,18 +235,73 @@ function configureProductionField(){const el=$('#productionMode');if(!el)return;
 async function loadDetailMode(){prepareDetailMode();configureProductionField();const [catsResult,suppliersResult]=await Promise.allSettled([fetchAll(()=>supabase.from('catalog_categories').select('id,nome,parent_id,ordem,catalog_scope,ativo').order('ordem').order('nome')),fetchAll(()=>supabase.from('suppliers').select('id,name,active').eq('active',true).order('name'))]);if(catsResult.status==='fulfilled')categories=catsResult.value;if(suppliersResult.status==='fulfilled')suppliers=suppliersResult.value;await loadProduct(detailProductId);}
 
 async function loadProduct(id){
-  if(dirty&&!confirm('Descartar alterações não salvas deste item?'))return;setDirty(false);const {data:full,error}=await supabase.from('products').select('*').eq('id',id).single();if(error)throw error;currentProduct=full;
-  const results=await Promise.all([
+  if(dirty&&!confirm('Descartar alterações não salvas deste item?'))return;
+  setDirty(false);
+  const {data:full,error}=await supabase.from('products').select('*').eq('id',id).single();
+  if(error)throw error;
+  currentProduct=full;
+
+  const results=await Promise.allSettled([
     supabase.from('product_details').select('*').eq('product_id',id).maybeSingle(),
     supabase.from('product_stock_settings').select('*').eq('product_id',id).is('variant_id',null).limit(1).maybeSingle(),
     supabase.from('product_suppliers').select('*').eq('product_id',id).is('variant_id',null).eq('preferred',true).limit(1).maybeSingle(),
     supabase.from('product_option_groups').select('*,product_options(*)').eq('product_id',id).order('ordem'),
-    supabase.from('product_variants').select('*').eq('product_id',id).order('variation_order').order('nome'),
+    supabase.from('product_variants').select('*').eq('product_id',id).order('nome'),
     supabase.from('product_stock_snapshots').select('*').eq('product_id',id).eq('source','bling').maybeSingle(),
     supabase.from('products').select('id').eq('parent_product_id',id)
-  ]);for(const r of results)if(r.error)throw r.error;details=results[0].data||{};stock=results[1].data||null;supplierLink=results[2].data||null;groups=results[3].data||[];variants=results[4].data||[];const snapshot=results[5].data||null;let available=snapshot?.available_stock??null;
-  const childIds=(results[6].data||[]).map(x=>x.id);if(childIds.length){const {data:childStocks}=await supabase.from('product_stock_snapshots').select('product_id,available_stock').in('product_id',childIds).eq('source','bling');const vals=(childStocks||[]).map(x=>x.available_stock).filter(v=>v!==null&&v!==undefined);if(vals.length)available=vals.reduce((a,b)=>Number(a)+Number(b),0);}
-  renderEditor(available,childIds.length);$('#editor')?.classList.add('open');$('#savebar')?.classList.add('show');
+  ]);
+
+  const auxiliaryErrors=[];
+  const readAux=(index,fallback,label)=>{
+    const result=results[index];
+    if(result.status==='rejected'){
+      auxiliaryErrors.push(label);
+      console.error(`Falha ao carregar ${label}`,result.reason);
+      return fallback;
+    }
+    if(result.value?.error){
+      auxiliaryErrors.push(label);
+      console.error(`Falha ao carregar ${label}`,result.value.error);
+      return fallback;
+    }
+    return result.value?.data ?? fallback;
+  };
+
+  details=readAux(0,{},'detalhes');
+  stock=readAux(1,null,'configurações de estoque');
+  supplierLink=readAux(2,null,'fornecedor preferencial');
+  groups=readAux(3,[],'grupos de opções');
+  variants=readAux(4,[],'variações');
+  const snapshot=readAux(5,null,'estoque do Bling');
+  const childRows=readAux(6,[],'filhos do produto');
+  let available=snapshot?.available_stock??null;
+
+  const childIds=childRows.map(x=>x.id);
+  if(childIds.length){
+    const {data:childStocks,error:childStockError}=await supabase.from('product_stock_snapshots').select('product_id,available_stock').in('product_id',childIds).eq('source','bling');
+    if(childStockError){
+      auxiliaryErrors.push('estoque das variações');
+      console.error('Falha ao carregar estoque das variações',childStockError);
+    }else{
+      const vals=(childStocks||[]).map(x=>x.available_stock).filter(v=>v!==null&&v!==undefined);
+      if(vals.length)available=vals.reduce((a,b)=>Number(a)+Number(b),0);
+    }
+  }
+
+  renderEditor(available,childIds.length);
+  $('#editor')?.classList.add('open');
+  $('#savebar')?.classList.add('show');
+
+  const status=$('#status');
+  if(status){
+    if(auxiliaryErrors.length){
+      status.className='status';
+      status.textContent=`Ficha carregada. Alguns dados auxiliares não puderam ser carregados: ${[...new Set(auxiliaryErrors)].join(', ')}.`;
+    }else{
+      status.className='status';
+      status.textContent='';
+    }
+  }
 }
 
 function renderEditor(available=null,childCount=0){
