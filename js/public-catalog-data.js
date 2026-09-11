@@ -16,12 +16,9 @@ async function fetchPaged(build){
 
 export async function loadPublicCatalog(scope,{requirePublished=scope==='servico'}={}){
   const buildItems=()=>{
-    let query=supabase.from('products')
+    let query=supabase.from('public_catalog_products')
       .select('id,nome,sku,slug,descricao,short_description,preco,catalog_category_id,product_type,ativo,published_on_site,is_sellable,is_input,metadata')
-      .eq('product_type',scope)
-      .eq('ativo',true)
-      .eq('is_sellable',true)
-      .eq('is_input',false);
+      .eq('product_type',scope);
     if(requirePublished)query=query.eq('published_on_site',true);
     return query.order('nome');
   };
