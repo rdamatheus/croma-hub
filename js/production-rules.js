@@ -1,9 +1,10 @@
 import { supabase } from './croma-supabase.js';
+import { DEFAULT_ROLL_CONFIG } from './roll-optimizer.js';
 
 export const LABEL_RULE_KEY = 'production.plotter_cut.labels';
 
 export const DEFAULT_LABEL_RULES = Object.freeze({
-  version: 1,
+  version: 2,
   technology: 'plotter_cut',
   technology_label: 'Plotter de recorte',
   margin_mm: 10,
@@ -16,7 +17,8 @@ export const DEFAULT_LABEL_RULES = Object.freeze({
   sheet_formats: {
     A3: { width_mm: 297, height_mm: 420 },
     A4: { width_mm: 210, height_mm: 297 }
-  }
+  },
+  roll: { ...DEFAULT_ROLL_CONFIG }
 });
 
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -29,6 +31,10 @@ export function normalizeLabelRules(data={}){
     sheet_formats: {
       ...base.sheet_formats,
       ...(data.sheet_formats || {})
+    },
+    roll: {
+      ...base.roll,
+      ...(data.roll || {})
     }
   };
 }
