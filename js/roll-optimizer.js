@@ -101,7 +101,7 @@ function orientationCandidates(item,cfg,skyline){
     const packW=option.w+cfg.gap_mm;
     const packH=option.h+cfg.gap_mm;
     if(option.w>cfg.usable_width_mm+EPS) continue;
-    const pos=findPosition(skyline,packW,packH,cfg.usable_width_mm);
+    const pos=findPosition(skyline,packW,packH,cfg.usable_width_mm+cfg.gap_mm);
     if(!pos) continue;
     candidates.push({...option,packW,packH,...pos});
   }
@@ -149,7 +149,7 @@ function finalizePack(placements,cfg){
 }
 
 function packFixedOrder(items,counts,cfg,sorter,orientationMode){
-  const skyline=[{x:0,y:0,width:cfg.usable_width_mm}];
+  const skyline=[{x:0,y:0,width:cfg.usable_width_mm+cfg.gap_mm}];
   const placements=[];
   let currentWidth=0,currentHeight=0;
   const ordered=items.filter(i=>(counts[i.id]||0)>0).slice().sort(sorter);
@@ -169,7 +169,7 @@ function packFixedOrder(items,counts,cfg,sorter,orientationMode){
 }
 
 function packDynamic(items,counts,cfg,mode='area'){
-  const skyline=[{x:0,y:0,width:cfg.usable_width_mm}];
+  const skyline=[{x:0,y:0,width:cfg.usable_width_mm+cfg.gap_mm}];
   const remaining={...counts};
   const placements=[];
   let total=Object.values(remaining).reduce((a,b)=>a+b,0);
