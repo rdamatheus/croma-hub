@@ -1,5 +1,6 @@
 import './croma-brand.js';
 import './interno-polish.js';
+import './supplier-catalog-ui-cleanup.js?v=20260913-1';
 import { supabase } from './croma-supabase.js';
 
 if (/^\/interno\/?$/.test(location.pathname)) {
