@@ -15,13 +15,13 @@ function ageStart(filter){const day=86400000;if(filter==='today')return new Date
 async function init(){
   el('pageStatus').textContent='Carregando catálogo do fornecedor…';
   try{
-    const [{data:supplier,error:se},directory,ctx,{count:activeCount}]=await Promise.all([
+    const [{data:supplier,error:se},directory,ctx,countResult]=await Promise.all([
       supabase.from('suppliers').select('id,contact_id,name,active,default_order_freight,updated_at').eq('id',supplierId).maybeSingle(),
       loadSupplierDirectoryAll(),loadSupplierLinkContext(supplierId),
       supabase.from('supplier_catalog_items').select('id',{count:'exact',head:true}).eq('supplier_id',supplierId).eq('active',true)
     ]);
-    if(se)throw se;if(!supplier)throw new Error('Fornecedor não encontrado.');
-    state.supplier=supplier;state.directory=directory.find(x=>x.supplierId===supplierId)||null;state.links=ctx.links;state.activeCount=activeCount||0;
+    if(se)throw se;if(countResult.error)throw countResult.error;if(!supplier)throw new Error('Fornecedor não encontrado.');
+    state.supplier=supplier;state.directory=directory.find(x=>x.supplierId===supplierId)||null;state.links=ctx.links;state.activeCount=countResult.count||0;
     for(const link of ctx.links){if(link.supplier_catalog_item_id){state.linkedIds.add(link.supplier_catalog_item_id);if(!state.linkByCatalog.has(link.supplier_catalog_item_id))state.linkByCatalog.set(link.supplier_catalog_item_id,[]);state.linkByCatalog.get(link.supplier_catalog_item_id).push(link);if(link.divergent)state.divergentIds.add(link.supplier_catalog_item_id)}}
     await Promise.all([loadLatestImport(),loadCategories()]);
     renderHeader();renderKpis();renderImportSummary();await loadRows();wireImporter();
@@ -86,7 +86,7 @@ async function openHistory(){
   const{data,error}=await supabase.from('supplier_catalog_imports').select('original_file_name,status,items_processed,imported_at,completed_at,error_message').eq('supplier_id',supplierId).order('imported_at',{ascending:false}).limit(100);
   if(error){el('historyStatus').textContent=error.message;return}el('historyStatus').textContent=`${(data||[]).length} importação(ões) mais recente(s).`;el('historyRows').innerHTML=(data||[]).map(r=>`<tr><td><strong>${esc(r.original_file_name||'—')}</strong>${r.error_message?`<div class="supplier-meta">${esc(r.error_message)}</div>`:''}</td><td>${fmtDateTime(r.imported_at)}</td><td>${Number(r.items_processed||0).toLocaleString('pt-BR')}</td><td>${esc(r.status||'—')}</td><td>${fmtDateTime(r.completed_at)}</td></tr>`).join('')||'<tr><td colspan="5">Nenhuma importação registrada.</td></tr>';
 }
-async function openImporter(){const btn=await waitFor('#openSupplierCatalogImport');if(!btn)return alert('Importador indisponível.');btn.click();const select=await waitFor('#scSupplier');if(select&&state.directory?.contactId){select.value=state.directory.contactId;select.dispatchEvent(new Event('change',{bubbles:true}))}}
+async function openImporter(){const btn=await waitFor('#openSupplierCatalogImport');if(!btn)return alert('Importador indisponível.');btn.click();const select=await waitFor('#scSupplier');const contactId=state.directory?.contactId;if(select&&contactId){for(let i=0;i<50&&!select.querySelector(`option[value="${CSS.escape(contactId)}"]`);i++)await new Promise(r=>setTimeout(r,80));if(select.querySelector(`option[value="${CSS.escape(contactId)}"]`)){select.value=contactId;select.dispatchEvent(new Event('change',{bubbles:true}))}}}
 function wireImporter(){(async()=>{const dlg=await waitFor('#supplierCatalogDialog');if(dlg&&!dlg.dataset.catalogPageRefresh){dlg.dataset.catalogPageRefresh='1';dlg.addEventListener('close',()=>setTimeout(()=>location.reload(),400))}})()}
 
 const resetPage=()=>{state.page=1;loadRows()};
