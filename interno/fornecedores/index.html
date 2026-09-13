@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fornecedores | Croma Hub</title>
+<link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+<link rel="stylesheet" href="/css/supplier-admin.css?v=20260912-1">
+</head>
+<body hidden>
+<header class="internal-header"><a href="/interno/">← Croma Interno</a><strong>Fornecedores</strong></header>
+<main class="supplier-shell">
+  <div class="supplier-head">
+    <div><span class="internal-eyebrow">Administrativo / Fornecedores</span><h1>Fornecedores</h1><p>Gerencie os fornecedores cadastrados, visualize os catálogos atuais e acompanhe os vínculos com produtos e serviços da Croma.</p></div>
+    <div class="supplier-actions"><button class="btn light" id="newSupplier">+ Novo fornecedor</button><button class="btn" id="importCatalog">Importar catálogo</button></div>
+  </div>
+  <div class="supplier-kpis">
+    <div class="supplier-kpi"><span class="icon">F</span><div><small>Fornecedores ativos</small><strong id="kpiActive">—</strong></div></div>
+    <div class="supplier-kpi"><span class="icon">C</span><div><small>Fornecedores com catálogo</small><strong id="kpiCatalogs">—</strong></div></div>
+    <div class="supplier-kpi"><span class="icon">V</span><div><small>Itens vinculados</small><strong id="kpiLinked">—</strong></div></div>
+    <div class="supplier-kpi"><span class="icon">!</span><div><small>Divergências</small><strong id="kpiDivergent">—</strong></div></div>
+  </div>
+  <section class="supplier-card">
+    <div class="supplier-filter-grid">
+      <div class="field"><label for="supplierFilter">Fornecedor</label><div class="field-row"><select id="supplierFilter"><option value="">Todos os fornecedores</option></select><button class="btn light" id="newSupplierInline" title="Cadastrar fornecedor">+</button></div></div>
+      <div class="field"><label for="statusFilter">Status</label><select id="statusFilter"><option value="">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos</option></select></div>
+      <div class="field"><label for="catalogFilter">Possui catálogo</label><select id="catalogFilter"><option value="">Todos</option><option value="yes">Com catálogo</option><option value="no">Sem catálogo</option></select></div>
+      <div class="field"><label for="updateFilter">Atualização do catálogo</label><select id="updateFilter"><option value="">Todas</option><option value="today">Hoje</option><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option><option value="old">Mais de 30 dias</option><option value="never">Nunca importado</option></select></div>
+      <div class="field"><label for="linkedFilter">Com vínculos Croma</label><select id="linkedFilter"><option value="">Todos</option><option value="yes">Com vínculos</option><option value="no">Sem vínculos</option></select></div>
+      <label class="supplier-toggle"><input id="divergenceFilter" type="checkbox"> Somente divergências</label>
+    </div>
+  </section>
+  <section class="supplier-card" style="margin-top:16px">
+    <div class="table-head"><div><h2>Fornecedores</h2><div class="muted" id="resultCount">Carregando…</div></div><div class="field" style="min-width:190px"><label for="sortFilter">Ordenar por</label><select id="sortFilter"><option value="recent">Mais recentes</option><option value="name">Nome</option><option value="items">Mais itens</option><option value="divergence">Mais divergências</option></select></div></div>
+    <p id="pageStatus" class="status"></p>
+    <div class="supplier-table-wrap"><table class="supplier-table"><thead><tr><th>Fornecedor</th><th>Contato Bling</th><th>Itens no catálogo</th><th>Última importação</th><th>Vínculos</th><th>Divergências</th><th>Status</th><th>Ações</th></tr></thead><tbody id="supplierRows"><tr><td colspan="8" class="loading-skeleton">Carregando fornecedores…</td></tr></tbody></table></div>
+    <div class="supplier-pagination"><span class="muted" id="pageInfo"></span><div class="pager"><button class="btn light" id="prevPage">←</button><button class="btn light" id="nextPage">→</button></div></div>
+  </section>
+  <div class="list-head supplier-tool-bridge" aria-hidden="true"></div>
+</main>
+<script type="module" src="/js/interno-fornecedores.js?v=20260912-1"></script>
+<script type="module" src="/js/supplier-catalog-importer-v21-fixed.js?v=20260905-2"></script>
+</body>
+</html>

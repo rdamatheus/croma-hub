@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Detalhe do item do catálogo | Croma Hub</title>
+<link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+<link rel="stylesheet" href="/css/supplier-admin.css?v=20260912-1">
+</head>
+<body hidden>
+<header class="internal-header"><a id="backCatalog" href="/interno/fornecedores/">← Catálogo</a><strong>Item do catálogo</strong></header>
+<main class="supplier-shell">
+  <div class="supplier-head"><div><span class="internal-eyebrow">Administrativo / Fornecedores / Item</span><h1>Detalhe do item do catálogo</h1><p>Conciliação entre o catálogo do fornecedor, o Bling e o produto ou serviço Croma.</p><div class="supplier-identity"><span class="supplier-avatar" id="supplierAvatar">—</span><div><strong id="supplierName">Carregando…</strong><small><span class="pill" id="itemSku">SKU —</span></small></div></div></div><div class="supplier-actions"><a class="btn" id="openProduct" href="#" hidden>Abrir produto Croma</a><button class="btn light" id="reprocessLink" disabled>Reprocessar vínculo</button></div></div>
+  <p id="pageStatus" class="status"></p>
+  <div class="detail-grid"><div class="detail-main">
+    <section class="supplier-card detail-card"><h2>Dados do catálogo do fornecedor</h2><div class="detail-pairs" id="catalogDetails"></div></section>
+    <section class="supplier-card detail-card"><h2>Origem no Bling</h2><div class="detail-pairs" id="blingDetails"></div><div id="blingMatchNotice" class="notice" style="margin-top:14px"></div></section>
+    <section class="supplier-card detail-card"><h2>Vínculo com produto Croma</h2><div id="productDetails"></div></section>
+    <section class="supplier-card detail-card"><h2>Custos e precificação</h2><div class="price-cards" id="priceCards"></div><div id="costNotice" class="notice" style="margin-top:12px"></div></section>
+  </div><aside class="detail-side">
+    <section class="supplier-card detail-card"><h3>Linha do tempo</h3><div class="timeline" id="timeline"></div></section>
+    <section class="supplier-card detail-card"><h3>Alertas e auditoria</h3><div class="audit-list" id="auditList"></div></section>
+    <section class="supplier-card detail-card"><h3>Ações rápidas</h3><div class="quick-list"><a id="openCatalog" href="#">Abrir catálogo do fornecedor <span>›</span></a><a id="historyLink" href="#">Ver histórico de importações <span>›</span></a><button id="unlinkItem" class="bad" disabled>Desvincular item <span>›</span></button><button id="exportDetails">Exportar detalhes <span>›</span></button></div></section>
+  </aside></div>
+</main>
+<script type="module" src="/js/interno-fornecedor-item.js?v=20260912-1"></script>
+</body>
+</html>
