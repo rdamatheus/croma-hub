@@ -1,2 +1,112 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Finalizar compra | Croma</title><style>body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f5fb;color:#29263b}.wrap{max-width:980px;margin:38px auto;padding:22px}.head{display:flex;justify-content:space-between;gap:12px}.head a{color:#30297F;text-decoration:none;font-weight:900}.steps{display:flex;gap:8px;margin:22px 0;flex-wrap:wrap}.step{padding:8px 11px;border-radius:999px;background:#e9e7f2;color:#69657a;font-weight:850}.step.active{background:#30297F;color:#fff}.panel{display:none}.panel.active{display:block}.card{background:#fff;border:1px solid #e7e5ee;border-radius:20px;padding:20px;margin:12px 0}.item{display:grid;grid-template-columns:1fr auto;gap:14px;border-bottom:1px solid #eeeaf4;padding:14px 0}.muted{color:#716d80}.price,.total{font-weight:900;color:#211c5c}.total{display:flex;justify-content:space-between;font-size:1.15rem}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.btn{border:0;border-radius:11px;padding:12px 17px;font-weight:900;cursor:pointer}.primary{background:#30297F;color:#fff}.secondary{background:#fff;border:1px solid #d9d5e6;color:#30297F}.choice{display:grid;gap:10px}.choice label{border:1px solid #e2dfea;border-radius:14px;padding:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-weight:800;color:#30297F;margin-bottom:5px}.field input,.field textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d9d6e5;border-radius:10px}.wide{grid-column:1/-1}.hidden{display:none}.msg{margin-top:12px;color:#a83a3a}.ok{color:#567d25}@media(max-width:650px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.item{grid-template-columns:1fr}}</style></head><body><main class="wrap"><div class="head"><a href="/">← Continuar comprando</a><a href="/meus-pedidos/">Meus pedidos</a></div><h1>Finalizar compra</h1><div class="steps"><span class="step active" data-stepmark="1">1. Conferência</span><span class="step" data-stepmark="2">2. Entrega</span><span class="step" data-stepmark="3">3. Pagamento</span></div><section class="panel active" data-panel="1"><div class="card"><h2>Resumo do pedido</h2><div id="items"></div><div class="total"><span>Total estimado</span><span id="total">R$ 0,00</span></div></div><div class="actions"><span></span><button class="btn primary" id="to2">Próximo</button></div></section><section class="panel" data-panel="2"><div class="card"><h2>Como você quer receber?</h2><div class="choice"><label><input type="radio" name="fulfillment" value="retirada" checked> Retirar na Croma</label><label><input type="radio" name="fulfillment" value="entrega"> Receber por entrega</label></div><div id="deliveryBox" class="hidden"><h3>Endereço de entrega</h3><div class="choice"><label><input type="radio" name="addressMode" value="principal" checked> Usar meu endereço principal</label><label><input type="radio" name="addressMode" value="outro"> Usar outro endereço nesta entrega</label></div><div id="principalAddress" class="card muted"></div><div id="otherAddress" class="grid hidden"><div class="field"><label>CEP</label><input id="cep" inputmode="numeric"></div><div class="field"><label>Logradouro</label><input id="logradouro"></div><div class="field"><label>Número</label><input id="numero"></div><div class="field"><label>Complemento</label><input id="complemento"></div><div class="field"><label>Bairro</label><input id="bairro"></div><div class="field"><label>Cidade</label><input id="cidade"></div><div class="field"><label>Estado (UF)</label><input id="estado" maxlength="2"></div></div></div></div><div class="actions"><button class="btn secondary" data-back="1">Voltar</button><button class="btn primary" id="to3">Próximo</button></div></section><section class="panel" data-panel="3"><div class="card"><h2>Forma de pagamento</h2><div class="choice"><label><input type="radio" name="payment" value="pix" checked> Pix</label><label><input type="radio" name="payment" value="credito"> Cartão de crédito</label><label><input type="radio" name="payment" value="debito"> Cartão de débito</label></div><div class="field" style="margin-top:16px"><label>Observações</label><textarea id="notes" rows="3" placeholder="Informações importantes sobre o pedido"></textarea></div><p class="muted">O pedido é salvo na Croma antes de abrir o WhatsApp. Se o WhatsApp não abrir ou você não enviar a mensagem, o pedido continua registrado.</p><div class="total"><span>Total estimado</span><span id="total2">R$ 0,00</span></div><div id="msg" class="msg"></div></div><div class="actions"><button class="btn secondary" data-back="2">Voltar</button><button class="btn primary" id="finish">Registrar pedido e continuar no WhatsApp</button></div></section></main><script src="/js/cart.js?v=20260907-1"></script><script type="module">import{supabase,requireUser,onlyDigits}from'/js/croma-supabase.js?v=20260821-2';const user=await requireUser(location.href);if(!user)throw new Error('auth');const cart=window.CromaCart.read(),brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),sum=cart.reduce((a,x)=>a+Number(x.qty||1)*Number(x.unitPrice||0),0);total.textContent=total2.textContent=brl(sum);items.innerHTML=cart.length?cart.map(x=>`<div class="item"><div><strong>${esc(x.name)}</strong><div class="muted">${esc(Object.entries(x.options||{}).map(([k,v])=>`${k}: ${v}`).join(' · '))}</div>${x.files?.length?`<div class="muted">Arquivos: ${x.files.map(f=>esc(f.name)).join(', ')}</div>`:''}</div><div class="price">${x.qty||1} × ${brl(x.unitPrice)}<br>${brl(Number(x.qty||1)*Number(x.unitPrice||0))}</div></div>`).join(''):'<p>Seu carrinho está vazio. <a href="/servicos/">Escolher serviços</a></p>';let primary=null;const{data:addr}=await supabase.from('customer_addresses').select('*').eq('customer_id',user.id).eq('principal',true).maybeSingle();primary=addr||null;principalAddress.textContent=primary?`${primary.logradouro}, ${primary.numero}${primary.complemento?' - '+primary.complemento:''} · ${primary.bairro} · ${primary.cidade}/${primary.estado} · CEP ${primary.cep}`:'Nenhum endereço principal encontrado.';function go(n){document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.dataset.panel==n));document.querySelectorAll('.step').forEach(x=>x.classList.toggle('active',x.dataset.stepmark==n));scrollTo({top:0,behavior:'smooth'})}to2.onclick=()=>cart.length&&go(2);document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>go(b.dataset.back));document.querySelectorAll('[name="fulfillment"]').forEach(r=>r.onchange=()=>deliveryBox.classList.toggle('hidden',document.querySelector('[name="fulfillment"]:checked').value!=='entrega'));document.querySelectorAll('[name="addressMode"]').forEach(r=>r.onchange=()=>otherAddress.classList.toggle('hidden',document.querySelector('[name="addressMode"]:checked').value!=='outro'));to3.onclick=()=>{const f=document.querySelector('[name="fulfillment"]:checked').value,m=document.querySelector('[name="addressMode"]:checked').value;if(f==='entrega'&&m==='principal'&&!primary)return alert('Cadastre um endereço para entrega.');if(f==='entrega'&&m==='outro'&&(!onlyDigits(cep.value)||!logradouro.value.trim()||!numero.value.trim()||!bairro.value.trim()||!cidade.value.trim()||estado.value.trim().length!==2))return alert('Preencha o endereço de entrega.');go(3)};
-finish.onclick=async()=>{if(!cart.length)return;finish.disabled=true;msg.className='msg ok';msg.textContent='Salvando carrinho e registrando o pedido...';const wa=window.open('about:blank','_blank');try{await window.CromaCart.syncNow();const fulfillment=document.querySelector('[name="fulfillment"]:checked').value,payment=document.querySelector('[name="payment"]:checked').value,mode=document.querySelector('[name="addressMode"]:checked')?.value||'principal',a=fulfillment==='entrega'?(mode==='principal'?{zip:primary.cep,street:primary.logradouro,number:primary.numero,complement:primary.complemento,neighborhood:primary.bairro,city:primary.cidade,state:primary.estado}:{zip:onlyDigits(cep.value),street:logradouro.value.trim(),number:numero.value.trim(),complement:complemento.value.trim()||null,neighborhood:bairro.value.trim(),city:cidade.value.trim(),state:estado.value.trim().toUpperCase()}):{};const ref=window.CromaCart.cartRef();const{data,error}=await supabase.rpc('checkout_active_cart',{p_checkout_reference:ref,p_fulfillment:fulfillment,p_payment_method:payment,p_delivery_fee:0,p_notes:notes.value.trim()||null,p_delivery_street:a.street||null,p_delivery_number:a.number||null,p_delivery_complement:a.complement||null,p_delivery_neighborhood:a.neighborhood||null,p_delivery_city:a.city||null,p_delivery_state:a.state||null,p_delivery_zip:a.zip||null});if(error)throw error;const order=data?.[0];if(!order)throw new Error('Pedido não retornado');const lines=[`Olá! Acabei de registrar o pedido ${order.order_code} no site da Croma.`,``,...cart.map(x=>`${x.qty||1}x ${x.name} — ${brl(Number(x.qty||1)*Number(x.unitPrice||0))}${Object.keys(x.options||{}).length?`\n${Object.entries(x.options).map(([k,v])=>`${k}: ${v}`).join(' | ')}`:''}${x.files?.length?`\nArquivos: ${x.files.map(f=>f.name).join(', ')}`:''}`),``,`Total: ${brl(order.total)}`,`Recebimento: ${fulfillment==='entrega'?'Entrega':'Retirada'}`,`Pagamento: ${payment==='pix'?'Pix':payment==='credito'?'Cartão de crédito':'Cartão de débito'}`];const url=`https://wa.me/553230253588?text=${encodeURIComponent(lines.join('\n'))}`;window.CromaCart.afterCheckout();if(wa)wa.location.href=url;else location.href=url;setTimeout(()=>{location.href=`/meus-pedidos/?pedido=${encodeURIComponent(order.order_code)}`},700)}catch(err){console.error(err);if(wa)wa.close();msg.className='msg';msg.textContent='Não foi possível concluir o pedido. Seu carrinho foi mantido; tente novamente.';finish.disabled=false}};</script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Finalizar compra | Croma</title>
+  <style>
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f5fb;color:#29263b}.wrap{max-width:980px;margin:38px auto;padding:22px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center}.head a{color:#30297F;text-decoration:none;font-weight:900}.head-links{display:flex;gap:14px;flex-wrap:wrap}.steps{display:flex;gap:8px;margin:22px 0;flex-wrap:wrap}.step{padding:8px 11px;border-radius:999px;background:#e9e7f2;color:#69657a;font-weight:850}.step.active{background:#30297F;color:#fff}.panel{display:none}.panel.active{display:block}.card{background:#fff;border:1px solid #e7e5ee;border-radius:20px;padding:20px;margin:12px 0}.item{display:grid;grid-template-columns:1fr auto;gap:14px;border-bottom:1px solid #eeeaf4;padding:14px 0}.item:last-child{border-bottom:0}.muted{color:#716d80}.price,.total{font-weight:900;color:#211c5c}.total{display:flex;justify-content:space-between;font-size:1.15rem}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.btn{border:0;border-radius:11px;padding:12px 17px;font-weight:900;cursor:pointer}.btn:disabled{opacity:.62;cursor:wait}.primary{background:#30297F;color:#fff}.secondary{background:#fff;border:1px solid #d9d5e6;color:#30297F}.choice{display:grid;gap:10px}.choice label{border:1px solid #e2dfea;border-radius:14px;padding:14px;cursor:pointer}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-weight:800;color:#30297F;margin-bottom:5px}.field input,.field textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d9d6e5;border-radius:10px}.wide{grid-column:1/-1}.hidden{display:none}.msg{margin-top:12px;color:#a83a3a}.ok{color:#567d25}.empty-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.empty-actions a{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:10px;text-decoration:none;font-weight:900}.empty-actions a:first-child{background:#30297F;color:#fff}.empty-actions a:last-child{border:1px solid #d9d5e6;color:#30297F;background:#fff}@media(max-width:650px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.item{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.actions{align-items:stretch}.actions .btn{flex:1}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="head">
+      <a href="/produtos/">← Continuar comprando</a>
+      <div class="head-links"><a href="/minha-conta/">Minha conta</a><a href="/meus-pedidos/">Meus pedidos</a></div>
+    </div>
+    <h1>Finalizar compra</h1>
+    <div class="steps"><span class="step active" data-stepmark="1">1. Conferência</span><span class="step" data-stepmark="2">2. Entrega</span><span class="step" data-stepmark="3">3. Pagamento</span></div>
+
+    <section class="panel active" data-panel="1">
+      <div class="card"><h2>Resumo do pedido</h2><div id="items"></div><div class="total"><span>Total estimado</span><span id="total">R$ 0,00</span></div></div>
+      <div class="actions"><span></span><button class="btn primary" id="to2">Próximo</button></div>
+    </section>
+
+    <section class="panel" data-panel="2">
+      <div class="card">
+        <h2>Como você quer receber?</h2>
+        <div class="choice"><label><input type="radio" name="fulfillment" value="retirada" checked> Retirar na Croma</label><label><input type="radio" name="fulfillment" value="entrega"> Receber por entrega</label></div>
+        <div id="deliveryBox" class="hidden">
+          <h3>Endereço de entrega</h3>
+          <div class="choice"><label><input type="radio" name="addressMode" value="principal" checked> Usar meu endereço principal</label><label><input type="radio" name="addressMode" value="outro"> Usar outro endereço nesta entrega</label></div>
+          <div id="principalAddress" class="card muted"></div>
+          <div id="otherAddress" class="grid hidden">
+            <div class="field"><label>CEP</label><input id="cep" inputmode="numeric" maxlength="9"></div>
+            <div class="field"><label>Logradouro</label><input id="logradouro"></div>
+            <div class="field"><label>Número</label><input id="numero"></div>
+            <div class="field"><label>Complemento</label><input id="complemento"></div>
+            <div class="field"><label>Bairro</label><input id="bairro"></div>
+            <div class="field"><label>Cidade</label><input id="cidade"></div>
+            <div class="field"><label>Estado (UF)</label><input id="estado" maxlength="2"></div>
+          </div>
+        </div>
+      </div>
+      <div class="actions"><button class="btn secondary" data-back="1">Voltar</button><button class="btn primary" id="to3">Próximo</button></div>
+    </section>
+
+    <section class="panel" data-panel="3">
+      <div class="card">
+        <h2>Forma de pagamento</h2>
+        <div class="choice"><label><input type="radio" name="payment" value="pix" checked> Pix</label><label><input type="radio" name="payment" value="credito"> Cartão de crédito</label><label><input type="radio" name="payment" value="debito"> Cartão de débito</label></div>
+        <div class="field" style="margin-top:16px"><label>Observações</label><textarea id="notes" rows="3" placeholder="Informações importantes sobre o pedido"></textarea></div>
+        <p class="muted">A forma escolhida fica registrada no pedido. Nesta versão, a cobrança é confirmada pela Croma no atendimento pelo WhatsApp; o site não solicita dados do cartão.</p>
+        <p class="muted">O pedido é salvo na Croma antes de abrir o WhatsApp. Se o WhatsApp não abrir ou a mensagem não for enviada, o pedido continua registrado.</p>
+        <div class="total"><span>Total estimado</span><span id="total2">R$ 0,00</span></div><div id="msg" class="msg"></div>
+      </div>
+      <div class="actions"><button class="btn secondary" data-back="2">Voltar</button><button class="btn primary" id="finish">Registrar pedido e continuar no WhatsApp</button></div>
+    </section>
+  </main>
+  <script src="/js/cart.js?v=20260910-1"></script>
+  <script type="module">
+    import{supabase,requireUser,onlyDigits}from'/js/croma-supabase.js?v=20260821-2';
+    const user=await requireUser(location.href);if(!user)throw new Error('auth');
+    const cart=window.CromaCart.read(),brl=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])),sum=cart.reduce((total,item)=>total+Number(item.qty||1)*Number(item.unitPrice||0),0);
+    total.textContent=total2.textContent=brl(sum);
+    items.innerHTML=cart.length?cart.map(item=>`<div class="item"><div><strong>${esc(item.name)}</strong><div class="muted">${esc(Object.entries(item.options||{}).map(([key,value])=>`${key}: ${value}`).join(' · '))}</div>${item.files?.length?`<div class="muted">Arquivos: ${item.files.map(file=>esc(file.name)).join(', ')}</div>`:''}</div><div class="price">${item.qty||1} × ${brl(item.unitPrice)}<br>${brl(Number(item.qty||1)*Number(item.unitPrice||0))}</div></div>`).join(''):'<div><p>Seu carrinho está vazio.</p><div class="empty-actions"><a href="/produtos/">Escolher produtos</a><a href="/servicos/">Ver serviços</a></div></div>';
+    if(!cart.length)to2.disabled=true;
+
+    let primary=null;
+    const{data:addr}=await supabase.from('customer_addresses').select('*').eq('customer_id',user.id).eq('principal',true).maybeSingle();
+    primary=addr||null;
+    if(primary)principalAddress.textContent=`${primary.logradouro}, ${primary.numero}${primary.complemento?' - '+primary.complemento:''} · ${primary.bairro} · ${primary.cidade}/${primary.estado} · CEP ${primary.cep}`;
+    else principalAddress.innerHTML='Nenhum endereço principal encontrado. <a href="/minha-conta/" style="color:#30297F;font-weight:900">Cadastrar endereço na minha conta</a>.';
+
+    function go(step){document.querySelectorAll('.panel').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel==step));document.querySelectorAll('.step').forEach(mark=>mark.classList.toggle('active',mark.dataset.stepmark==step));scrollTo({top:0,behavior:'smooth'})}
+    to2.onclick=()=>cart.length&&go(2);
+    document.querySelectorAll('[data-back]').forEach(button=>button.onclick=()=>go(button.dataset.back));
+    document.querySelectorAll('[name="fulfillment"]').forEach(radio=>radio.onchange=()=>deliveryBox.classList.toggle('hidden',document.querySelector('[name="fulfillment"]:checked').value!=='entrega'));
+    document.querySelectorAll('[name="addressMode"]').forEach(radio=>radio.onchange=()=>otherAddress.classList.toggle('hidden',document.querySelector('[name="addressMode"]:checked').value!=='outro'));
+    to3.onclick=()=>{
+      const fulfillment=document.querySelector('[name="fulfillment"]:checked').value,mode=document.querySelector('[name="addressMode"]:checked').value;
+      if(fulfillment==='entrega'&&mode==='principal'&&!primary)return alert('Cadastre um endereço principal ou escolha outro endereço para esta entrega.');
+      if(fulfillment==='entrega'&&mode==='outro'){
+        const zip=onlyDigits(cep.value);
+        if(zip.length!==8||!logradouro.value.trim()||!numero.value.trim()||!bairro.value.trim()||!cidade.value.trim()||estado.value.trim().length!==2)return alert('Preencha um endereço de entrega válido, incluindo CEP com 8 dígitos e UF com 2 letras.');
+      }
+      go(3);
+    };
+
+    finish.onclick=async()=>{
+      if(!cart.length)return;
+      finish.disabled=true;msg.className='msg ok';msg.textContent='Salvando carrinho e registrando o pedido...';
+      const wa=window.open('about:blank','_blank');
+      try{
+        await window.CromaCart.syncNow();
+        const fulfillment=document.querySelector('[name="fulfillment"]:checked').value,payment=document.querySelector('[name="payment"]:checked').value,mode=document.querySelector('[name="addressMode"]:checked')?.value||'principal';
+        const address=fulfillment==='entrega'?(mode==='principal'?{zip:primary.cep,street:primary.logradouro,number:primary.numero,complement:primary.complemento,neighborhood:primary.bairro,city:primary.cidade,state:primary.estado}:{zip:onlyDigits(cep.value),street:logradouro.value.trim(),number:numero.value.trim(),complement:complemento.value.trim()||null,neighborhood:bairro.value.trim(),city:cidade.value.trim(),state:estado.value.trim().toUpperCase()}):{};
+        const ref=window.CromaCart.cartRef();
+        const{data,error}=await supabase.rpc('checkout_active_cart',{p_checkout_reference:ref,p_fulfillment:fulfillment,p_payment_method:payment,p_delivery_fee:0,p_notes:notes.value.trim()||null,p_delivery_street:address.street||null,p_delivery_number:address.number||null,p_delivery_complement:address.complement||null,p_delivery_neighborhood:address.neighborhood||null,p_delivery_city:address.city||null,p_delivery_state:address.state||null,p_delivery_zip:address.zip||null});
+        if(error)throw error;
+        const order=data?.[0];if(!order)throw new Error('Pedido não retornado');
+        const lines=[`Olá! Acabei de registrar o pedido ${order.order_code} no site da Croma.`,``,...cart.map(item=>`${item.qty||1}x ${item.name} — ${brl(Number(item.qty||1)*Number(item.unitPrice||0))}${Object.keys(item.options||{}).length?`\n${Object.entries(item.options).map(([key,value])=>`${key}: ${value}`).join(' | ')}`:''}${item.files?.length?`\nArquivos: ${item.files.map(file=>file.name).join(', ')}`:''}`),``,`Total: ${brl(order.total)}`,`Recebimento: ${fulfillment==='entrega'?'Entrega':'Retirada'}`,`Pagamento: ${payment==='pix'?'Pix':payment==='credito'?'Cartão de crédito':'Cartão de débito'}`];
+        const url=`https://wa.me/553230253588?text=${encodeURIComponent(lines.join('\n'))}`;
+        window.CromaCart.afterCheckout();
+        if(wa)wa.location.href=url;else location.href=url;
+        setTimeout(()=>{location.href=`/meus-pedidos/?pedido=${encodeURIComponent(order.order_code)}`},700);
+      }catch(error){
+        console.error(error);if(wa)wa.close();msg.className='msg';msg.textContent='Não foi possível concluir o pedido. Seu carrinho foi mantido; tente novamente.';finish.disabled=false;
+      }
+    };
+  </script>
+</body>
+</html>
