@@ -1,7 +1,7 @@
 (() => {
   if (!document.querySelector('link[data-public-header-style]')) {
     const link=document.createElement('link');
-    link.rel='stylesheet';link.href='/css/public-header.css?v=20260907-1';link.dataset.publicHeaderStyle='1';
+    link.rel='stylesheet';link.href='/css/public-header.css?v=20260912-1';link.dataset.publicHeaderStyle='1';
     document.head.appendChild(link);
   }
 
@@ -20,6 +20,8 @@
   const header=document.querySelector('.topbar, .site-header');
   if(!header)return;
   const quoteUrl='https://wa.me/553230253588?text=Ol%C3%A1%21%20Vim%20pelo%20site%20da%20Croma%20e%20gostaria%20de%20solicitar%20um%20or%C3%A7amento.';
+  const nextPath=`${location.pathname}${location.search}${location.hash}`||'/';
+  const loginHref=`/conta/?next=${encodeURIComponent(nextPath)}`;
 
   const existingPromo=document.querySelector('.promo-bar, .croma-public-promo');
   if(!existingPromo){
@@ -47,7 +49,7 @@
   const links=items.map(([id,label,href])=>`<a class="${id===current?'active':''}" href="${href}">${label}</a>`).join('');
 
   header.className='croma-standard-header';
-  header.innerHTML=`<a class="service-brand" href="/" aria-label="Croma — início"><img src="/assets/logo/croma-horizontal-web.png?v=20260811-1" alt="Croma"></a><nav class="service-desktop-nav" aria-label="Navegação principal">${links}</nav><a class="service-quote" href="${quoteUrl}" target="_blank" rel="noopener noreferrer">Pedir orçamento</a><button class="service-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="serviceMobileNav"><span></span><span></span><span></span></button><nav class="service-mobile-nav" id="serviceMobileNav" aria-label="Navegação mobile">${links}<a class="service-mobile-cta" href="${quoteUrl}" target="_blank" rel="noopener noreferrer">Pedir orçamento</a></nav>`;
+  header.innerHTML=`<a class="service-brand" href="/" aria-label="Croma — início"><img src="/assets/logo/croma-horizontal-web.png?v=20260811-1" alt="Croma"></a><nav class="service-desktop-nav" aria-label="Navegação principal">${links}</nav><div class="service-header-actions"><a class="service-account" data-account-link href="${loginHref}">Entrar</a><button class="service-cart" data-header-cart type="button" aria-label="Abrir carrinho"><span class="service-cart-label">Carrinho</span><span class="service-cart-count" data-header-cart-count>0</span></button><a class="service-quote" href="${quoteUrl}" target="_blank" rel="noopener noreferrer">Orçamento</a><button class="service-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="serviceMobileNav"><span></span><span></span><span></span></button></div><nav class="service-mobile-nav" id="serviceMobileNav" aria-label="Navegação mobile">${links}<div class="service-mobile-tools"><a data-mobile-account href="${loginHref}">Entrar</a><a data-mobile-orders href="/meus-pedidos/" hidden>Meus pedidos</a></div><a class="service-mobile-cta" href="${quoteUrl}" target="_blank" rel="noopener noreferrer">Pedir orçamento</a></nav>`;
 
   const toggle=header.querySelector('.service-menu-toggle');
   const mobileNav=header.querySelector('.service-mobile-nav');
@@ -56,6 +58,44 @@
   mobileNav.querySelectorAll('a').forEach(link=>link.addEventListener('click',close));
   document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
   window.addEventListener('resize',()=>{if(window.innerWidth>860)close()});
+
+  const readLocalCartCount=()=>{try{return(JSON.parse(localStorage.getItem('croma_cart_v2')||'[]')||[]).reduce((sum,item)=>sum+Number(item.qty||0),0)}catch{return 0}};
+  const setCartCount=value=>header.querySelectorAll('[data-header-cart-count]').forEach(el=>{el.textContent=String(Math.max(0,Number(value)||0))});
+  let cartObserver=null;
+  function syncCartCount(){
+    const source=document.querySelector('[data-cart-count]');
+    if(source){
+      setCartCount(source.textContent||0);
+      if(!cartObserver){cartObserver=new MutationObserver(()=>setCartCount(source.textContent||0));cartObserver.observe(source,{childList:true,characterData:true,subtree:true})}
+      return true;
+    }
+    setCartCount(readLocalCartCount());
+    return false;
+  }
+  syncCartCount();
+  let cartTries=0;const cartTimer=setInterval(()=>{cartTries++;if(syncCartCount()||cartTries>=24)clearInterval(cartTimer)},250);
+  window.addEventListener('storage',event=>{if(event.key==='croma_cart_v2')syncCartCount()});
+  document.addEventListener('croma:cart-updated',syncCartCount);
+
+  header.querySelectorAll('[data-header-cart]').forEach(button=>button.addEventListener('click',()=>{
+    const fab=document.querySelector('.croma-cart-fab');
+    if(fab){fab.click();close();return}
+    location.href='/carrinho/';
+  }));
+
+  function applyPublicSession(user){
+    const accountHref=user?'/minha-conta/':loginHref;
+    const accountLabel=user?'Minha conta':'Entrar';
+    const desktop=header.querySelector('[data-account-link]'),mobile=header.querySelector('[data-mobile-account]'),orders=header.querySelector('[data-mobile-orders]');
+    if(desktop){desktop.href=accountHref;desktop.textContent=accountLabel}
+    if(mobile){mobile.href=accountHref;mobile.textContent=accountLabel}
+    if(orders)orders.hidden=!user;
+  }
+  applyPublicSession(null);
+  import('/js/croma-supabase.js?v=20260821-2').then(async({supabase})=>{
+    const{data}=await supabase.auth.getSession();applyPublicSession(data.session?.user||null);
+    supabase.auth.onAuthStateChange((_event,session)=>applyPublicSession(session?.user||null));
+  }).catch(()=>{});
 
   function setupStickerQuotationFlow(){
     if(!location.pathname.includes('/servicos/adesivos/'))return;
