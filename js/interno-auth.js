@@ -2,6 +2,10 @@ import './croma-brand.js';
 import './interno-polish.js';
 import { supabase } from './croma-supabase.js';
 
+if (/^\/interno\/?$/.test(location.pathname)) {
+  import('./interno-supplier-nav.js?v=20260912-1').catch(console.error);
+}
+
 if (location.pathname.startsWith('/interno/produtos')) {
   const p = new URLSearchParams(location.search);
   const detailMode = p.get('modo') === 'ficha' && !!p.get('produto');
@@ -13,7 +17,7 @@ if (location.pathname.startsWith('/interno/produtos')) {
     import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2').catch(console.error);
     import('./supplier-catalog-diagnostics-v212.js?v=20260905-1').catch(console.error);
     import('./supplier-catalog-message-enhancer.js?v=20260905-1').catch(console.error);
-    import('./supplier-catalog-browser.js?v=20260905-1').catch(console.error);
+    import('./supplier-catalog-browser.js?v=20260912-1').catch(console.error);
     import('./bling-product-catalog-v2.js?v=20260905-1').catch(console.error);
   }
 }
