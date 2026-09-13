@@ -7,6 +7,7 @@ if(!session)throw new Error('Acesso não autorizado.');
 const state={suppliers:[],imports:[],links:[],rows:[],page:1,pageSize:15,filters:{supplier:'',status:'',catalog:'',update:'',linked:'',divergent:false,sort:'recent'}};
 const el=id=>document.getElementById(id);
 const latestBySupplier=new Map();
+const latestCompletedBySupplier=new Map();
 const statsBySupplier=new Map();
 
 function supplierStats(id){if(!statsBySupplier.has(id))statsBySupplier.set(id,{linked:0,divergent:0});return statsBySupplier.get(id)}
@@ -20,8 +21,12 @@ async function load(){
       loadSupplierLinkContext()
     ]);
     state.suppliers=suppliers;state.imports=imports;state.links=ctx.links;
-    latestBySupplier.clear();statsBySupplier.clear();
-    for(const row of imports){if(row.supplier_id&&!latestBySupplier.has(row.supplier_id))latestBySupplier.set(row.supplier_id,row)}
+    latestBySupplier.clear();latestCompletedBySupplier.clear();statsBySupplier.clear();
+    for(const row of imports){
+      if(!row.supplier_id)continue;
+      if(!latestBySupplier.has(row.supplier_id))latestBySupplier.set(row.supplier_id,row);
+      if(row.status==='completed'&&!latestCompletedBySupplier.has(row.supplier_id))latestCompletedBySupplier.set(row.supplier_id,row);
+    }
     for(const link of ctx.links){const s=supplierStats(link.supplier_id);s.linked++;if(link.divergent)s.divergent++}
     buildRows();populateSupplierSelect();renderKpis();applyFilters();wireImporterRefresh();
     el('pageStatus').textContent='';
@@ -30,10 +35,11 @@ async function load(){
 
 function buildRows(){
   state.rows=state.suppliers.map(s=>{
-    const imp=s.supplierId?latestBySupplier.get(s.supplierId)||null:null;
+    const latest=s.supplierId?latestBySupplier.get(s.supplierId)||null:null;
+    const catalogImport=s.supplierId?latestCompletedBySupplier.get(s.supplierId)||null:null;
     const stats=s.supplierId?supplierStats(s.supplierId):{linked:0,divergent:0};
-    const last=imp?.completed_at||imp?.imported_at||null;
-    return {...s,latestImport:imp,lastImport:last,catalogCount:Number(imp?.items_processed||0),linkedCount:stats.linked,divergenceCount:stats.divergent,hasCatalog:!!imp||stats.linked>0,active:s.contactActive&&s.supplierActive};
+    const last=latest?.completed_at||latest?.imported_at||null;
+    return {...s,latestImport:latest,catalogImport,lastImport:last,catalogCount:Number(catalogImport?.items_processed||0),linkedCount:stats.linked,divergenceCount:stats.divergent,hasCatalog:!!catalogImport||stats.linked>0,active:s.contactActive&&s.supplierActive};
   });
 }
 
