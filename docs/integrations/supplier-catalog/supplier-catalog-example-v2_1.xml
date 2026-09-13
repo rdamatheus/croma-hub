@@ -31,13 +31,13 @@
       <category>Banners</category>
       <printMode>4X0</printMode>
       <leadTimeDays>3</leadTimeDays>
+      <dimensionUnit>m</dimensionUnit>
       <sourcePrice>R$ 48,50</sourcePrice>
       <purchasePrice>48.50</purchasePrice>
       <measurementType>area</measurementType>
       <pricingUnit>m2</pricingUnit>
       <quantityType>free</quantityType>
       <priceBasis>unit</priceBasis>
-      <dimensionUnit>m</dimensionUnit>
       <minWidth>0.10</minWidth>
       <maxWidth>1.20</maxWidth>
       <minHeight>0.10</minHeight>
