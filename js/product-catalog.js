@@ -22,6 +22,14 @@ function setUrl(family='',category=''){
 }
 function visibleRoots(familyId){return rootCategories(categories,familyId).filter(c=>categoryHasItems(c.id))}
 function visibleChildren(parentId){return categoryChildren(categories,parentId).filter(c=>categoryHasItems(c.id))}
+async function cartApi(){
+  if(window.CromaCart)return window.CromaCart;
+  for(let i=0;i<30;i++){
+    await new Promise(resolve=>setTimeout(resolve,100));
+    if(window.CromaCart)return window.CromaCart;
+  }
+  throw new Error('Carrinho indisponível');
+}
 
 function hierarchyMarkup(f){
   const roots=visibleRoots(f.id);
@@ -37,6 +45,10 @@ function familyCard(f){
 async function renderProductDetail(product){
   await ensureMedia([product.id]);
   const media=mediaCache.get(product.id),path=categoryPath(categories,families,product.catalog_category_id),backHref='/produtos/';
+  const priced=Number(product.preco)>0;
+  const canBuy=priced&&product.is_sellable!==false&&!product.is_input;
+  const consultUrl=`https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Gostaria de consultar disponibilidade e condições do produto ${product.nome}${product.sku?` (SKU ${product.sku})`:''}.`)}`;
+  const purchase=canBuy?`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:10px">Comprar este produto</strong><div style="display:flex;align-items:end;gap:10px;flex-wrap:wrap"><label style="display:grid;gap:6px;font-weight:800;color:var(--pc-deep)">Quantidade<input id="productQty" type="number" min="1" step="1" value="1" inputmode="numeric" style="width:94px;min-height:46px;border:1px solid #d9d6e5;border-radius:11px;padding:0 12px;font:inherit"></label><button class="public-cta" type="button" id="addProductToCart" style="border:0;cursor:pointer;min-height:46px">Adicionar ao carrinho</button><a class="public-close" href="/carrinho/" style="display:inline-flex;align-items:center;min-height:46px;text-decoration:none">Ir para o carrinho</a></div><p id="cartFeedback" class="tx-meta" role="status" aria-live="polite" style="margin:10px 0 0"></p></div>`:`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:6px">Consulte disponibilidade</strong><p class="tx-meta" style="margin:0 0 12px">Este item não possui compra direta disponível no site neste momento.</p><a class="public-cta" href="${consultUrl}" target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp</a></div>`;
   root.innerHTML=`
     <div class="public-breadcrumb"><a href="/">Início</a><span>›</span><a href="${backHref}">Produtos</a>${path.length?`<span>›</span><span>${esc(path.map(x=>x.nome).join(' › '))}</span>`:''}<span>›</span><strong>${esc(product.nome)}</strong></div>
     <section class="public-editorial-hero" style="align-items:start">
@@ -45,12 +57,32 @@ async function renderProductDetail(product){
         <span class="public-eyebrow">${esc(path.slice(1).map(x=>x.nome).join(' › ')||'Produto Croma')}</span>
         <h1 style="color:var(--pc-deep);font-size:clamp(2rem,4vw,3.8rem);line-height:1.02;margin:10px 0 14px">${esc(product.nome)}</h1>
         ${product.sku?`<p class="tx-meta">SKU ${esc(product.sku)}</p>`:''}
-        ${Number(product.preco)>0?`<p class="public-price" style="font-size:1.55rem!important;margin:16px 0!important">${esc(money(product.preco))}</p>`:''}
+        ${priced?`<p class="public-price" style="font-size:1.55rem!important;margin:16px 0!important">${esc(money(product.preco))}</p>`:''}
         <p class="public-lead">${esc(product.short_description||product.descricao||'Consulte disponibilidade e condições deste produto com a Croma.')}</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px"><a class="public-cta" href="${backHref}">← Voltar aos produtos</a></div>
+        ${purchase}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px"><a class="public-close" href="${backHref}" style="text-decoration:none">← Voltar aos produtos</a></div>
       </div>
     </section>`;
   document.title=`${product.nome} | Croma Papelaria & Presentes`;
+  const addButton=root.querySelector('#addProductToCart');
+  if(addButton){
+    addButton.addEventListener('click',async()=>{
+      const qtyInput=root.querySelector('#productQty'),feedback=root.querySelector('#cartFeedback');
+      const qty=Math.max(1,Math.floor(Number(qtyInput?.value)||1));
+      if(qtyInput)qtyInput.value=String(qty);
+      addButton.disabled=true;feedback.textContent='Adicionando ao carrinho...';
+      try{
+        const cart=await cartApi();
+        cart.add({productId:product.id,variantId:null,name:product.nome,qty,unitPrice:Number(product.preco),options:{}});
+        document.dispatchEvent(new CustomEvent('croma:cart-updated'));
+        feedback.textContent=`${qty} unidade${qty>1?'s':''} adicionada${qty>1?'s':''} ao carrinho.`;
+        addButton.textContent='Adicionado';
+        setTimeout(()=>{addButton.textContent='Adicionar ao carrinho'},1200);
+      }catch(error){
+        console.error(error);feedback.textContent='Não foi possível adicionar o produto agora. Tente novamente.';
+      }finally{addButton.disabled=false}
+    });
+  }
 }
 
 function renderShell(){
