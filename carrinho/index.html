@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Finalizar compra | Croma</title>
   <style>
-    body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f5fb;color:#29263b}.wrap{max-width:980px;margin:38px auto;padding:22px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center}.head a{color:#30297F;text-decoration:none;font-weight:900}.head-links{display:flex;gap:14px;flex-wrap:wrap}.steps{display:flex;gap:8px;margin:22px 0;flex-wrap:wrap}.step{padding:8px 11px;border-radius:999px;background:#e9e7f2;color:#69657a;font-weight:850}.step.active{background:#30297F;color:#fff}.panel{display:none}.panel.active{display:block}.card{background:#fff;border:1px solid #e7e5ee;border-radius:20px;padding:20px;margin:12px 0}.item{display:grid;grid-template-columns:1fr auto;gap:14px;border-bottom:1px solid #eeeaf4;padding:14px 0}.item:last-child{border-bottom:0}.muted{color:#716d80}.price,.total{font-weight:900;color:#211c5c}.total{display:flex;justify-content:space-between;font-size:1.15rem}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.btn{border:0;border-radius:11px;padding:12px 17px;font-weight:900;cursor:pointer}.btn:disabled{opacity:.62;cursor:wait}.primary{background:#30297F;color:#fff}.secondary{background:#fff;border:1px solid #d9d5e6;color:#30297F}.choice{display:grid;gap:10px}.choice label{border:1px solid #e2dfea;border-radius:14px;padding:14px;cursor:pointer}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-weight:800;color:#30297F;margin-bottom:5px}.field input,.field textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d9d6e5;border-radius:10px}.wide{grid-column:1/-1}.hidden{display:none}.msg{margin-top:12px;color:#a83a3a}.ok{color:#567d25}.empty-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.empty-actions a{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:10px;text-decoration:none;font-weight:900}.empty-actions a:first-child{background:#30297F;color:#fff}.empty-actions a:last-child{border:1px solid #d9d5e6;color:#30297F;background:#fff}@media(max-width:650px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.item{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.actions{align-items:stretch}.actions .btn{flex:1}}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f5fb;color:#29263b}.wrap{max-width:980px;margin:38px auto;padding:22px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center}.head a{color:#30297F;text-decoration:none;font-weight:900}.head-links{display:flex;gap:14px;flex-wrap:wrap}.steps{display:flex;gap:8px;margin:22px 0;flex-wrap:wrap}.step{padding:8px 11px;border-radius:999px;background:#e9e7f2;color:#69657a;font-weight:850}.step.active{background:#30297F;color:#fff}.panel{display:none}.panel.active{display:block}.card{background:#fff;border:1px solid #e7e5ee;border-radius:20px;padding:20px;margin:12px 0}.item{display:grid;grid-template-columns:1fr auto;gap:14px;border-bottom:1px solid #eeeaf4;padding:14px 0}.item:last-child{border-bottom:0}.muted{color:#716d80}.price,.total{font-weight:900;color:#211c5c}.total{display:flex;justify-content:space-between;font-size:1.15rem}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.btn{border:0;border-radius:11px;padding:12px 17px;font-weight:900;cursor:pointer}.btn:disabled{opacity:.62;cursor:wait}.primary{background:#30297F;color:#fff}.secondary{background:#fff;border:1px solid #d9d5e6;color:#30297F}.choice{display:grid;gap:10px}.choice label{border:1px solid #e2dfea;border-radius:14px;padding:14px;cursor:pointer}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-weight:800;color:#30297F;margin-bottom:5px}.field input,.field textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d9d6e5;border-radius:10px}.wide{grid-column:1/-1}.hidden{display:none!important}.msg{margin-top:12px;color:#a83a3a}.ok{color:#567d25}.empty-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.empty-actions a{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:10px;text-decoration:none;font-weight:900}.empty-actions a:first-child{background:#30297F;color:#fff}.empty-actions a:last-child{border:1px solid #d9d5e6;color:#30297F;background:#fff}@media(max-width:650px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.item{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.actions{align-items:stretch}.actions .btn{flex:1}}
   </style>
+  <link rel="stylesheet" href="/css/checkout-payment.css?v=20260913-1">
 </head>
 <body>
   <main class="wrap">
@@ -15,20 +16,34 @@
       <div class="head-links"><a href="/minha-conta/">Minha conta</a><a href="/meus-pedidos/">Meus pedidos</a></div>
     </div>
     <h1>Finalizar compra</h1>
-    <div class="steps"><span class="step active" data-stepmark="1">1. Conferência</span><span class="step" data-stepmark="2">2. Entrega</span><span class="step" data-stepmark="3">3. Pagamento</span></div>
+    <div class="steps">
+      <span class="step active" data-stepmark="1">1. Conferência</span>
+      <span class="step" data-stepmark="2">2. Entrega</span>
+      <span class="step" data-stepmark="3">3. Pagamento</span>
+    </div>
 
     <section class="panel active" data-panel="1">
-      <div class="card"><h2>Resumo do pedido</h2><div id="items"></div><div class="total"><span>Total estimado</span><span id="total">R$ 0,00</span></div></div>
+      <div class="card">
+        <h2>Resumo do pedido</h2>
+        <div id="items"></div>
+        <div class="total"><span>Total estimado</span><span id="total">R$ 0,00</span></div>
+      </div>
       <div class="actions"><span></span><button class="btn primary" id="to2">Próximo</button></div>
     </section>
 
     <section class="panel" data-panel="2">
       <div class="card">
         <h2>Como você quer receber?</h2>
-        <div class="choice"><label><input type="radio" name="fulfillment" value="retirada" checked> Retirar na Croma</label><label><input type="radio" name="fulfillment" value="entrega"> Receber por entrega</label></div>
+        <div class="choice">
+          <label><input type="radio" name="fulfillment" value="retirada" checked> Retirar na Croma</label>
+          <label><input type="radio" name="fulfillment" value="entrega"> Receber por entrega</label>
+        </div>
         <div id="deliveryBox" class="hidden">
           <h3>Endereço de entrega</h3>
-          <div class="choice"><label><input type="radio" name="addressMode" value="principal" checked> Usar meu endereço principal</label><label><input type="radio" name="addressMode" value="outro"> Usar outro endereço nesta entrega</label></div>
+          <div class="choice">
+            <label><input type="radio" name="addressMode" value="principal" checked> Usar meu endereço principal</label>
+            <label><input type="radio" name="addressMode" value="outro"> Usar outro endereço nesta entrega</label>
+          </div>
           <div id="principalAddress" class="card muted"></div>
           <div id="otherAddress" class="grid hidden">
             <div class="field"><label>CEP</label><input id="cep" inputmode="numeric" maxlength="9"></div>
@@ -47,66 +62,40 @@
     <section class="panel" data-panel="3">
       <div class="card">
         <h2>Forma de pagamento</h2>
-        <div class="choice"><label><input type="radio" name="payment" value="pix" checked> Pix</label><label><input type="radio" name="payment" value="credito"> Cartão de crédito</label><label><input type="radio" name="payment" value="debito"> Cartão de débito</label></div>
+        <div class="choice">
+          <label><input type="radio" name="payment" value="pix" checked> Pix</label>
+          <label><input type="radio" name="payment" value="credito"> Cartão de crédito</label>
+          <label><input type="radio" name="payment" value="debito"> Cartão de débito</label>
+        </div>
+
+        <div id="paymentLocked" class="mp-payment-locked hidden"></div>
+        <div id="manualPaymentInfo"><p class="muted mp-manual-note">A forma escolhida fica registrada no pedido e a confirmação é feita pela Croma no atendimento pelo WhatsApp.</p></div>
+
+        <div id="cardPaymentArea" class="mp-card-area hidden">
+          <span class="mp-test-badge">Mercado Pago · ambiente de teste</span>
+          <p class="mp-card-copy">O cartão é informado diretamente no formulário seguro do Mercado Pago. A Croma não armazena número completo do cartão nem CVV.</p>
+          <div id="cardPaymentBrick_container"></div>
+          <div id="mpStatus" class="mp-status" role="status" aria-live="polite"></div>
+          <div id="mpChallenge" class="mp-challenge hidden">
+            <strong>Confirmação de segurança do cartão</strong>
+            <p class="muted">Conclua a autenticação abaixo. O pedido será atualizado automaticamente.</p>
+            <iframe id="mpChallengeFrame" title="Autenticação do cartão Mercado Pago" allow="payment *"></iframe>
+          </div>
+        </div>
+
         <div class="field" style="margin-top:16px"><label>Observações</label><textarea id="notes" rows="3" placeholder="Informações importantes sobre o pedido"></textarea></div>
-        <p class="muted">A forma escolhida fica registrada no pedido. Nesta versão, a cobrança é confirmada pela Croma no atendimento pelo WhatsApp; o site não solicita dados do cartão.</p>
-        <p class="muted">O pedido é salvo na Croma antes de abrir o WhatsApp. Se o WhatsApp não abrir ou a mensagem não for enviada, o pedido continua registrado.</p>
-        <div class="total"><span>Total estimado</span><span id="total2">R$ 0,00</span></div><div id="msg" class="msg"></div>
+        <p class="muted">O pedido é salvo na Croma antes de qualquer cobrança online. Em caso de recusa ou análise, ele permanece registrado para nova tentativa ou acompanhamento.</p>
+        <div class="total"><span>Total estimado</span><span id="total2">R$ 0,00</span></div>
+        <div id="msg" class="msg"></div>
       </div>
-      <div class="actions"><button class="btn secondary" data-back="2">Voltar</button><button class="btn primary" id="finish">Registrar pedido e continuar no WhatsApp</button></div>
+      <div class="actions">
+        <button class="btn secondary" data-back="2">Voltar</button>
+        <button class="btn primary" id="finish">Registrar pedido e continuar no WhatsApp</button>
+      </div>
     </section>
   </main>
   <script src="/js/cart.js?v=20260912-3"></script>
-  <script type="module">
-    import{supabase,requireUser,onlyDigits}from'/js/croma-supabase.js?v=20260821-2';
-    const user=await requireUser(location.href);if(!user)throw new Error('auth');
-    const cart=window.CromaCart.read(),brl=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])),sum=cart.reduce((total,item)=>total+Number(item.qty||1)*Number(item.unitPrice||0),0);
-    total.textContent=total2.textContent=brl(sum);
-    items.innerHTML=cart.length?cart.map(item=>`<div class="item"><div><strong>${esc(item.name)}</strong><div class="muted">${esc(Object.entries(item.options||{}).map(([key,value])=>`${key}: ${value}`).join(' · '))}</div>${item.files?.length?`<div class="muted">Arquivos: ${item.files.map(file=>esc(file.name)).join(', ')}</div>`:''}</div><div class="price">${item.qty||1} × ${brl(item.unitPrice)}<br>${brl(Number(item.qty||1)*Number(item.unitPrice||0))}</div></div>`).join(''):'<div><p>Seu carrinho está vazio.</p><div class="empty-actions"><a href="/produtos/">Escolher produtos</a><a href="/servicos/">Ver serviços</a></div></div>';
-    if(!cart.length)to2.disabled=true;
-
-    let primary=null;
-    const{data:addr}=await supabase.from('customer_addresses').select('*').eq('customer_id',user.id).eq('principal',true).maybeSingle();
-    primary=addr||null;
-    if(primary)principalAddress.textContent=`${primary.logradouro}, ${primary.numero}${primary.complemento?' - '+primary.complemento:''} · ${primary.bairro} · ${primary.cidade}/${primary.estado} · CEP ${primary.cep}`;
-    else principalAddress.innerHTML='Nenhum endereço principal encontrado. <a href="/minha-conta/" style="color:#30297F;font-weight:900">Cadastrar endereço na minha conta</a>.';
-
-    function go(step){document.querySelectorAll('.panel').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel==step));document.querySelectorAll('.step').forEach(mark=>mark.classList.toggle('active',mark.dataset.stepmark==step));scrollTo({top:0,behavior:'smooth'})}
-    to2.onclick=()=>cart.length&&go(2);
-    document.querySelectorAll('[data-back]').forEach(button=>button.onclick=()=>go(button.dataset.back));
-    document.querySelectorAll('[name="fulfillment"]').forEach(radio=>radio.onchange=()=>deliveryBox.classList.toggle('hidden',document.querySelector('[name="fulfillment"]:checked').value!=='entrega'));
-    document.querySelectorAll('[name="addressMode"]').forEach(radio=>radio.onchange=()=>otherAddress.classList.toggle('hidden',document.querySelector('[name="addressMode"]:checked').value!=='outro'));
-    to3.onclick=()=>{
-      const fulfillment=document.querySelector('[name="fulfillment"]:checked').value,mode=document.querySelector('[name="addressMode"]:checked').value;
-      if(fulfillment==='entrega'&&mode==='principal'&&!primary)return alert('Cadastre um endereço principal ou escolha outro endereço para esta entrega.');
-      if(fulfillment==='entrega'&&mode==='outro'){
-        const zip=onlyDigits(cep.value);
-        if(zip.length!==8||!logradouro.value.trim()||!numero.value.trim()||!bairro.value.trim()||!cidade.value.trim()||estado.value.trim().length!==2)return alert('Preencha um endereço de entrega válido, incluindo CEP com 8 dígitos e UF com 2 letras.');
-      }
-      go(3);
-    };
-
-    finish.onclick=async()=>{
-      if(!cart.length)return;
-      finish.disabled=true;msg.className='msg ok';msg.textContent='Salvando carrinho e registrando o pedido...';
-      const wa=window.open('about:blank','_blank');
-      try{
-        await window.CromaCart.syncNow();
-        const fulfillment=document.querySelector('[name="fulfillment"]:checked').value,payment=document.querySelector('[name="payment"]:checked').value,mode=document.querySelector('[name="addressMode"]:checked')?.value||'principal';
-        const address=fulfillment==='entrega'?(mode==='principal'?{zip:primary.cep,street:primary.logradouro,number:primary.numero,complement:primary.complemento,neighborhood:primary.bairro,city:primary.cidade,state:primary.estado}:{zip:onlyDigits(cep.value),street:logradouro.value.trim(),number:numero.value.trim(),complement:complemento.value.trim()||null,neighborhood:bairro.value.trim(),city:cidade.value.trim(),state:estado.value.trim().toUpperCase()}):{};
-        const ref=window.CromaCart.cartRef();
-        const{data,error}=await supabase.rpc('checkout_active_cart',{p_checkout_reference:ref,p_fulfillment:fulfillment,p_payment_method:payment,p_delivery_fee:0,p_notes:notes.value.trim()||null,p_delivery_street:address.street||null,p_delivery_number:address.number||null,p_delivery_complement:address.complement||null,p_delivery_neighborhood:address.neighborhood||null,p_delivery_city:address.city||null,p_delivery_state:address.state||null,p_delivery_zip:address.zip||null});
-        if(error)throw error;
-        const order=data?.[0];if(!order)throw new Error('Pedido não retornado');
-        const lines=[`Olá! Acabei de registrar o pedido ${order.order_code} no site da Croma.`,``,...cart.map(item=>`${item.qty||1}x ${item.name} — ${brl(Number(item.qty||1)*Number(item.unitPrice||0))}${Object.keys(item.options||{}).length?`\n${Object.entries(item.options).map(([key,value])=>`${key}: ${value}`).join(' | ')}`:''}${item.files?.length?`\nArquivos: ${item.files.map(file=>file.name).join(', ')}`:''}`),``,`Total: ${brl(order.total)}`,`Recebimento: ${fulfillment==='entrega'?'Entrega':'Retirada'}`,`Pagamento: ${payment==='pix'?'Pix':payment==='credito'?'Cartão de crédito':'Cartão de débito'}`];
-        const url=`https://wa.me/553230253588?text=${encodeURIComponent(lines.join('\n'))}`;
-        window.CromaCart.afterCheckout();
-        if(wa)wa.location.href=url;else location.href=url;
-        setTimeout(()=>{location.href=`/meus-pedidos/?pedido=${encodeURIComponent(order.order_code)}`},700);
-      }catch(error){
-        console.error(error);if(wa)wa.close();msg.className='msg';msg.textContent='Não foi possível concluir o pedido. Seu carrinho foi mantido; tente novamente.';finish.disabled=false;
-      }
-    };
-  </script>
+  <script src="https://sdk.mercadopago.com/js/v2"></script>
+  <script type="module" src="/js/checkout.js?v=20260913-1"></script>
 </body>
 </html>
