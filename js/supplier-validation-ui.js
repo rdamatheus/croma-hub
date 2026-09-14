@@ -8,7 +8,32 @@ const fmt=d=>d?new Date(d).toLocaleString('pt-BR'):'—';
 
 function injectStyle(){if(document.querySelector('#supplierValidationStyle'))return;const s=document.createElement('style');s.id='supplierValidationStyle';s.textContent=`.sv-card{margin:16px 0}.sv-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.sv-counts{display:flex;gap:8px;flex-wrap:wrap}.sv-count{border:1px solid var(--croma-line);background:#fff;border-radius:12px;padding:9px 12px;font-weight:900;color:var(--croma-deep);cursor:pointer}.sv-count b{margin-left:6px}.sv-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}.sv-check{width:17px;height:17px}.sv-pending{font-size:.74rem;color:#8a6500;font-weight:800;margin-top:3px}.sv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.sv-price{border:1px solid var(--croma-line);border-radius:12px;padding:12px}.sv-price small{display:block;color:var(--croma-muted)}.sv-price strong{display:block;color:var(--croma-deep);font-size:1.2rem;margin-top:4px}.sv-form{display:grid;grid-template-columns:220px 1fr;gap:12px;margin-top:14px}.sv-form textarea{min-height:76px}.sv-events{display:grid;gap:8px;margin-top:14px}.sv-event{border-left:3px solid #dcd9ee;padding:7px 0 7px 12px}.sv-event strong{display:block;color:var(--croma-deep)}.sv-event small{color:var(--croma-muted)}@media(max-width:800px){.sv-grid{grid-template-columns:1fr 1fr}.sv-form{grid-template-columns:1fr}}@media(max-width:520px){.sv-grid{grid-template-columns:1fr}}`;document.head.appendChild(s)}
 
-async function invoke(payload){const{data:s}=await supabase.auth.getSession();const token=s?.session?.access_token;if(!token)throw new Error('Sessão expirada.');const{data,error}=await supabase.functions.invoke('croma-supplier-validation',{body:payload,headers:{Authorization:`Bearer ${token}`}});if(error)throw error;if(!data?.ok&&payload.action!=='bulk_set_status')throw new Error(data?.error||'Falha na validação.');return data}
+async function edgeFunctionErrorMessage(error){
+  const fallback=error?.message||'Falha na validação.';
+  const response=error?.context;
+  if(!response||typeof response.clone!=='function')return fallback;
+  try{
+    const json=await response.clone().json();
+    if(typeof json?.error==='string'&&json.error.trim())return json.error.trim();
+    if(typeof json?.message==='string'&&json.message.trim())return json.message.trim();
+  }catch{}
+  try{
+    const text=(await response.clone().text()).trim();
+    if(text)return text;
+  }catch{}
+  return fallback;
+}
+
+async function invoke(payload){
+  const{data:s,error:sessionError}=await supabase.auth.getSession();
+  if(sessionError)throw new Error(sessionError.message||'Não foi possível validar a sessão.');
+  const token=s?.session?.access_token;
+  if(!token)throw new Error('Sessão expirada. Entre novamente no Croma Hub.');
+  const{data,error}=await supabase.functions.invoke('croma-supplier-validation',{body:payload,headers:{Authorization:`Bearer ${token}`}});
+  if(error)throw new Error(await edgeFunctionErrorMessage(error));
+  if(!data?.ok&&payload.action!=='bulk_set_status')throw new Error(data?.error||'Falha na validação.');
+  return data;
+}
 
 async function countStatus(supplierId,status){const{count,error}=await supabase.from('supplier_catalog_items').select('id',{count:'exact',head:true}).eq('supplier_id',supplierId).eq('active',true).eq('validation_status',status);if(error)throw error;return count||0}
 
@@ -29,7 +54,7 @@ async function initCatalog(){
   function updateSelected(){document.querySelector('#svSelected').textContent=`${selectedIds().length} selecionado(s)`}
   const observer=new MutationObserver(()=>setTimeout(decorate,0));observer.observe(tbody,{childList:true,subtree:true});decorate();
   document.querySelector('#svSelectVisible').onchange=e=>{tbody.querySelectorAll('.sv-row-check').forEach(c=>c.checked=e.target.checked);updateSelected()};
-  async function bulk(status){const ids=selectedIds();if(!ids.length)return alert('Selecione ao menos um item.');let note='';if(status!=='ok'){note=prompt(status==='reject'?'Informe o motivo da rejeição:':'Observação da revisão (opcional):','')??'';if(status==='reject'&&!note.trim())return}if(status==='ok'&&!confirm(`Validar ${ids.length} item(ns)? Quando houver preço proposto, ele passará a ser o preço aprovado.`))return;const box=document.querySelector('#svStatus');box.textContent='Processando validação…';box.className='status';try{const result=await invoke({action:'bulk_set_status',item_ids:ids,status,note});const failed=(result.results||[]).filter(x=>!x.ok);if(failed.length)throw new Error(`${failed.length} item(ns) não puderam ser processados.`);box.textContent='Validação concluída.';box.className='status ok';setTimeout(()=>location.reload(),500)}catch(e){box.textContent=e.message||'Falha na validação.';box.className='status bad'}}
+  async function bulk(status){const ids=selectedIds();if(!ids.length)return alert('Selecione ao menos um item.');let note='';if(status!=='ok'){note=prompt(status==='reject'?'Informe o motivo da rejeição:':'Observação da revisão (opcional):','')??'';if(status==='reject'&&!note.trim())return}if(status==='ok'&&!confirm(`Validar ${ids.length} item(ns)? Quando houver preço proposto, ele passará a ser o preço aprovado.`))return;const box=document.querySelector('#svStatus');box.textContent='Processando validação…';box.className='status';try{const result=await invoke({action:'bulk_set_status',item_ids:ids,status,note});const failed=(result.results||[]).filter(x=>!x.ok);if(failed.length){const sample=failed.slice(0,3).map(x=>x.error).filter(Boolean).join(' | ');throw new Error(sample?`${failed.length} item(ns) não puderam ser processados: ${sample}`:`${failed.length} item(ns) não puderam ser processados.`)}box.textContent='Validação concluída.';box.className='status ok';setTimeout(()=>location.reload(),500)}catch(e){box.textContent=e.message||'Falha na validação.';box.className='status bad'}}
   document.querySelector('#svBulkOk').onclick=()=>bulk('ok');document.querySelector('#svBulkReview').onclick=()=>bulk('review');document.querySelector('#svBulkReject').onclick=()=>bulk('reject');
 }
 
