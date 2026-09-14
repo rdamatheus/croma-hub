@@ -14,4 +14,4 @@ if(!hostReady){
   throw new Error('Área de ferramentas do catálogo não ficou disponível a tempo.');
 }
 
-await import('./supplier-catalog-importer-core-v21.js?v=20260914-1');
+await import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2');
