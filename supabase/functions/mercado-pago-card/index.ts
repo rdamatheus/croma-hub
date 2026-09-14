@@ -202,8 +202,8 @@ Deno.serve(async (req: Request) => {
       paymentRow = created;
     }
 
-    const { data: profile } = await admin.from("customer_profiles").select("email,cpf,nome").eq("id", user.id).maybeSingle();
-    const payerEmail = clean(body?.payer?.email || profile?.email || user.email, 180);
+    const { data: profile } = await admin.from("customer_profiles").select("cpf,nome").eq("id", user.id).maybeSingle();
+    const payerEmail = "test@testuser.com";
     const idType = clean(body?.payer?.identification?.type || "CPF", 20).toUpperCase();
     const idNumber = digits(body?.payer?.identification?.number || profile?.cpf);
     const providerPayload: any = {
