@@ -68,7 +68,17 @@ function checkoutPayload(payment){
 }
 async function invokeMp(body){
   const {data,error}=await supabase.functions.invoke('mercado-pago-card',{body});
-  if(error){const e=new Error(error.message||'Mercado Pago indisponível.');e.cause=error;throw e}
+  if(error){
+    let detail=error.message||'Mercado Pago indisponível.';
+    try{
+      const response=error.context;
+      if(response?.clone){
+        const payload=await response.clone().json();
+        detail=payload?.error||payload?.detail||detail;
+      }
+    }catch{}
+    const e=new Error(detail);e.cause=error;throw e;
+  }
   if(data?.error)throw new Error(data.error);
   return data||{};
 }
@@ -113,7 +123,11 @@ async function mountBrick(){
     customization:{paymentMethods:{maxInstallments:12}},
     callbacks:{
       onReady:()=>setStatus('Ambiente de teste pronto. Use somente cartões de teste do Mercado Pago.','wait'),
-      onSubmit:formData=>handleCardSubmit(formData),
+      onSubmit:(payload,additionalData)=>{
+        const formData=payload?.formData||payload||{};
+        const paymentTypeId=additionalData?.paymentTypeId||payload?.paymentTypeId||payload?.selectedPaymentMethod||formData?.payment_type_id||'credit_card';
+        return handleCardSubmit(formData,paymentTypeId);
+      },
       onError:error=>{console.error(error);setStatus('Não foi possível carregar o formulário do cartão.','error')}
     }
   });
@@ -167,11 +181,14 @@ async function pollPayment(orderId){
 function showChallenge(url){
   if(!url)return;challengeFrame.src=url;mpChallenge.classList.remove('hidden');setStatus('Confirme a autenticação do cartão para continuar.','wait');
 }
-async function handleCardSubmit(formData){
+async function handleCardSubmit(formData,paymentTypeId){
   try{
+    const token=formData?.token;
+    const paymentMethodId=formData?.payment_method_id||formData?.paymentMethodId;
+    if(!token||!paymentMethodId)throw new Error('O Mercado Pago não retornou todos os dados do cartão. Atualize a página e tente novamente.');
     const order=await createCreditOrder();
     setStatus('Enviando pagamento ao Mercado Pago...','wait');
-    const result=await invokeMp({action:'pay',order_id:order.order_id,attempt_id:makeUuid(),token:formData.token,payment_method_id:formData.payment_method_id,payment_type_id:formData.payment_type_id||'credit_card',installments:Number(formData.installments||1),payer:formData.payer||{}});
+    const result=await invokeMp({action:'pay',order_id:order.order_id,attempt_id:makeUuid(),token,payment_method_id:paymentMethodId,payment_type_id:paymentTypeId||'credit_card',installments:Number(formData.installments||1),payer:formData.payer||{}});
     if(result.payment_status==='approved'){await finalizeApproved(result);return result}
     if(result.challenge_url){showChallenge(result.challenge_url);pollPayment(order.order_id);return result}
     if(['processing','action_required','created'].includes(result.payment_status)){setStatus('Pagamento em processamento. O pedido já está registrado.','wait');pollPayment(order.order_id);return result}
