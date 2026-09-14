@@ -50,6 +50,21 @@
   <div class="list-head supplier-tool-bridge" aria-hidden="true"></div>
 </main>
 </div>
+<script>
+window.setTimeout(()=>{
+  const page=document.getElementById('supplierPageContent');
+  const state=document.getElementById('supplierAccessState');
+  if(!page?.hidden||!state)return;
+  const title=document.getElementById('supplierAccessTitle');
+  const message=document.getElementById('supplierAccessMessage');
+  const actions=document.getElementById('supplierAccessActions');
+  if(title?.textContent==='Validando acesso…'){
+    title.textContent='Não foi possível carregar a área de fornecedores';
+    if(message)message.textContent='A página não concluiu a inicialização. Atualize e tente novamente.';
+    if(actions)actions.hidden=false;
+  }
+},12000);
+</script>
 <script type="module" src="/js/interno-fornecedores.js?v=20260914-2"></script>
 <script type="module" src="/js/supplier-catalog-importer-v21-fixed.js?v=20260905-2"></script>
 </body>
