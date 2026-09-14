@@ -16,6 +16,7 @@ if (location.pathname.startsWith('/interno/produtos')) {
     import('./product-rules-v21.js?v=20260905-2').catch(console.error);
   } else {
     import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2').catch(console.error);
+    import('./supplier-catalog-validation-bridge.js?v=20260914-1').catch(console.error);
     import('./supplier-catalog-diagnostics-v212.js?v=20260905-1').catch(console.error);
     import('./supplier-catalog-message-enhancer.js?v=20260905-1').catch(console.error);
     import('./supplier-catalog-browser.js?v=20260912-1').catch(console.error);
