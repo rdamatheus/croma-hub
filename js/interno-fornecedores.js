@@ -35,6 +35,7 @@ async function authorizePage(){
       setAccessState('Acesso restrito','A área de fornecedores está disponível apenas para Proprietário e Gerência.',{retry:true});
       return null;
     }
+    el('supplierAccessState').style.display='none';
     el('supplierAccessState').hidden=true;
     el('supplierPageContent').hidden=false;
     return session;
@@ -52,8 +53,21 @@ if(session){
   const latestBySupplier=new Map();
   const latestCompletedBySupplier=new Map();
   const statsBySupplier=new Map();
+  let catalogToolsPromise=null;
 
   function supplierStats(id){if(!statsBySupplier.has(id))statsBySupplier.set(id,{linked:0,divergent:0});return statsBySupplier.get(id)}
+
+  function loadCatalogTools(){
+    if(!catalogToolsPromise){
+      catalogToolsPromise=import('./supplier-catalog-importer-v21-fixed.js?v=20260914-4')
+        .catch(error=>{
+          catalogToolsPromise=null;
+          console.error('Falha ao carregar ferramentas de catálogo:',error);
+          throw error;
+        });
+    }
+    return catalogToolsPromise;
+  }
 
   async function load(){
     el('pageStatus').textContent='Carregando dados dos fornecedores…';
@@ -72,7 +86,7 @@ if(session){
         if(row.status==='completed'&&!latestCompletedBySupplier.has(row.supplier_id))latestCompletedBySupplier.set(row.supplier_id,row);
       }
       for(const link of ctx.links){const s=supplierStats(link.supplier_id);s.linked++;if(link.divergent)s.divergent++}
-      buildRows();populateSupplierSelect();renderKpis();applyFilters();wireImporterRefresh();
+      buildRows();populateSupplierSelect();renderKpis();applyFilters();
       el('pageStatus').textContent='';
     }catch(error){
       console.error(error);
@@ -134,26 +148,29 @@ if(session){
   }
 
   async function openNewSupplier(){
-    const dlg=await waitFor('#supplierQuickAddDialog');
-    if(!dlg)return alert('O cadastro rápido de fornecedor ainda não está disponível. Atualize a página e tente novamente.');
+    try{await loadCatalogTools()}catch{return alert('Não foi possível carregar o cadastro de fornecedor agora. Atualize a página e tente novamente.')}
+    const dlg=await waitFor('#supplierQuickAddDialog',1500);
+    if(!dlg)return alert('O cadastro rápido de fornecedor ainda não está disponível.');
     dlg.showModal();
   }
   async function openImport(){
-    const btn=await waitFor('#openSupplierCatalogImport');
+    try{await loadCatalogTools()}catch{return alert('Não foi possível carregar o importador de catálogo agora. Atualize a página e tente novamente.')}
+    const btn=await waitFor('#openSupplierCatalogImport',1500);
     if(!btn)return alert('O importador de catálogo ainda não está disponível.');
     btn.click();
   }
   function wireImporterRefresh(){
-    const attach=async()=>{
-      const quick=await waitFor('#supplierQuickAddDialog');const imp=await waitFor('#supplierCatalogDialog');
-      if(quick&&!quick.dataset.supplierPageRefresh){quick.dataset.supplierPageRefresh='1';quick.addEventListener('close',()=>setTimeout(load,350))}
-      if(imp&&!imp.dataset.supplierPageRefresh){imp.dataset.supplierPageRefresh='1';imp.addEventListener('close',()=>setTimeout(load,350))}
-    };attach();
+    const quick=document.querySelector('#supplierQuickAddDialog');
+    const imp=document.querySelector('#supplierCatalogDialog');
+    if(quick&&!quick.dataset.supplierPageRefresh){quick.dataset.supplierPageRefresh='1';quick.addEventListener('close',()=>setTimeout(load,350))}
+    if(imp&&!imp.dataset.supplierPageRefresh){imp.dataset.supplierPageRefresh='1';imp.addEventListener('close',()=>setTimeout(load,350))}
   }
 
   ['supplierFilter','statusFilter','catalogFilter','updateFilter','linkedFilter','divergenceFilter','sortFilter'].forEach(id=>el(id).addEventListener('change',()=>{state.page=1;applyFilters()}));
   el('prevPage').onclick=()=>{if(state.page>1){state.page--;renderRows()}};
   el('nextPage').onclick=()=>{const pages=Math.max(1,Math.ceil((state.filtered||[]).length/state.pageSize));if(state.page<pages){state.page++;renderRows()}};
   el('newSupplier').onclick=openNewSupplier;el('newSupplierInline').onclick=openNewSupplier;el('importCatalog').onclick=openImport;
+
   await load();
+  loadCatalogTools().then(wireImporterRefresh).catch(()=>{});
 }
