@@ -1,6 +1,5 @@
 import './croma-brand.js';
 import './interno-polish.js';
-import './supplier-catalog-ui-cleanup.js?v=20260914-2';
 import { supabase } from './croma-supabase.js';
 
 if (/^\/interno\/?$/.test(location.pathname)) {
@@ -16,7 +15,7 @@ if (location.pathname.startsWith('/interno/produtos')) {
     import('./interno-produtos-supplier-enhancer.js?v=20260905-5').catch(console.error);
     import('./product-rules-v21.js?v=20260905-2').catch(console.error);
   } else {
-    import('./supplier-catalog-importer-v21-fixed.js?v=20260905-2').catch(console.error);
+    import('./supplier-catalog-importer-v21-fixed.js?v=20260914-4').catch(console.error);
     import('./supplier-catalog-validation-bridge.js?v=20260914-1').catch(console.error);
     import('./supplier-catalog-diagnostics-v212.js?v=20260905-1').catch(console.error);
     import('./supplier-catalog-message-enhancer.js?v=20260905-1').catch(console.error);
