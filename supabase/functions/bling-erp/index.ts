@@ -3,37 +3,36 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const REDIRECT_URI =
-  Deno.env.get("BLING_REDIRECT_URI") ||
-  `${SUPABASE_URL}/functions/v1/bling-erp`;
-const SITE_URL =
-  Deno.env.get("CROMA_SITE_URL") ||
-  "https://www.cromapel.com.br/interno/bling/";
+const REDIRECT_URI = Deno.env.get("BLING_REDIRECT_URI") || `${SUPABASE_URL}/functions/v1/bling-erp`;
+const SITE_URL = Deno.env.get("CROMA_SITE_URL") || "https://www.cromapel.com.br/interno/bling/";
 const BLING_API = "https://api.bling.com.br/Api/v3";
 const CLIENT_ID_SECRET = "erp_bling_client_id";
 const CLIENT_SECRET_SECRET = "erp_bling_client_secret";
-const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { persistSession: false },
-});
+const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-type BlingCredentials = {
-  clientId: string;
-  clientSecret: string;
-};
+type BlingCredentials = { clientId: string; clientSecret: string };
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-const allowedOrigins = new Set([
-  "https://www.cromapel.com.br",
-  "https://cromapel.com.br",
-]);
+class BlingHttpError extends Error {
+  status: number;
+  payload: any;
+  code: string | null;
+  constructor(status: number, payload: any, message: string) {
+    super(message);
+    this.name = "BlingHttpError";
+    this.status = status;
+    this.payload = payload;
+    this.code = extractErrorCode(payload);
+  }
+}
+
+const allowedOrigins = new Set(["https://www.cromapel.com.br", "https://cromapel.com.br"]);
 
 function cors(req: Request) {
   const origin = req.headers.get("Origin") || "";
   return {
-    "Access-Control-Allow-Origin": allowedOrigins.has(origin)
-      ? origin
-      : "https://www.cromapel.com.br",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://www.cromapel.com.br",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     Vary: "Origin",
   };
@@ -54,13 +53,10 @@ function page(message: string, success: boolean) {
 }
 
 async function requireOwner(req: Request) {
-  const token = (req.headers.get("Authorization") || "")
-    .replace(/^Bearer\s+/i, "")
-    .trim();
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
   if (!token) throw new Response("Sessão ausente.", { status: 401 });
   const { data, error } = await admin.auth.getUser(token);
-  if (error || !data.user)
-    throw new Response("Sessão inválida.", { status: 401 });
+  if (error || !data.user) throw new Response("Sessão inválida.", { status: 401 });
   const { data: profile, error: profileError } = await admin
     .from("profiles")
     .select("id,role,ativo")
@@ -148,10 +144,7 @@ function basicAuth(currentCredentials: BlingCredentials) {
   return `Basic ${btoa(`${currentCredentials.clientId}:${currentCredentials.clientSecret}`)}`;
 }
 
-async function exchangeToken(
-  params: URLSearchParams,
-  currentCredentials: BlingCredentials,
-) {
+async function exchangeToken(params: URLSearchParams, currentCredentials: BlingCredentials) {
   const response = await fetch(`${BLING_API}/oauth/token`, {
     method: "POST",
     headers: {
@@ -164,9 +157,7 @@ async function exchangeToken(
   const payload = await response.json();
   if (!response.ok)
     throw new Error(
-      payload?.error?.description ||
-        payload?.error_description ||
-        payload?.error ||
+      payload?.error?.description || payload?.error_description || payload?.error ||
         "O Bling recusou a geração do token.",
     );
   return payload;
@@ -179,16 +170,8 @@ async function saveTokens(connectionId: string, payload: any) {
   const accessTokenSecretName = tokenSecretName("access", connectionId);
   const refreshTokenSecretName = tokenSecretName("refresh", connectionId);
   await Promise.all([
-    storeSecret(
-      accessTokenSecretName,
-      String(payload.access_token || ""),
-      "Access token OAuth do Bling",
-    ),
-    storeSecret(
-      refreshTokenSecretName,
-      String(payload.refresh_token || ""),
-      "Refresh token OAuth do Bling",
-    ),
+    storeSecret(accessTokenSecretName, String(payload.access_token || ""), "Access token OAuth do Bling"),
+    storeSecret(refreshTokenSecretName, String(payload.refresh_token || ""), "Refresh token OAuth do Bling"),
   ]);
   const { error } = await admin.from("erp_private_tokens").upsert({
     connection_id: connectionId,
@@ -227,14 +210,76 @@ async function accessToken() {
   if (!currentCredentials || !refreshToken)
     throw new Error("Credenciais protegidas do Bling indisponíveis.");
   const refreshed = await exchangeToken(
-    new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
+    new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
     currentCredentials,
   );
   await saveTokens(connection.id, refreshed);
   return refreshed.access_token;
+}
+
+function safeJson(raw: string) {
+  if (!raw) return { data: null };
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { raw };
+  }
+}
+
+function extractErrorCode(payload: any): string | null {
+  const candidates = [
+    payload?.error?.code,
+    payload?.error?.codigo,
+    payload?.code,
+    payload?.codigo,
+    payload?.errors?.[0]?.code,
+    payload?.errors?.[0]?.codigo,
+    payload?.data?.error?.code,
+  ];
+  const direct = candidates.find((value) => value !== undefined && value !== null && String(value).trim());
+  if (direct !== undefined) return String(direct);
+  const text = JSON.stringify(payload || {});
+  const match = text.match(/\bE\d{3,5}\b/i);
+  return match ? match[0].toUpperCase() : null;
+}
+
+function extractErrorMessage(payload: any, status?: number) {
+  const candidates = [
+    payload?.error?.description,
+    payload?.error?.message,
+    payload?.error_description,
+    payload?.message,
+    payload?.errors?.[0]?.message,
+    payload?.errors?.[0]?.descricao,
+    payload?.data?.error?.message,
+  ];
+  const message = candidates.find((value) => typeof value === "string" && value.trim());
+  return message || (status ? `Bling respondeu com código ${status}.` : "O Bling recusou a operação.");
+}
+
+async function blingHttp(
+  method: HttpMethod,
+  path: string,
+  body: unknown = null,
+  query: Record<string, string> = {},
+) {
+  const url = new URL(`${BLING_API}${path}`);
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value) !== "") url.searchParams.set(key, String(value));
+  });
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${await accessToken()}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "enable-jwt": "1",
+    },
+    body: ["POST", "PUT", "PATCH"].includes(method) ? JSON.stringify(body || {}) : null,
+  });
+  const payload = safeJson(await response.text());
+  if (!response.ok) throw new BlingHttpError(response.status, payload, extractErrorMessage(payload, response.status));
+  return payload;
 }
 
 const resources = {
@@ -253,68 +298,260 @@ async function blingRequest(
 ) {
   const resource = resources[entity];
   if (!resource) throw new Error("Cadastro da integração inválido.");
-  let method = "GET";
-  let path = resource.base;
+  let method: HttpMethod = "GET";
+  let path: string = resource.base;
   if (operation === "get") {
     if (!id) throw new Error("Identificador não informado.");
     path = entity === "stock" ? `/estoques/saldos/${id}` : `${path}/${id}`;
   } else if (operation === "create") {
     method = "POST";
   } else if (operation === "update") {
-    if (!resource.canUpdate || !id)
-      throw new Error("Esta operação não é permitida para este cadastro.");
+    if (!resource.canUpdate || !id) throw new Error("Esta operação não é permitida para este cadastro.");
     method = "PUT";
     path = `${path}/${id}`;
   } else if (operation === "delete") {
-    if (!resource.canDelete || !id)
-      throw new Error("Esta operação não é permitida para este cadastro.");
+    if (!resource.canDelete || !id) throw new Error("Esta operação não é permitida para este cadastro.");
     method = "DELETE";
     path = `${path}/${id}`;
   } else if (operation !== "list") {
     throw new Error("Operação do Bling inválida.");
   }
-  const url = new URL(`${BLING_API}${path}`);
-  if (operation === "list") {
-    url.searchParams.set("pagina", query.pagina || "1");
-    url.searchParams.set("limite", query.limite || "100");
-    Object.entries(query).forEach(([key, value]) => {
-      if (!["pagina", "limite"].includes(key) && value)
-        url.searchParams.set(key, value);
-    });
-  }
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${await accessToken()}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "enable-jwt": "1",
-    },
-    body: ["POST", "PUT"].includes(method) ? JSON.stringify(body || {}) : null,
+  const params = operation === "list"
+    ? { pagina: query.pagina || "1", limite: query.limite || "100", ...query }
+    : {};
+  return await blingHttp(method, path, body, params);
+}
+
+function localDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function digits(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+async function nfseEvent(documentId: string, eventType: string, actorId: string | null, payload: any = {}) {
+  const { error } = await admin.from("nfse_events").insert({
+    nfse_document_id: documentId,
+    event_type: eventType,
+    actor_id: actorId,
+    payload,
   });
-  const raw = await response.text();
-  const payload = raw ? JSON.parse(raw) : { data: null };
-  if (!response.ok)
-    throw new Error(
-      payload?.error?.description ||
-        payload?.error?.message ||
-        payload?.message ||
-        `Bling respondeu com código ${response.status}.`,
-    );
-  return payload;
+  if (error) throw error;
+}
+
+async function loadNfseContext(documentId: string) {
+  const { data: document, error: documentError } = await admin
+    .from("nfse_documents")
+    .select("*")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (documentError) throw documentError;
+  if (!document) throw new Response("NFS-e local não encontrada.", { status: 404 });
+
+  const [{ data: customer, error: customerError }, { data: profile, error: profileError }, addressResult] = await Promise.all([
+    admin.from("customer_profiles").select("id,nome,cpf,email,email_nota_fiscal,telefone,celular,ativo,bling_contact_id,bling_raw").eq("id", document.customer_id).maybeSingle(),
+    admin.from("fiscal_service_profiles").select("*").eq("id", document.fiscal_profile_id).maybeSingle(),
+    admin.from("customer_addresses").select("*").eq("customer_id", document.customer_id).order("principal", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (customerError) throw customerError;
+  if (profileError) throw profileError;
+  if (addressResult.error) throw addressResult.error;
+  if (!customer) throw new Response("Cliente da NFS-e não foi encontrado.", { status: 400 });
+  if (!profile) throw new Response("Perfil fiscal da NFS-e não foi encontrado.", { status: 400 });
+  return { document, customer, profile, address: addressResult.data };
+}
+
+function validateNfseContext(context: any) {
+  const { document, customer, profile, address } = context;
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const blingContactId = Number(document.bling_contact_id || customer.bling_contact_id || 0);
+  const documento = digits(customer.cpf || customer.bling_raw?.numeroDocumento || "");
+  if (!customer.ativo) errors.push("O cliente está inativo.");
+  if (!blingContactId) errors.push("O cliente ainda não possui vínculo com o Bling.");
+  if (![11, 14].includes(documento.length)) errors.push("CPF/CNPJ do cliente não está válido no cadastro local.");
+  if (!address?.municipio_ibge) warnings.push("Código IBGE do município do cliente não está preenchido localmente.");
+  if (!address?.cidade || !address?.estado) warnings.push("Cidade/UF do cliente não estão completos localmente.");
+  if (!profile.ativo) errors.push("O perfil fiscal está inativo.");
+  if (!String(profile.codigo_tributacao_nacional || "").trim()) errors.push("Código de tributação nacional não informado.");
+  if (!String(profile.nbs || "").trim()) warnings.push("NBS não informado no perfil fiscal.");
+  if (!String(profile.indicador_operacao || "").trim()) warnings.push("Indicador de operação não informado no perfil fiscal.");
+  const value = Number(document.valor_servico || 0);
+  if (!(value > 0)) errors.push("O valor do serviço precisa ser maior que zero.");
+  const description = String(document.descricao || "").trim();
+  if (!description) errors.push("A descrição do serviço é obrigatória.");
+  if (description.length > 1600) errors.push("A descrição do serviço excede 1600 caracteres.");
+  return { ok: errors.length === 0, errors, warnings, blingContactId, documento };
+}
+
+function buildNfsePayload(context: any, validation: any) {
+  const { document, profile } = context;
+  return {
+    contato: { id: validation.blingContactId },
+    serie: String(document.serie || "1"),
+    servicos: [
+      {
+        codigo: String(profile.codigo_tributacao_nacional),
+        descricao: String(document.descricao).trim(),
+        valor: Number(document.valor_servico),
+      },
+    ],
+    data: localDate(),
+    reterISS: Boolean(profile.reter_iss),
+    desconto: 0,
+  };
+}
+
+async function markNfseRejected(documentId: string, actorId: string, error: unknown, requestSnapshot: any = null) {
+  const isBling = error instanceof BlingHttpError;
+  const message = error instanceof Error ? error.message : String(error);
+  const code = isBling ? error.code : null;
+  const responseSnapshot = isBling ? error.payload : { error: message };
+  await admin.from("nfse_documents").update({
+    status: "rejected",
+    error_code: code,
+    error_message: message,
+    ...(requestSnapshot ? { request_snapshot: requestSnapshot } : {}),
+    response_snapshot: responseSnapshot,
+    last_synced_at: new Date().toISOString(),
+  }).eq("id", documentId);
+  await nfseEvent(documentId, "rejected", actorId, { code, message, response: responseSnapshot });
+}
+
+async function handleNfseAction(req: Request, action: string, input: any, user: any) {
+  if (action === "nfse_config_get") {
+    const payload = await blingHttp("GET", "/nfse/configuracoes");
+    return json(req, { ok: true, data: payload?.data ?? payload });
+  }
+
+  if (action === "nfse_list") {
+    const payload = await blingHttp("GET", "/nfse", null, {
+      pagina: String(input.query?.pagina || 1),
+      limite: String(input.query?.limite || 20),
+    });
+    return json(req, payload);
+  }
+
+  if (action === "nfse_get") {
+    const id = String(input.id || "").trim();
+    if (!/^\d+$/.test(id)) return json(req, { error: "ID da NFS-e do Bling inválido." }, 400);
+    const payload = await blingHttp("GET", `/nfse/${id}`);
+    return json(req, payload);
+  }
+
+  const documentId = String(input.document_id || "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(documentId))
+    return json(req, { error: "Identificador local da NFS-e inválido." }, 400);
+
+  if (action === "nfse_validate") {
+    const context = await loadNfseContext(documentId);
+    if (!["draft", "validated", "rejected", "created_bling"].includes(context.document.status))
+      return json(req, { error: "Esta NFS-e não pode ser validada no status atual." }, 409);
+    const validation = validateNfseContext(context);
+    if (!validation.ok) {
+      await nfseEvent(documentId, "validation_failed", user.id, validation);
+      return json(req, { ok: false, ...validation }, 422);
+    }
+    const nextStatus = context.document.bling_nfse_id ? "created_bling" : "validated";
+    const { data: updated, error } = await admin.from("nfse_documents").update({
+      status: nextStatus,
+      bling_contact_id: validation.blingContactId,
+      approved_by: user.id,
+      error_code: null,
+      error_message: null,
+    }).eq("id", documentId).select("*").single();
+    if (error) throw error;
+    await nfseEvent(documentId, "validated", user.id, { warnings: validation.warnings, next_status: nextStatus });
+    return json(req, { ok: true, document: updated, warnings: validation.warnings });
+  }
+
+  if (action === "nfse_create") {
+    const context = await loadNfseContext(documentId);
+    if (context.document.status !== "validated")
+      return json(req, { error: "Valide a NFS-e antes de criá-la no Bling." }, 409);
+    if (context.document.bling_nfse_id)
+      return json(req, { error: "Esta NFS-e já possui um registro no Bling." }, 409);
+    const validation = validateNfseContext(context);
+    if (!validation.ok) return json(req, { ok: false, ...validation }, 422);
+    const requestPayload = buildNfsePayload(context, validation);
+    try {
+      const payload = await blingHttp("POST", "/nfse", requestPayload);
+      const externalId = Number(payload?.data?.id || 0);
+      if (!externalId) throw new Error("O Bling criou a nota, mas não retornou o identificador esperado.");
+      const { data: updated, error } = await admin.from("nfse_documents").update({
+        status: "created_bling",
+        bling_contact_id: validation.blingContactId,
+        bling_nfse_id: externalId,
+        request_snapshot: requestPayload,
+        response_snapshot: payload,
+        error_code: null,
+        error_message: null,
+        approved_by: user.id,
+        last_synced_at: new Date().toISOString(),
+      }).eq("id", documentId).select("*").single();
+      if (error) throw error;
+      await nfseEvent(documentId, "created_bling", user.id, { bling_nfse_id: externalId });
+      return json(req, { ok: true, document: updated, bling: payload });
+    } catch (error) {
+      await markNfseRejected(documentId, user.id, error, requestPayload);
+      throw error;
+    }
+  }
+
+  if (action === "nfse_send") {
+    const { data: locked, error: lockError } = await admin.from("nfse_documents").update({
+      status: "sending",
+      error_code: null,
+      error_message: null,
+    }).eq("id", documentId).eq("status", "created_bling").not("bling_nfse_id", "is", null).select("*").maybeSingle();
+    if (lockError) throw lockError;
+    if (!locked) return json(req, { error: "A NFS-e não está pronta para envio ou já está sendo processada." }, 409);
+    await nfseEvent(documentId, "sending", user.id, { bling_nfse_id: locked.bling_nfse_id });
+    try {
+      const payload = await blingHttp("POST", `/nfse/${locked.bling_nfse_id}/enviar`, {});
+      const data = payload?.data || {};
+      const { data: updated, error } = await admin.from("nfse_documents").update({
+        status: "authorized",
+        numero_nfse: data.numero ? String(data.numero) : locked.numero_nfse,
+        numero_rps: data.numeroRPS ? String(data.numeroRPS) : locked.numero_rps,
+        codigo_verificacao: data.codigoVerificacao ? String(data.codigoVerificacao) : locked.codigo_verificacao,
+        link_nfse: data.link ? String(data.link) : locked.link_nfse,
+        response_snapshot: payload,
+        error_code: null,
+        error_message: null,
+        authorized_at: new Date().toISOString(),
+        last_synced_at: new Date().toISOString(),
+      }).eq("id", documentId).select("*").single();
+      if (error) throw error;
+      await nfseEvent(documentId, "authorized", user.id, {
+        bling_nfse_id: locked.bling_nfse_id,
+        numero: data.numero || null,
+        codigo_verificacao: data.codigoVerificacao || null,
+      });
+      return json(req, { ok: true, document: updated, bling: payload });
+    } catch (error) {
+      await markNfseRejected(documentId, user.id, error);
+      throw error;
+    }
+  }
+
+  return json(req, { error: "Ação de NFS-e inválida." }, 400);
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   const url = new URL(req.url);
-
   try {
     if (req.method === "GET" && (url.searchParams.has("code") || url.searchParams.has("error"))) {
-      if (url.searchParams.get("error"))
-        return page("A autorização foi cancelada ou recusada.", false);
+      if (url.searchParams.get("error")) return page("A autorização foi cancelada ou recusada.", false);
       const currentCredentials = await credentials(false);
-      if (!currentCredentials)
-        return page("Credenciais do aplicativo não configuradas.", false);
+      if (!currentCredentials) return page("Credenciais do aplicativo não configuradas.", false);
       const state = url.searchParams.get("state") || "";
       const code = url.searchParams.get("code") || "";
       const { data: oauthState, error: stateError } = await admin
@@ -324,31 +561,20 @@ Deno.serve(async (req: Request) => {
         .is("used_at", null)
         .gt("expires_at", new Date().toISOString())
         .maybeSingle();
-      if (stateError || !oauthState || !code)
-        return page("Autorização inválida ou expirada.", false);
-      await admin
-        .from("erp_oauth_states")
-        .update({ used_at: new Date().toISOString() })
-        .eq("state", state);
+      if (stateError || !oauthState || !code) return page("Autorização inválida ou expirada.", false);
+      await admin.from("erp_oauth_states").update({ used_at: new Date().toISOString() }).eq("state", state);
       const connection = await activeConnection();
       const tokens = await exchangeToken(
-        new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: REDIRECT_URI,
-        }),
+        new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI }),
         currentCredentials,
       );
       await saveTokens(connection.id, tokens);
-      await admin
-        .from("erp_connections")
-        .update({
-          status: "connected",
-          connected_by: oauthState.created_by,
-          last_error: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", connection.id);
+      await admin.from("erp_connections").update({
+        status: "connected",
+        connected_by: oauthState.created_by,
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", connection.id);
       await admin.from("erp_connection_audit").insert({
         provider: "bling",
         action: "authorized",
@@ -373,69 +599,38 @@ Deno.serve(async (req: Request) => {
       const nextClientSecret = informedClientSecret || existing?.clientSecret || "";
       const existingInvitationUrl = String(connection.config?.invitation_url || "");
       const nextInvitationUrl = informedInvitationUrl || existingInvitationUrl;
-
       if (!nextClientId || !nextClientSecret)
-        return json(
-          req,
-          { error: "Informe o Client ID e o Client Secret fornecidos pelo Bling." },
-          400,
-        );
-
-      validateCredentialInput(
-        nextClientId,
-        informedClientSecret ? nextClientSecret : null,
-      );
-      if (!nextInvitationUrl)
-        return json(req, { error: "Informe o link de convite fornecido pelo Bling." }, 400);
+        return json(req, { error: "Informe o Client ID e o Client Secret fornecidos pelo Bling." }, 400);
+      validateCredentialInput(nextClientId, informedClientSecret ? nextClientSecret : null);
+      if (!nextInvitationUrl) return json(req, { error: "Informe o link de convite fornecido pelo Bling." }, 400);
       const validatedInvitationUrl = validateInvitationUrl(nextInvitationUrl, nextClientId);
-
       const changedFields: string[] = [];
       if (!existing || existing.clientId !== nextClientId) changedFields.push("client_id");
-      if (!existing || existing.clientSecret !== nextClientSecret)
-        changedFields.push("client_secret");
-      if (existingInvitationUrl !== validatedInvitationUrl)
-        changedFields.push("invitation_url");
-
+      if (!existing || existing.clientSecret !== nextClientSecret) changedFields.push("client_secret");
+      if (existingInvitationUrl !== validatedInvitationUrl) changedFields.push("invitation_url");
       if (changedFields.length) {
-        const writes = [];
+        const writes: Promise<any>[] = [];
         if (changedFields.includes("client_id"))
-          writes.push(
-            storeSecret(CLIENT_ID_SECRET, nextClientId, "Client ID do aplicativo Bling"),
-          );
+          writes.push(storeSecret(CLIENT_ID_SECRET, nextClientId, "Client ID do aplicativo Bling"));
         if (changedFields.includes("client_secret"))
-          writes.push(
-            storeSecret(
-              CLIENT_SECRET_SECRET,
-              nextClientSecret,
-              "Client Secret do aplicativo Bling",
-            ),
-          );
+          writes.push(storeSecret(CLIENT_SECRET_SECRET, nextClientSecret, "Client Secret do aplicativo Bling"));
         await Promise.all(writes);
-
-        await admin
-          .from("erp_private_tokens")
-          .delete()
-          .eq("connection_id", connection.id);
-
+        await admin.from("erp_private_tokens").delete().eq("connection_id", connection.id);
         const updatedAt = new Date().toISOString();
-        const { error: connectionError } = await admin
-          .from("erp_connections")
-          .update({
-            status: "awaiting_authorization",
-            connected_by: null,
-            last_error: null,
-            config: {
-              ...(connection.config || {}),
-              client_id_hint: maskClientId(nextClientId),
-              credentials_updated_at: updatedAt,
-              credentials_updated_by: user.id,
-              invitation_url: validatedInvitationUrl,
-            },
-            updated_at: updatedAt,
-          })
-          .eq("id", connection.id);
+        const { error: connectionError } = await admin.from("erp_connections").update({
+          status: "awaiting_authorization",
+          connected_by: null,
+          last_error: null,
+          config: {
+            ...(connection.config || {}),
+            client_id_hint: maskClientId(nextClientId),
+            credentials_updated_at: updatedAt,
+            credentials_updated_by: user.id,
+            invitation_url: validatedInvitationUrl,
+          },
+          updated_at: updatedAt,
+        }).eq("id", connection.id);
         if (connectionError) throw connectionError;
-
         const { error: auditError } = await admin.from("erp_connection_audit").insert({
           provider: "bling",
           action: existing ? "credentials_updated" : "credentials_created",
@@ -444,7 +639,6 @@ Deno.serve(async (req: Request) => {
         });
         if (auditError) throw auditError;
       }
-
       return json(req, {
         ok: true,
         credentials_configured: true,
@@ -459,13 +653,11 @@ Deno.serve(async (req: Request) => {
 
     if (action === "validate_credentials") {
       const currentCredentials = await credentials();
-      if (!currentCredentials)
-        return json(req, { error: "Credenciais não configuradas." }, 400);
+      if (!currentCredentials) return json(req, { error: "Credenciais não configuradas." }, 400);
       validateCredentialInput(currentCredentials.clientId, currentCredentials.clientSecret);
       const connection = await activeConnection();
       const invitationUrl = String(connection.config?.invitation_url || "");
-      if (!invitationUrl)
-        return json(req, { error: "Link de convite não configurado." }, 400);
+      if (!invitationUrl) return json(req, { error: "Link de convite não configurado." }, 400);
       validateInvitationUrl(invitationUrl, currentCredentials.clientId);
       await admin.from("erp_connection_audit").insert({
         provider: "bling",
@@ -477,8 +669,7 @@ Deno.serve(async (req: Request) => {
         ok: true,
         client_id_masked: maskClientId(currentCredentials.clientId),
         redirect_uri: REDIRECT_URI,
-        message:
-          "Estrutura validada. A confirmação final das credenciais acontece na autorização do Bling.",
+        message: "Estrutura validada. A confirmação final das credenciais acontece na autorização do Bling.",
       });
     }
 
@@ -487,21 +678,9 @@ Deno.serve(async (req: Request) => {
       const currentCredentials = await credentials(false);
       const [mappings, conflicts, jobs, audit] = await Promise.all([
         admin.from("erp_entity_mappings").select("entity_type,sync_status"),
-        admin
-          .from("erp_sync_conflicts")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "open"),
-        admin
-          .from("erp_sync_jobs")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(10),
-        admin
-          .from("erp_connection_audit")
-          .select("action,changed_fields,performed_by,created_at")
-          .eq("provider", "bling")
-          .order("created_at", { ascending: false })
-          .limit(5),
+        admin.from("erp_sync_conflicts").select("id", { count: "exact", head: true }).eq("status", "open"),
+        admin.from("erp_sync_jobs").select("*").order("created_at", { ascending: false }).limit(10),
+        admin.from("erp_connection_audit").select("action,changed_fields,performed_by,created_at").eq("provider", "bling").order("created_at", { ascending: false }).limit(5),
       ]);
       const counts: Record<string, number> = {};
       (mappings.data || []).forEach((item: any) => {
@@ -524,16 +703,11 @@ Deno.serve(async (req: Request) => {
     if (action === "authorize") {
       const currentCredentials = await credentials(false);
       if (!currentCredentials)
-        return json(
-          req,
-          {
-            error: "BLING_CREDENTIALS_NOT_CONFIGURED",
-            message:
-              "Cadastre o Client ID e o Client Secret na configuração da integração.",
-            redirect_uri: REDIRECT_URI,
-          },
-          503,
-        );
+        return json(req, {
+          error: "BLING_CREDENTIALS_NOT_CONFIGURED",
+          message: "Cadastre o Client ID e o Client Secret na configuração da integração.",
+          redirect_uri: REDIRECT_URI,
+        }, 503);
       const state = randomState();
       const { error } = await admin.from("erp_oauth_states").insert({
         state,
@@ -542,10 +716,10 @@ Deno.serve(async (req: Request) => {
         expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
       });
       if (error) throw error;
-      await admin
-        .from("erp_connections")
-        .update({ status: "awaiting_authorization", updated_at: new Date().toISOString() })
-        .eq("provider", "bling");
+      await admin.from("erp_connections").update({
+        status: "awaiting_authorization",
+        updated_at: new Date().toISOString(),
+      }).eq("provider", "bling");
       const authorizeUrl = new URL("https://www.bling.com.br/Api/v3/oauth/authorize");
       authorizeUrl.searchParams.set("response_type", "code");
       authorizeUrl.searchParams.set("client_id", currentCredentials.clientId);
@@ -553,25 +727,22 @@ Deno.serve(async (req: Request) => {
       return json(req, { authorize_url: authorizeUrl.toString() });
     }
 
+    if (action.startsWith("nfse_")) return await handleNfseAction(req, action, input, user);
+
     if (!["list", "get", "create", "update", "delete"].includes(action))
       return json(req, { error: "Ação inválida." }, 400);
     const entity = input.entity as keyof typeof resources;
     if (!resources[entity]) return json(req, { error: "Cadastro inválido." }, 400);
-    const { data: job, error: jobError } = await admin
-      .from("erp_sync_jobs")
-      .insert({
-        provider: "bling",
-        entity_type: entity,
-        operation: action,
-        direction:
-          action === "list" || action === "get" ? "bling_to_croma" : "croma_to_bling",
-        status: "running",
-        requested_by: user.id,
-        started_at: new Date().toISOString(),
-        request_summary: { id: input.id || null },
-      })
-      .select("id")
-      .single();
+    const { data: job, error: jobError } = await admin.from("erp_sync_jobs").insert({
+      provider: "bling",
+      entity_type: entity,
+      operation: action,
+      direction: action === "list" || action === "get" ? "bling_to_croma" : "croma_to_bling",
+      status: "running",
+      requested_by: user.id,
+      started_at: new Date().toISOString(),
+      request_summary: { id: input.id || null },
+    }).select("id").single();
     if (jobError) throw jobError;
     try {
       const payload = await blingRequest(
@@ -583,55 +754,44 @@ Deno.serve(async (req: Request) => {
       );
       const externalId = payload?.data?.id;
       if (externalId && input.local_id) {
-        await admin.from("erp_entity_mappings").upsert(
-          {
-            provider: "bling",
-            entity_type: entity,
-            local_id: input.local_id,
-            external_id: String(externalId),
-            sync_status: "synced",
-            last_synced_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "provider,entity_type,external_id" },
-        );
+        await admin.from("erp_entity_mappings").upsert({
+          provider: "bling",
+          entity_type: entity,
+          local_id: input.local_id,
+          external_id: String(externalId),
+          sync_status: "synced",
+          last_synced_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "provider,entity_type,external_id" });
       }
       const count = Array.isArray(payload?.data) ? payload.data.length : payload?.data ? 1 : 0;
-      await admin
-        .from("erp_sync_jobs")
-        .update({
-          status: "completed",
-          processed_count: count,
-          success_count: count,
-          result_summary: { count, external_id: externalId || null },
-          finished_at: new Date().toISOString(),
-        })
-        .eq("id", job.id);
+      await admin.from("erp_sync_jobs").update({
+        status: "completed",
+        processed_count: count,
+        success_count: count,
+        result_summary: { count, external_id: externalId || null },
+        finished_at: new Date().toISOString(),
+      }).eq("id", job.id);
       return json(req, payload);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await admin
-        .from("erp_sync_jobs")
-        .update({
-          status: "failed",
-          error_count: 1,
-          error_message: message,
-          finished_at: new Date().toISOString(),
-        })
-        .eq("id", job.id);
+      await admin.from("erp_sync_jobs").update({
+        status: "failed",
+        error_count: 1,
+        error_message: message,
+        finished_at: new Date().toISOString(),
+      }).eq("id", job.id);
       throw error;
     }
   } catch (error) {
-    if (error instanceof Response)
-      return json(req, { error: await error.text() }, error.status);
+    if (error instanceof Response) return json(req, { error: await error.text() }, error.status);
     console.error("bling_erp_error", error);
-    return json(
-      req,
-      {
-        error: "Não foi possível concluir a operação do Bling.",
-        detail: error instanceof Error ? error.message : String(error),
-      },
-      500,
-    );
+    const status = error instanceof BlingHttpError && error.status >= 400 && error.status < 500 ? error.status : 500;
+    return json(req, {
+      error: "Não foi possível concluir a operação do Bling.",
+      detail: error instanceof Error ? error.message : String(error),
+      code: error instanceof BlingHttpError ? error.code : null,
+      upstream: error instanceof BlingHttpError ? error.payload : undefined,
+    }, status);
   }
 });
