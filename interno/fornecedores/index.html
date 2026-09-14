@@ -6,7 +6,19 @@
 <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
 <link rel="stylesheet" href="/css/supplier-admin.css?v=20260912-1">
 </head>
-<body hidden>
+<body>
+<section id="supplierAccessState" class="supplier-shell" style="min-height:72vh;display:grid;place-items:center">
+  <div class="supplier-card" style="max-width:560px;width:min(92vw,560px);text-align:center">
+    <span class="internal-eyebrow">Croma Hub</span>
+    <h1 id="supplierAccessTitle" style="margin:8px 0 10px">Validando acesso…</h1>
+    <p id="supplierAccessMessage" class="muted" style="margin:0">Aguarde enquanto confirmamos sua sessão e carregamos a área de fornecedores.</p>
+    <div id="supplierAccessActions" class="supplier-actions" style="justify-content:center;margin-top:18px" hidden>
+      <button class="btn" id="supplierRetryAccess" type="button">Tentar novamente</button>
+      <a class="btn light" href="/interno/">Voltar ao painel</a>
+    </div>
+  </div>
+</section>
+<div id="supplierPageContent" hidden>
 <header class="internal-header"><a href="/interno/">← Croma Interno</a><strong>Fornecedores</strong></header>
 <main class="supplier-shell">
   <div class="supplier-head">
@@ -37,7 +49,8 @@
   </section>
   <div class="list-head supplier-tool-bridge" aria-hidden="true"></div>
 </main>
-<script type="module" src="/js/interno-fornecedores.js?v=20260912-1"></script>
+</div>
+<script type="module" src="/js/interno-fornecedores.js?v=20260914-2"></script>
 <script type="module" src="/js/supplier-catalog-importer-v21-fixed.js?v=20260905-2"></script>
 </body>
 </html>
