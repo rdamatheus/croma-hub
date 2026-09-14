@@ -5,6 +5,7 @@ import { supabase } from './croma-supabase.js';
 
 if (/^\/interno\/?$/.test(location.pathname)) {
   import('./interno-supplier-nav.js?v=20260912-1').catch(console.error);
+  import('./interno-nfse-nav.js?v=20260914-1').catch(console.error);
 }
 
 if (location.pathname.startsWith('/interno/produtos')) {
