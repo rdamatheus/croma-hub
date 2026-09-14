@@ -1,13 +1,11 @@
-import './supplier-catalog-ui-cleanup.js?v=20260914-3';
 import { supabase } from './croma-supabase.js';
 import { listSupplierDirectory, ensureSupplierExtension, createSupplier } from './supplier-directory.js';
 
 const BUCKET='supplier-files';
-const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const now=()=>new Date().toISOString();
 let state={supplierId:'',contactId:'',file:null,rows:[],selected:new Set(),page:1,pageSize:10,search:'',existing:new Set(),directory:[],version:'',catalogDate:null};
-let injectAttempts=0;
 
 function errorText(e,fallback='Falha na operação.'){
   if(!e)return fallback;
@@ -20,15 +18,9 @@ function errorText(e,fallback='Falha na operação.'){
 }
 
 function inject(){
-  if(document.querySelector('#openSupplierCatalogImport'))return;
   const old=document.querySelector('#importCard');if(old)old.style.display='none';
   const head=document.querySelector('.list-head');
-  if(!head){
-    injectAttempts+=1;
-    if(injectAttempts<=40)setTimeout(inject,250);
-    return;
-  }
-  injectAttempts=0;
+  if(!head||document.querySelector('#openSupplierCatalogImport'))return setTimeout(inject,250);
   const a=document.createElement('div');a.id='supplierCatalogActions';a.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
   a.innerHTML='<button class="btn light" id="openSupplierCatalogImport" type="button">Importar catálogo de fornecedor</button><button class="btn light" id="openSupplierCatalogBrowser" type="button">Catálogos de fornecedores</button>';
   head.appendChild(a);ensureDialog();ensureQuickAddDialog();document.querySelector('#openSupplierCatalogImport').onclick=openDialog;
