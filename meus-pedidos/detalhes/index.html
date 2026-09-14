@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Detalhes do pedido | Croma</title>
+  <style>
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f5fb;color:#29263b}
+    .wrap{max-width:920px;margin:40px auto;padding:22px}
+    .top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:22px}
+    .top a{color:#30297F;text-decoration:none;font-weight:900}
+    .card{background:#fff;border:1px solid #e7e5ee;border-radius:20px;padding:20px;margin:12px 0}
+    .hero{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:start}
+    .code{font-size:1.35rem;font-weight:950;color:#211c5c}
+    .muted{color:#716d80}
+    .status{display:inline-block;padding:7px 10px;border-radius:999px;background:#eeecf7;color:#30297F;font-size:.82rem;font-weight:900}
+    .status.ok{background:#eef7e8;color:#567d25}.status.cancelled{background:#f3eeee;color:#7e5555}
+    .total{font-size:1.3rem;font-weight:950;color:#211c5c;margin-top:10px;text-align:right}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .fact{padding:12px;border:1px solid #eeeaf4;border-radius:12px}.fact strong{display:block;color:#30297F;margin-bottom:4px}
+    .item{border-top:1px solid #eeeaf4;padding-top:14px;margin-top:14px}.item:first-child{border-top:0;padding-top:0;margin-top:0}
+    .options{margin-top:5px;color:#716d80}.files{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .btn,.files button{border:0;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer}
+    .primary{background:#30297F;color:#fff}.secondary{background:#fff;border:1px solid #d8d4e8;color:#30297F}.danger{background:#fff;border:1px solid #d9a8a8;color:#9c3434}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+    .message{margin-top:12px;padding:12px;border-radius:10px;background:#f7f5fb}.error{color:#a83a3a}.success{color:#567d25}
+    .payment{border-top:1px solid #eeeaf4;padding-top:12px;margin-top:12px}.payment:first-child{border-top:0;padding-top:0;margin-top:0}
+    @media(max-width:650px){.hero,.grid{grid-template-columns:1fr}.total{text-align:left}.top{align-items:flex-start;flex-direction:column}.actions .btn{flex:1 1 100%}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top"><a href="/meus-pedidos/">← Meus pedidos</a><a href="/minha-conta/">Minha conta</a></div>
+    <div id="content"><div class="card">Carregando pedido...</div></div>
+  </main>
+
+  <script type="module">
+    import {supabase,STORAGE_BUCKET,requireUser} from '/js/croma-supabase.js?v=20260821-2';
+
+    const PENDING_KEY='croma_pending_card_checkout_v1';
+    const user=await requireUser(location.href);
+    if(!user) throw new Error('auth');
+
+    const params=new URLSearchParams(location.search);
+    const orderId=params.get('id')||'';
+    const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const labels={recebido:'Recebido',em_analise:'Em análise',aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_producao:'Em produção',pronto:'Pronto',enviado:'Enviado',concluido:'Concluído',cancelado:'Cancelado'};
+    const paymentLabels={created:'Criado',approved:'Aprovado',rejected:'Recusado',processing:'Em processamento',action_required:'Aguardando autenticação',error:'Erro',canceled:'Cancelado',refunded:'Estornado',charged_back:'Chargeback'};
+    const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+    if(!uuid.test(orderId)){
+      content.innerHTML='<div class="card">Pedido inválido.</div>';
+      throw new Error('invalid-order');
+    }
+
+    const [{data:order,error:orderError},{data:payments,error:paymentsError}]=await Promise.all([
+      supabase.from('orders').select('id,order_code,status,fulfillment,payment_method,subtotal,delivery_fee,total,notes,created_at,updated_at,delivery_street,delivery_number,delivery_complement,delivery_neighborhood,delivery_city,delivery_state,delivery_zip,order_items(id,product_name,quantity,unit_price,total,order_item_options(option_name,option_value,position)),order_files(id,order_item_id,original_name,storage_path,bucket)').eq('id',orderId).maybeSingle(),
+      supabase.from('payments').select('id,status,provider_status,provider_status_detail,amount,installments,card_brand,card_last_four,provider_order_id,provider_payment_id,created_at,updated_at').eq('order_id',orderId).order('created_at',{ascending:false})
+    ]);
+
+    if(orderError||!order){
+      content.innerHTML='<div class="card">Pedido não encontrado ou sem permissão para visualização.</div>';
+      throw orderError||new Error('not-found');
+    }
+    if(paymentsError) console.warn(paymentsError);
+
+    const paymentList=payments||[];
+    const hasBlockingPayment=paymentList.some(p=>['approved','processing','action_required'].includes(p.status)||(p.status==='created'&&p.provider_order_id));
+    const canCancel=['recebido','aguardando_pagamento'].includes(order.status)&&!hasBlockingPayment;
+    const canRetry=order.payment_method==='credito'&&order.status==='aguardando_pagamento'&&!hasBlockingPayment;
+    const statusClass=['concluido','pronto','pago'].includes(order.status)?'ok':order.status==='cancelado'?'cancelled':'';
+    const paymentMethod=order.payment_method==='pix'?'Pix':order.payment_method==='credito'?'Cartão de crédito':'Cartão de débito';
+    const delivery=order.fulfillment==='entrega'?[order.delivery_street,order.delivery_number,order.delivery_complement,order.delivery_neighborhood,order.delivery_city&&order.delivery_state?`${order.delivery_city}/${order.delivery_state}`:order.delivery_city,order.delivery_zip&&`CEP ${order.delivery_zip}`].filter(Boolean).join(' · '):'Retirada na Croma';
+
+    const items=(order.order_items||[]).map(i=>{
+      const opts=(i.order_item_options||[]).sort((a,b)=>Number(a.position||0)-Number(b.position||0));
+      const files=(order.order_files||[]).filter(f=>f.order_item_id===i.id);
+      return `<div class="item"><div><strong>${Number(i.quantity||0)}× ${esc(i.product_name)}</strong></div><div class="muted">${brl(i.unit_price)} cada · ${brl(i.total)}</div>${opts.length?`<div class="options">${esc(opts.map(x=>`${x.option_name}: ${x.option_value}`).join(' · '))}</div>`:''}${files.length?`<div class="files">${files.map(f=>`<button class="secondary" data-file-path="${esc(f.storage_path)}" data-file-name="${esc(f.original_name)}" data-file-action="view">Ver ${esc(f.original_name)}</button><button class="secondary" data-file-path="${esc(f.storage_path)}" data-file-name="${esc(f.original_name)}" data-file-action="download">Baixar</button>`).join('')}</div>`:''}</div>`;
+    }).join('');
+
+    const paymentHistory=paymentList.length?paymentList.map(p=>`<div class="payment"><strong>${esc(paymentLabels[p.status]||p.status)}</strong><div class="muted">${new Date(p.created_at).toLocaleString('pt-BR')} · ${brl(p.amount)}${p.installments?` · ${p.installments}x`:''}${p.card_brand?` · ${esc(p.card_brand)}`:''}${p.card_last_four?` · final ${esc(p.card_last_four)}`:''}</div>${p.provider_status_detail?`<div class="muted">${esc(p.provider_status_detail)}</div>`:''}</div>`).join(''):'<div class="muted">Nenhuma tentativa de pagamento registrada.</div>';
+
+    content.innerHTML=`
+      <section class="card">
+        <div class="hero"><div><div class="code">${esc(order.order_code)}</div><div class="muted">Criado em ${new Date(order.created_at).toLocaleString('pt-BR')}</div></div><div><span class="status ${statusClass}">${esc(labels[order.status]||order.status)}</span><div class="total">${brl(order.total)}</div></div></div>
+        <div class="actions">
+          ${canRetry?'<button class="btn primary" id="retryPayment">Tentar pagamento novamente</button>':''}
+          ${canCancel?'<button class="btn danger" id="cancelOrder">Cancelar pedido</button>':''}
+          ${!canCancel&&order.status!=='cancelado'?'<a class="btn secondary" style="text-decoration:none" href="https://wa.me/553230253588" target="_blank" rel="noopener">Falar com a Croma</a>':''}
+        </div>
+        <div id="actionMessage" class="message" style="display:none"></div>
+      </section>
+
+      <section class="card"><h2>Resumo</h2><div class="grid"><div class="fact"><strong>Recebimento</strong>${esc(delivery)}</div><div class="fact"><strong>Pagamento</strong>${esc(paymentMethod)}</div><div class="fact"><strong>Subtotal</strong>${brl(order.subtotal)}</div><div class="fact"><strong>Entrega</strong>${brl(order.delivery_fee)}</div></div>${order.notes?`<div class="fact" style="margin-top:12px"><strong>Observações</strong>${esc(order.notes)}</div>`:''}</section>
+
+      <section class="card"><h2>Itens</h2>${items||'<div class="muted">Nenhum item encontrado.</div>'}</section>
+      <section class="card"><h2>Pagamento</h2>${paymentHistory}</section>
+    `;
+
+    content.addEventListener('click',async event=>{
+      const fileButton=event.target.closest('[data-file-action]');
+      if(fileButton){
+        const bucket=fileButton.dataset.bucket||STORAGE_BUCKET;
+        const {data,error}=await supabase.storage.from(bucket).createSignedUrl(fileButton.dataset.filePath,120,{download:fileButton.dataset.fileAction==='download'?fileButton.dataset.fileName:undefined});
+        if(error)return alert('Não foi possível abrir o arquivo.');
+        window.open(data.signedUrl,'_blank','noopener');
+        return;
+      }
+
+      if(event.target.closest('#retryPayment')){
+        const cart=(order.order_items||[]).map(i=>({
+          id:`order-${i.id}`,
+          productId:null,
+          variantId:null,
+          name:i.product_name,
+          qty:Number(i.quantity||1),
+          unitPrice:Number(i.unit_price||0),
+          options:Object.fromEntries((i.order_item_options||[]).map(x=>[x.option_name,x.option_value])),
+          files:(order.order_files||[]).filter(f=>f.order_item_id===i.id).map(f=>({name:f.original_name,path:f.storage_path}))
+        }));
+        sessionStorage.setItem(PENDING_KEY,JSON.stringify({order:{order_id:order.id,order_code:order.order_code,total:Number(order.total)},cart,created_at:new Date().toISOString()}));
+        location.href='/carrinho/';
+        return;
+      }
+
+      const cancelButton=event.target.closest('#cancelOrder');
+      if(cancelButton){
+        if(!confirm(`Cancelar o pedido ${order.order_code}?\n\nO pedido permanecerá no histórico como cancelado.`))return;
+        cancelButton.disabled=true;
+        const box=document.getElementById('actionMessage');
+        box.style.display='block';box.className='message';box.textContent='Cancelando pedido...';
+        const {data,error}=await supabase.rpc('cancel_own_order',{p_order_id:order.id});
+        if(error){
+          box.className='message error';box.textContent=error.message||'Não foi possível cancelar o pedido.';cancelButton.disabled=false;return;
+        }
+        try{
+          const pending=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');
+          if(pending?.order?.order_id===order.id)sessionStorage.removeItem(PENDING_KEY);
+        }catch{}
+        box.className='message success';box.textContent='Pedido cancelado. Ele continuará disponível no seu histórico.';
+        setTimeout(()=>location.reload(),650);
+      }
+    });
+  </script>
+</body>
+</html>

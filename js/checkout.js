@@ -15,7 +15,7 @@ if(!user)throw new Error('auth');
 
 let pending=readPending();
 let activeCart=window.CromaCart?.read?.()||[];
-let cart=activeCart.length?activeCart:(Array.isArray(pending?.cart)?pending.cart:[]);
+let cart=Array.isArray(pending?.cart)?pending.cart:activeCart;
 let primary=null;
 let profile=null;
 let mpConfig=null;
