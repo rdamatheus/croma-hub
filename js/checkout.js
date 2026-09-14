@@ -45,7 +45,9 @@ function go(step){
   scrollTo({top:0,behavior:'smooth'});
 }
 function selectedPayment(){return document.querySelector('[name="payment"]:checked')?.value||'pix'}
-function setStatus(text='',type=''){mpStatus.textContent=text;mpStatus.className=`mp-status${type?' '+type:''}`}
+function setStatus(text='',type=''){
+  mpStatus.textContent=text;mpStatus.className=`mp-status${type?' '+type:''}`;
+}
 function selectedDelivery(){
   const fulfillment=document.querySelector('[name="fulfillment"]:checked')?.value||'retirada';
   const mode=document.querySelector('[name="addressMode"]:checked')?.value||'principal';
@@ -70,10 +72,17 @@ async function invokeMp(body){
   if(data?.error)throw new Error(data.error);
   return data||{};
 }
+async function ensureMpSdk(){
+  if(window.MercadoPago)return true;
+  const existing=document.querySelector('script[data-mercado-pago-sdk]');
+  if(existing){await new Promise((resolve,reject)=>{existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true})});return Boolean(window.MercadoPago)}
+  const script=document.createElement('script');script.src='https://sdk.mercadopago.com/js/v2';script.dataset.mercadoPagoSdk='1';
+  const loaded=new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject});document.head.appendChild(script);await loaded;return Boolean(window.MercadoPago);
+}
 async function loadMpConfig(){
   try{
     const data=await invokeMp({action:'config'});
-    if(data.enabled&&data.environment==='test'&&data.public_key&&window.MercadoPago)mpConfig=data;
+    if(data.enabled&&data.environment==='test'&&data.public_key&&await ensureMpSdk())mpConfig=data;
   }catch(error){console.info('Mercado Pago de teste não ativo; mantendo confirmação manual.',error?.message||error)}
   await renderPaymentMode();
 }
@@ -115,9 +124,10 @@ async function renderPaymentMode(){
   cardArea.classList.toggle('hidden',!online);
   manualInfo.classList.toggle('hidden',online);
   finish.classList.toggle('hidden',online);
-  if(credit&&!online)manualInfo.innerHTML='<p class="muted mp-manual-note">O cartão online está em validação. Enquanto não estiver ativo para esta sessão, o pedido é registrado e a cobrança é confirmada pela Croma no atendimento.</p>';
-  else if(!credit)manualInfo.innerHTML='<p class="muted mp-manual-note">A forma escolhida fica registrada no pedido e a confirmação é feita pela Croma no atendimento pelo WhatsApp.</p>';
-  if(online)await mountBrick();else await destroyBrick();
+  if(credit&&!online){manualInfo.innerHTML='<p class="muted mp-manual-note">O cartão online está em validação. Enquanto não estiver ativo para esta sessão, o pedido é registrado e a cobrança é confirmada pela Croma no atendimento.</p>'}
+  else if(!credit){manualInfo.innerHTML='<p class="muted mp-manual-note">A forma escolhida fica registrada no pedido e a confirmação é feita pela Croma no atendimento pelo WhatsApp.</p>'}
+  if(online)await mountBrick();
+  else await destroyBrick();
 }
 async function createCreditOrder(){
   if(pending?.order)return pending.order;
@@ -136,7 +146,8 @@ async function createCreditOrder(){
 async function finalizeApproved(result){
   pollToken++;
   setStatus(`Pagamento aprovado. Pedido ${result.order_code||pending?.order?.order_code||''} confirmado.`,'ok');
-  clearPending();pending=null;mpChallenge.classList.add('hidden');
+  clearPending();pending=null;
+  mpChallenge.classList.add('hidden');
   await sleep(900);
   location.href=`/meus-pedidos/?pedido=${encodeURIComponent(result.order_code||'')}`;
 }
@@ -146,7 +157,9 @@ async function pollPayment(orderId){
     await sleep(3000);
     let result;try{result=await invokeMp({action:'status',order_id:orderId})}catch{continue}
     if(result.payment_status==='approved'){await finalizeApproved(result);return}
-    if(['rejected','canceled','refunded'].includes(result.payment_status)){setStatus('O pagamento não foi aprovado. Você pode tentar novamente com outro cartão.','error');return}
+    if(['rejected','canceled','refunded'].includes(result.payment_status)){
+      setStatus('O pagamento não foi aprovado. Você pode tentar novamente com outro cartão.','error');return;
+    }
     if(result.challenge_url)showChallenge(result.challenge_url);
   }
   if(token===pollToken)setStatus('Pagamento ainda em análise. O pedido permanece registrado e será atualizado automaticamente.','wait');
