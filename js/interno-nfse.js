@@ -8,183 +8,178 @@ const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const fmtDate = v => v ? new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}) : '—';
-const statusLabel = {draft:'Rascunho',validated:'Validada',created_bling:'Criada no Bling',sending:'Enviando',authorized:'Autorizada',rejected:'Rejeitada',cancelled:'Cancelada'};
-let profiles = [], localDocs = [], customersById = new Map(), profilesById = new Map(), selectedDoc = null, customerTimer = null;
+const fmtDay = v => v ? new Date(`${String(v).slice(0,10)}T12:00:00`).toLocaleDateString('pt-BR') : '—';
+const docStatus = {draft:'Preparada',validated:'Validada',created_bling:'Criada no Bling',sending:'Enviando',authorized:'Autorizada',rejected:'Rejeitada',cancelled:'Cancelada'};
+let profiles = [], profilesById = new Map(), page = 1, limit = 30, lastRows = [], selectedOrderId = null, selectedDetail = null, searchNumber = '';
 
 $('logout').onclick = async()=>{await signOutStaff(); location.href='/interno/'};
 $('refresh').onclick = ()=>loadAll(true);
-$('newDraft').onclick = ()=>openEditor();
-$('closeEditor').onclick = closeEditor;
-$('description').addEventListener('input',()=>{$('descriptionCount').textContent=`${$('description').value.length} / 1600`});
-$('fiscalProfile').addEventListener('change',renderFiscalPreview);
-$('customerSearch').addEventListener('input',()=>{clearTimeout(customerTimer); customerTimer=setTimeout(()=>searchCustomers($('customerSearch').value),250)});
-$('draftForm').addEventListener('submit',saveDraft);
+$('searchOrder').onclick = ()=>{searchNumber=$('orderSearch').value.replace(/\D/g,'');page=1;loadOrders(true)};
+$('clearSearch').onclick = ()=>{$('orderSearch').value='';searchNumber='';page=1;loadOrders(true)};
+$('orderSearch').addEventListener('keydown',e=>{if(e.key==='Enter')$('searchOrder').click()});
+$('prevPage').onclick = ()=>{if(page>1){page--;loadOrders(true)}};
+$('nextPage').onclick = ()=>{if(lastRows.length===limit){page++;loadOrders(true)}};
 
 function setMessage(text,type=''){
   const box=$('globalMessage');
   if(!text){box.className='notice hidden';box.textContent='';return}
-  box.className=`notice ${type}`; box.textContent=text;
+  box.className=`notice ${type}`;box.textContent=text;
 }
 function setDetailMessage(text,type=''){
   const box=$('detailMessage');
   if(!text){box.className='notice hidden';box.textContent='';return}
-  box.className=`notice ${type}`; box.textContent=text;
+  box.className=`notice ${type}`;box.textContent=text;
 }
 function dot(ok,warn=false){return `<span class="dot ${ok?'ok':warn?'warn':''}"></span>`}
 function readableError(value){
-  if(!value) return 'Falha inesperada.';
-  if(typeof value==='string') return value;
+  if(!value)return 'Falha inesperada.';
+  if(typeof value==='string')return value;
   for(const key of ['detail','message','error']){
-    if(typeof value[key]==='string') return value[key];
+    if(typeof value[key]==='string')return value[key];
     if(value[key]&&value[key]!==value){const nested=readableError(value[key]);if(nested)return nested}
   }
   return 'Não foi possível concluir a operação.';
 }
-async function invoke(body){
-  const {data,error}=await supabase.functions.invoke('bling-erp',{body});
+async function invoke(functionName,body){
+  const {data,error}=await supabase.functions.invoke(functionName,{body});
   if(error){
-    let message=readableError(error); let detail=null;
-    try{if(error.context?.json){detail=await error.context.json(); message=readableError(detail)||message}}catch{}
-    const e=new Error(message); e.payload=detail; throw e;
+    let message=readableError(error),payload=null;
+    try{if(error.context?.json){payload=await error.context.json();message=readableError(payload)||message}}catch{}
+    const e=new Error(message);e.payload=payload;throw e;
   }
   if(data?.error){const e=new Error(readableError(data));e.payload=data;throw e}
   return data;
 }
-function parseMoney(value){
-  let text=String(value||'').trim().replace(/\s/g,'');
-  if(!text)return 0;
-  if(text.includes(',')&&text.includes('.')) text=text.replace(/\./g,'').replace(',','.');
-  else if(text.includes(',')) text=text.replace(',','.');
-  return Number(text);
-}
-function docDigits(v){return String(v||'').replace(/\D/g,'')}
-function maskDoc(v){const d=docDigits(v);if(d.length===11)return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');if(d.length===14)return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');return v||'—'}
+const invokeBling=body=>invoke('bling-erp',body);
+const invokeOrders=body=>invoke('nfse-order-workflow',body);
 
-async function loadAll(showMessage=false){
-  if(showMessage)setMessage('Atualizando dados…');
-  const results=await Promise.allSettled([loadProfiles(),loadLocal(),loadBlingStatus(),loadExternal()]);
-  const errors=results.filter(r=>r.status==='rejected').map(r=>r.reason?.message).filter(Boolean);
-  if(errors.length)setMessage(errors.join(' · '),'error'); else if(showMessage)setMessage('Dados atualizados.','ok');
-  if(selectedDoc){const fresh=localDocs.find(d=>d.id===selectedDoc.id); if(fresh) await showDetail(fresh.id)}
+function maskDoc(v){const d=String(v||'').replace(/\D/g,'');if(d.length===11)return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');if(d.length===14)return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');return v||'—'}
+function nfsePill(d){
+  if(!d)return '<span class="pill">Analisar</span>';
+  if(d.status==='authorized')return `<span class="pill ok">NFS-e ${esc(d.numero_nfse||'autorizada')}</span>`;
+  if(d.status==='rejected')return `<span class="pill error">${esc(docStatus[d.status])}${d.error_code?' · '+esc(d.error_code):''}</span>`;
+  if(d.status==='sending')return '<span class="pill warn">Enviando</span>';
+  return `<span class="pill warn">${esc(docStatus[d.status]||d.status)}</span>`;
 }
 
 async function loadProfiles(){
   const {data,error}=await supabase.from('fiscal_service_profiles').select('*').eq('ativo',true).order('padrao',{ascending:false}).order('nome');
   if(error)throw error;
-  profiles=data||[]; profilesById=new Map(profiles.map(p=>[p.id,p]));
-  $('fiscalProfile').innerHTML=profiles.map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}${p.padrao?' · padrão':''}</option>`).join('');
+  profiles=data||[];profilesById=new Map(profiles.map(p=>[p.id,p]));
   const p=profiles.find(x=>x.padrao)||profiles[0];
   $('profileStatus').innerHTML=p?`${dot(true)}${esc(p.nome)} · ${esc(p.codigo_tributacao_nacional)}`:`${dot(false,true)}Nenhum perfil ativo`;
-  renderFiscalPreview();
 }
 async function loadBlingStatus(){
-  const data=await invoke({action:'status'}); const connected=data.connection?.status==='connected';
+  const data=await invokeBling({action:'status'});const connected=data.connection?.status==='connected';
   $('blingStatus').innerHTML=`${dot(connected,!connected)}${connected?'Conectado':'Atenção: '+esc(data.connection?.status||'indisponível')}`;
+  try{await invokeBling({action:'nfse_config_get'});$('configStatus').innerHTML=`${dot(true)}Leitura disponível`}
+  catch(error){$('configStatus').innerHTML=`${dot(false,true)}Não validada`;throw new Error(`Configuração NFS-e: ${error.message}`)}
+}
+async function loadOrders(showMessage=false){
+  if(showMessage)setMessage('Atualizando pedidos do Bling…');
   try{
-    const config=await invoke({action:'nfse_config_get'});
-    $('configStatus').innerHTML=`${dot(true)}Leitura disponível`;
-    $('configStatus').title=JSON.stringify(config.data||{}).slice(0,1500);
-  }catch(error){
-    $('configStatus').innerHTML=`${dot(false,true)}Não validada`;
-    $('configStatus').title=error.message;
-    throw new Error(`Configuração NFS-e do Bling: ${error.message}`);
-  }
-}
-async function loadLocal(){
-  const {data,error}=await supabase.from('nfse_documents').select('*').order('created_at',{ascending:false}).limit(100);
-  if(error)throw error; localDocs=data||[];
-  const customerIds=[...new Set(localDocs.map(x=>x.customer_id).filter(Boolean))];
-  if(customerIds.length){const r=await supabase.from('customer_profiles').select('id,nome,cpf,bling_contact_id,bling_raw').in('id',customerIds);if(r.error)throw r.error;(r.data||[]).forEach(c=>customersById.set(c.id,c))}
-  $('localSummary').textContent=`${localDocs.length} documento(s) local(is)`;
-  $('localBody').innerHTML=localDocs.length?localDocs.map(renderLocalRow).join(''):'<tr><td colspan="6" class="muted" style="padding:24px">Nenhuma NFS-e preparada no Croma Hub.</td></tr>';
-  $('localBody').querySelectorAll('[data-detail]').forEach(b=>b.onclick=()=>showDetail(b.dataset.detail));
-  $('localBody').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editDocument(b.dataset.edit));
-  $('localBody').querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>runAction(b.dataset.act,b.dataset.id));
-}
-function renderLocalRow(d){
-  const customer=customersById.get(d.customer_id); const st=d.status||'draft';
-  const primary=actionFor(d);
-  return `<tr><td>${esc(fmtDate(d.created_at))}</td><td>${esc(customer?.nome||'—')}</td><td>${esc(brl(d.valor_servico))}</td><td><span class="pill ${esc(st)}">${esc(statusLabel[st]||st)}</span>${d.error_code?`<br><span class="muted">${esc(d.error_code)}</span>`:''}</td><td>${esc(d.numero_nfse||'—')}</td><td><div class="row-actions"><button class="mini" data-detail="${esc(d.id)}">Detalhes</button>${canEdit(d)?`<button class="mini" data-edit="${esc(d.id)}">Editar</button>`:''}${primary?`<button class="mini primary" data-act="${primary.action}" data-id="${esc(d.id)}">${esc(primary.label)}</button>`:''}</div></td></tr>`;
-}
-function canEdit(d){return ['draft','rejected'].includes(d.status)&&!d.bling_nfse_id}
-function actionFor(d){
-  if(d.status==='draft'||(d.status==='rejected'&&!d.bling_nfse_id))return {action:'validate',label:'Validar'};
-  if(d.status==='validated')return {action:'create',label:'Criar no Bling'};
-  if(d.status==='created_bling')return {action:'send',label:'Emitir NFS-e'};
-  if(d.status==='rejected'&&d.bling_nfse_id)return {action:'validate',label:'Revalidar'};
-  return null;
+    const data=await invokeOrders({action:'orders_list',page,limit,numero:searchNumber});
+    lastRows=Array.isArray(data.data)?data.data:[];
+    $('orderSummary').textContent=searchNumber?`${lastRows.length} resultado(s) para o pedido ${searchNumber}`:`${lastRows.length} pedido(s) nesta página`;
+    $('pageLabel').textContent=`Página ${page}`;
+    $('prevPage').disabled=page<=1;$('nextPage').disabled=lastRows.length<limit||!!searchNumber;
+    $('ordersBody').innerHTML=lastRows.length?lastRows.map(o=>`<tr><td><strong>#${esc(o.numero||o.id)}</strong></td><td>${esc(fmtDay(o.data))}</td><td>${esc(o.contato?.nome||'—')}<br><span class="muted">${esc(maskDoc(o.contato?.numeroDocumento||''))}</span></td><td>${esc(brl(o.total))}</td><td>${esc(o.situacao?.valor||'—')}</td><td>${nfsePill(o.croma_nfse)}</td><td><button class="mini primary" data-order="${esc(o.id)}">Abrir</button></td></tr>`).join(''):'<tr><td colspan="7" class="muted" style="padding:24px">Nenhum pedido retornado pelo Bling.</td></tr>';
+    $('ordersBody').querySelectorAll('[data-order]').forEach(b=>b.onclick=()=>openOrder(Number(b.dataset.order)));
+    if(showMessage)setMessage('Pedidos atualizados.','ok');
+  }catch(error){$('ordersBody').innerHTML=`<tr><td colspan="7" style="padding:24px;color:#8c2f2f">${esc(error.message)}</td></tr>`;setMessage(error.message,'error')}
 }
 async function loadExternal(){
   try{
-    const data=await invoke({action:'nfse_list',query:{pagina:1,limite:20}}); const rows=Array.isArray(data?.data)?data.data:[];
-    $('externalBody').innerHTML=rows.length?rows.map(n=>`<tr><td>${esc(n.numero||'—')}</td><td>${esc(n.numeroRPS||'—')}</td><td>${esc(n.contato?.nome||n.cliente?.nome||'—')}</td><td>${esc(brl(n.valor))}</td><td>${esc(n.situacao||'—')}</td><td>${esc(fmtDate(n.dataEmissao||n.data))}</td></tr>`).join(''):'<tr><td colspan="6" class="muted" style="padding:24px">Nenhuma nota retornada pelo Bling.</td></tr>';
-  }catch(error){$('externalBody').innerHTML=`<tr><td colspan="6" style="padding:24px;color:#8c2f2f">${esc(error.message)}</td></tr>`;throw error}
+    const data=await invokeBling({action:'nfse_list',query:{pagina:1,limite:15}});const rows=Array.isArray(data?.data)?data.data:[];
+    $('externalBody').innerHTML=rows.length?rows.map(n=>`<tr><td>${esc(n.numero||'—')}</td><td>${esc(n.numeroRPS||'—')}</td><td>${esc(n.contato?.nome||n.cliente?.nome||'—')}</td><td>${esc(brl(n.valor))}</td><td>${esc(n.situacao||'—')}</td><td>${esc(fmtDate(n.dataEmissao||n.data))}</td></tr>`).join(''):'<tr><td colspan="6" class="muted" style="padding:24px">Nenhuma NFS-e retornada pelo Bling.</td></tr>';
+  }catch(error){$('externalBody').innerHTML=`<tr><td colspan="6" style="padding:24px;color:#8c2f2f">${esc(error.message)}</td></tr>`}
+}
+async function loadAll(showMessage=false){
+  if(showMessage)setMessage('Atualizando dados…');
+  const results=await Promise.allSettled([loadProfiles(),loadBlingStatus(),loadOrders(false),loadExternal()]);
+  const errors=results.filter(r=>r.status==='rejected').map(r=>r.reason?.message).filter(Boolean);
+  if(errors.length)setMessage(errors.join(' · '),'error');else if(showMessage)setMessage('Dados atualizados.','ok');
+  if(selectedOrderId)await openOrder(selectedOrderId,false).catch(()=>{});
 }
 
-function renderFiscalPreview(){
-  const p=profilesById.get($('fiscalProfile').value)||profiles[0];
-  $('fiscalPreview').innerHTML=p?`<strong>${esc(p.nome)}</strong><br>Cód. nacional: ${esc(p.codigo_tributacao_nacional)} · Municipal: ${esc(p.codigo_tributacao_municipal||'—')}<br>NBS: ${esc(p.nbs||'—')} · Indicador: ${esc(p.indicador_operacao||'—')}<br>ISS: ${Number(p.aliquota_iss||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:4})}% · Retenção: ${p.reter_iss?'Sim':'Não'}${p.metadata?.provisional?'<br><span class="muted">Perfil operacional provisório; revisão fiscal pendente para outros serviços.</span>':''}`:'Nenhum perfil fiscal ativo.';
+function fiscalProfileText(p){return p?`${p.nome} · ${p.codigo_tributacao_nacional} · NBS ${p.nbs||'—'}`:'—'}
+function renderItem(item){
+  const typeLabel=item.type==='service'?'Serviço':item.type==='product'?'Mercadoria':'Não identificado';
+  let fiscal='';let cls='';
+  if(item.type==='service'&&item.fiscal_profile){
+    cls='<span class="pill ok">Classificado</span>';
+    fiscal=`<div class="item-meta">${esc(fiscalProfileText(item.fiscal_profile))}${item.fiscal_profile_source==='parent'?' · herdado do produto pai':''}</div>`;
+  }else if(item.type==='service'){
+    cls='<span class="pill warn">Sem perfil fiscal</span>';
+    const options=profiles.map(p=>`<option value="${esc(p.id)}">${esc(p.nome)} · ${esc(p.codigo_tributacao_nacional)}</option>`).join('');
+    fiscal=`<div class="item-actions"><select data-profile-for="${esc(item.bling_product_id)}">${options}</select><button class="mini primary" data-classify="${esc(item.bling_product_id)}">Classificar</button></div>`;
+  }else if(item.type==='product')cls='<span class="pill error">Mercadoria · NFS-e bloqueada</span>';
+  else cls='<span class="pill error">Não localizado no catálogo</span>';
+  return `<div class="item-card"><h4>${esc(item.descricao)}</h4><div class="item-meta">${esc(typeLabel)} · ${Number(item.quantidade||0).toLocaleString('pt-BR')} × ${esc(brl(item.valor_unitario))} · Bling produto ${esc(item.bling_product_id||'—')}</div><div style="margin-top:7px">${cls}</div>${fiscal}</div>`;
 }
-function openEditor(d=null){
-  $('editorPanel').classList.remove('hidden'); $('editorPanel').scrollIntoView({behavior:'smooth',block:'start'}); setMessage('');
-  $('editorTitle').textContent=d?'Editar rascunho':'Preparar NFS-e'; $('documentId').value=d?.id||'';
-  const p=d?profilesById.get(d.fiscal_profile_id):(profiles.find(x=>x.padrao)||profiles[0]); if(p)$('fiscalProfile').value=p.id;
-  $('serviceValue').value=d?Number(d.valor_servico).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'';
-  $('description').value=d?.descricao||'Serviço de impressão'; $('description').dispatchEvent(new Event('input'));
-  if(d){const c=customersById.get(d.customer_id);selectCustomer(c||{id:d.customer_id,nome:'Cliente selecionado',bling_contact_id:d.bling_contact_id})}else{clearCustomer()}
-  renderFiscalPreview();
+function docPrimaryAction(doc){
+  if(!doc)return null;
+  if(doc.status==='draft'||(doc.status==='rejected'&&!doc.bling_nfse_id))return {action:'validate',label:'Revalidar'};
+  if(doc.status==='validated')return {action:'create',label:'Criar NFS-e no Bling'};
+  if(doc.status==='created_bling')return {action:'send',label:'Emitir NFS-e'};
+  if(doc.status==='rejected'&&doc.bling_nfse_id)return {action:'validate',label:'Revalidar'};
+  return null;
 }
-function closeEditor(){$('editorPanel').classList.add('hidden');$('draftForm').reset();$('documentId').value='';clearCustomer();renderFiscalPreview()}
-function clearCustomer(){$('customerId').value='';$('customerSearch').value='';$('selectedCustomer').classList.add('hidden');$('selectedCustomer').innerHTML='';$('customerResults').classList.add('hidden');$('customerResults').innerHTML=''}
-function selectCustomer(c){if(!c)return;customersById.set(c.id,c);$('customerId').value=c.id;$('customerSearch').value=c.nome||'';$('selectedCustomer').classList.remove('hidden');const doc=c.cpf||c.bling_raw?.numeroDocumento||'';$('selectedCustomer').innerHTML=`<strong>${esc(c.nome||'—')}</strong><br><span class="muted">${esc(maskDoc(doc))} · Bling ${c.bling_contact_id?'vinculado':'não vinculado'}</span>`;$('customerResults').classList.add('hidden')}
-async function searchCustomers(q){
-  q=String(q||'').trim(); if(q.length<2){$('customerResults').classList.add('hidden');return}
-  let req=supabase.from('customer_profiles').select('id,nome,cpf,email,email_nota_fiscal,bling_contact_id,bling_raw,ativo').eq('ativo',true).order('nome').limit(20);
-  const safe=q.replace(/[,%]/g,' '); req=req.or(`nome.ilike.%${safe}%,cpf.ilike.%${safe}%`);
-  const {data,error}=await req;if(error){setMessage(error.message,'error');return}
-  const rows=data||[];$('customerResults').innerHTML=rows.length?rows.map(c=>`<button type="button" class="customer-option" data-customer="${esc(c.id)}"><strong>${esc(c.nome)}</strong><br><span class="muted">${esc(maskDoc(c.cpf||c.bling_raw?.numeroDocumento||''))} · ${c.bling_contact_id?'Bling vinculado':'sem vínculo Bling'}</span></button>`).join(''):'<div class="muted" style="padding:12px">Nenhum cliente encontrado.</div>';
-  $('customerResults').classList.remove('hidden'); rows.forEach(c=>customersById.set(c.id,c)); $('customerResults').querySelectorAll('[data-customer]').forEach(b=>b.onclick=()=>selectCustomer(customersById.get(b.dataset.customer)));
-}
-async function saveDraft(event){
-  event.preventDefault(); const customerId=$('customerId').value; const profileId=$('fiscalProfile').value; const value=parseMoney($('serviceValue').value); const description=$('description').value.trim();
-  if(!customerId){setMessage('Selecione um cliente.','error');return} if(!(value>0)){setMessage('Informe um valor maior que zero.','error');return} if(!description){setMessage('Informe a descrição do serviço.','error');return}
-  const id=$('documentId').value; $('saveDraft').disabled=true; setMessage('Salvando rascunho…');
-  try{
-    const payload={customer_id:customerId,fiscal_profile_id:profileId,valor_servico:value,descricao:description,serie:'1',bling_contact_id:customersById.get(customerId)?.bling_contact_id||null};
-    let result;
-    if(id) result=await supabase.from('nfse_documents').update(payload).eq('id',id).select('*').single();
-    else result=await supabase.from('nfse_documents').insert({...payload,created_by:session.user.id}).select('*').single();
-    if(result.error)throw result.error; setMessage('Rascunho salvo. Faça a validação antes de criar no Bling.','ok'); closeEditor(); await loadLocal(); await showDetail(result.data.id);
-  }catch(error){setMessage(error.message||'Não foi possível salvar o rascunho.','error')}finally{$('saveDraft').disabled=false}
-}
-function editDocument(id){const d=localDocs.find(x=>x.id===id);if(d&&canEdit(d))openEditor(d)}
-
-async function showDetail(id){
-  const d=localDocs.find(x=>x.id===id); if(!d)return; selectedDoc=d; const c=customersById.get(d.customer_id); const p=profilesById.get(d.fiscal_profile_id);
+function renderAnalysis(data){
+  const {order,analysis}=data;selectedDetail=data;
   $('detailEmpty').classList.add('hidden');$('detailContent').classList.remove('hidden');
-  $('detailFields').innerHTML=`<div><b>Cliente</b>${esc(c?.nome||'—')}</div><div><b>Valor</b>${esc(brl(d.valor_servico))}</div><div><b>Situação</b>${esc(statusLabel[d.status]||d.status)}</div><div><b>Perfil fiscal</b>${esc(p?.nome||'—')} · ${esc(p?.codigo_tributacao_nacional||'—')}</div><div><b>Bling</b>${esc(d.bling_nfse_id||'Ainda não criada')}</div><div><b>NFS-e / RPS</b>${esc(d.numero_nfse||'—')} / ${esc(d.numero_rps||'—')}</div><div><b>Descrição</b>${esc(d.descricao)}</div>`;
-  if(d.error_message)setDetailMessage(`${d.error_code?d.error_code+' · ':''}${d.error_message}`,'error');else setDetailMessage('');
-  const actions=[]; if(canEdit(d))actions.push(`<button class="internal-btn secondary" data-detail-edit="${esc(d.id)}">Editar</button>`); const primary=actionFor(d); if(primary)actions.push(`<button class="internal-btn" data-detail-act="${esc(primary.action)}" data-id="${esc(d.id)}">${esc(primary.label)}</button>`); if(d.status==='authorized'&&d.link_nfse)actions.push(`<a class="internal-btn secondary" href="${esc(d.link_nfse)}" target="_blank" rel="noopener">Abrir NFS-e</a>`); $('detailActions').innerHTML=actions.join('');
-  $('detailActions').querySelector('[data-detail-edit]')?.addEventListener('click',()=>editDocument(d.id)); $('detailActions').querySelector('[data-detail-act]')?.addEventListener('click',e=>runAction(e.currentTarget.dataset.detailAct,d.id));
-  const {data:events,error}=await supabase.from('nfse_events').select('*').eq('nfse_document_id',d.id).order('created_at',{ascending:false}).limit(40); if(error){$('events').textContent=error.message;return}
-  $('events').innerHTML=(events||[]).length?(events||[]).map(ev=>`<div class="event"><strong>${esc(eventLabel(ev.event_type))}</strong><span class="muted">${esc(fmtDate(ev.created_at))}</span>${eventText(ev)?`<br>${esc(eventText(ev))}`:''}</div>`).join(''):'<div class="muted">Nenhum evento registrado.</div>';
+  $('detailFields').innerHTML=`<div><b>Pedido Bling</b>#${esc(order.numero||order.id)}</div><div><b>Cliente</b>${esc(order.contato?.nome||'—')} · ${esc(maskDoc(order.contato?.numeroDocumento||analysis.customer?.cpf||''))}</div><div><b>Total</b>${esc(brl(order.total))}</div><div><b>Situação</b>${esc(order.situacao?.valor||'—')}</div><div><b>Data</b>${esc(fmtDay(order.data))}</div>`;
+  const s=analysis.summary||{};$('analysisSummary').innerHTML=`<div><strong>${s.services||0}</strong><span>Serviços</span></div><div><strong>${s.products||0}</strong><span>Mercadorias</span></div><div><strong>${s.unclassified||0}</strong><span>Sem perfil</span></div><div><strong>${s.unknown||0}</strong><span>Não localizados</span></div>`;
+  const notices=[...(analysis.errors||[]),...(analysis.warnings||[])];setDetailMessage(notices.join(' '),analysis.errors?.length?'error':notices.length?'':'');
+  $('items').innerHTML=(analysis.items||[]).map(renderItem).join('')||'<div class="muted">Pedido sem itens.</div>';
+  $('items').querySelectorAll('[data-classify]').forEach(b=>b.onclick=()=>classifyItem(Number(b.dataset.classify)));
+  const p=analysis.fiscal_profile;
+  $('fiscalPreview').innerHTML=p?`<strong style="color:var(--croma-deep)">Perfil fiscal resolvido</strong><div class="muted" style="margin-top:5px">${esc(fiscalProfileText(p))} · ISS ${Number(p.aliquota_iss||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:4})}% · Retenção ${p.reter_iss?'sim':'não'}</div>`:'<strong style="color:var(--croma-deep)">Perfil fiscal</strong><div class="muted" style="margin-top:5px">O pedido ainda não possui um único perfil fiscal válido para faturamento.</div>';
+  const actions=[];const doc=analysis.existing_document;
+  if(!doc&&analysis.eligible)actions.push(`<button class="internal-btn" data-prepare>Preparar faturamento</button>`);
+  if(doc){
+    actions.push(`<span class="pill ${doc.status==='authorized'?'ok':doc.status==='rejected'?'error':'warn'}">${esc(docStatus[doc.status]||doc.status)}${doc.numero_nfse?' · NFS-e '+esc(doc.numero_nfse):''}</span>`);
+    const primary=docPrimaryAction(doc);if(primary)actions.push(`<button class="internal-btn" data-doc-action="${esc(primary.action)}" data-doc="${esc(doc.id)}">${esc(primary.label)}</button>`);
+    if(doc.status==='authorized'&&doc.link_nfse)actions.push(`<a class="internal-btn secondary" href="${esc(doc.link_nfse)}" target="_blank" rel="noopener">Abrir NFS-e</a>`);
+  }
+  $('detailActions').innerHTML=actions.join('');
+  $('detailActions').querySelector('[data-prepare]')?.addEventListener('click',prepareOrder);
+  $('detailActions').querySelector('[data-doc-action]')?.addEventListener('click',e=>runDocAction(e.currentTarget.dataset.docAction,e.currentTarget.dataset.doc));
 }
-function eventLabel(t){return ({draft_created:'Rascunho criado',validation_failed:'Validação com pendências',validated:'Validada',created_bling:'Criada no Bling',sending:'Envio solicitado',authorized:'Autorizada',rejected:'Rejeitada'})[t]||t}
-function eventText(ev){const p=ev.payload||{};if(p.message)return `${p.code?p.code+' · ':''}${p.message}`;if(Array.isArray(p.warnings)&&p.warnings.length)return p.warnings.join(' · ');if(p.bling_nfse_id)return `ID Bling ${p.bling_nfse_id}`;return ''}
-async function runAction(action,id){
-  const labels={validate:'Validando…',create:'Criando no Bling…',send:'Transmitindo ao Ambiente Nacional…'}; setMessage(labels[action]||'Processando…'); setDetailMessage('');
-  document.querySelectorAll('button[data-act],button[data-detail-act]').forEach(b=>b.disabled=true);
+async function openOrder(orderId,scroll=true){
+  selectedOrderId=Number(orderId);if(scroll)$('detailPanel').scrollIntoView({behavior:'smooth',block:'start'});setDetailMessage('Analisando pedido…');
+  try{const data=await invokeOrders({action:'order_analyze',order_id:selectedOrderId});renderAnalysis(data)}
+  catch(error){setDetailMessage(error.message,'error');throw error}
+}
+async function classifyItem(blingProductId){
+  const select=document.querySelector(`[data-profile-for="${blingProductId}"]`);const profileId=select?.value;
+  if(!profileId){setDetailMessage('Selecione um perfil fiscal.','error');return}
+  setDetailMessage('Salvando classificação fiscal…');
+  try{await invokeOrders({action:'classify_product',bling_product_id:blingProductId,fiscal_profile_id:profileId});setDetailMessage('Classificação salva. Reanalisando o pedido…','ok');await openOrder(selectedOrderId,false)}
+  catch(error){setDetailMessage(error.message,'error')}
+}
+async function prepareOrder(){
+  if(!selectedOrderId)return;
+  if(!confirm('Preparar o faturamento deste pedido do Bling? Isso ainda não transmite a NFS-e ao Ambiente Nacional.'))return;
+  setDetailMessage('Preparando faturamento a partir do pedido…');
+  try{const data=await invokeOrders({action:'order_prepare',order_id:selectedOrderId});const warning=data.validation_error?` Atenção: ${readableError(data.validation_error)}`:'';setDetailMessage(`Pedido preparado e validado para NFS-e.${warning}`,'ok');await loadOrders(false);await openOrder(selectedOrderId,false)}
+  catch(error){setDetailMessage(error.message,'error')}
+}
+async function runDocAction(action,id){
+  const labels={validate:'Validando…',create:'Criando NFS-e no Bling…',send:'Transmitindo ao Ambiente Nacional…'};setDetailMessage(labels[action]||'Processando…');
   try{
     let data;
-    if(action==='validate')data=await invoke({action:'nfse_validate',document_id:id});
-    else if(action==='create')data=await invoke({action:'nfse_create',document_id:id});
-    else if(action==='send'){
-      if(!confirm('Emitir esta NFS-e agora no Ambiente Nacional? Esta ação transmite um documento fiscal real.')){setMessage('Emissão cancelada.');return}
-      data=await invoke({action:'nfse_send',document_id:id});
+    if(action==='validate')data=await invokeBling({action:'nfse_validate',document_id:id});
+    else if(action==='create'){
+      if(!confirm('Criar a NFS-e deste pedido no Bling? Ela ainda não será transmitida ao Ambiente Nacional.'))return;
+      data=await invokeBling({action:'nfse_create',document_id:id});
+    }else if(action==='send'){
+      if(!confirm('Emitir esta NFS-e agora no Ambiente Nacional? Esta ação transmite um documento fiscal real.'))return;
+      data=await invokeBling({action:'nfse_send',document_id:id});
     }
-    const warnings=data?.warnings||[]; const text=action==='validate'?'Validação concluída.':action==='create'?'NFS-e criada no Bling, ainda não transmitida.':'NFS-e transmitida e autorizada.'; setMessage(warnings.length?`${text} Atenção: ${warnings.join(' · ')}`:text,'ok');
-  }catch(error){const payload=error.payload||{};const code=payload.code?`${payload.code} · `:'';setMessage(`${code}${error.message}`,'error')}
-  finally{await loadLocal();await loadExternal().catch(()=>{});const d=localDocs.find(x=>x.id===id);if(d)await showDetail(id);document.querySelectorAll('button[data-act],button[data-detail-act]').forEach(b=>b.disabled=false)}
+    const warnings=data?.warnings||[];const text=action==='validate'?'Validação concluída.':action==='create'?'NFS-e criada no Bling, ainda não transmitida.':'NFS-e transmitida para o Ambiente Nacional.';setDetailMessage(warnings.length?`${text} ${warnings.join(' ')}`:text,'ok');
+    await loadOrders(false);await loadExternal();await openOrder(selectedOrderId,false);
+  }catch(error){setDetailMessage(error.message,'error')}
 }
 
 await loadAll();
