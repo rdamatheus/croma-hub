@@ -1,20 +1,28 @@
 # croma-supplier-validation
 
-## Autenticação
+## Estado atual
 
-Esta Edge Function deve ser implantada com `verify_jwt=false` no gateway do Supabase.
+A interface administrativa de validação de catálogo **não depende mais desta Edge Function** para aprovar, revisar ou rejeitar preços.
 
-Isso é intencional: a autorização é feita dentro da própria função, em `manager(req)`, que:
+O fluxo principal passou a usar a RPC autenticada:
 
-1. exige `Authorization: Bearer <user JWT>`;
-2. valida o token com `admin.auth.getUser(token)`;
-3. consulta `profiles`;
-4. aceita somente perfis ativos com papel `owner` ou `manager`.
+`public.croma_set_supplier_catalog_validation(...)`
 
-A função **não é pública** apesar de `verify_jwt=false`: chamadas sem JWT, com JWT inválido ou sem papel de gestão retornam 401/403 antes de qualquer alteração de catálogo.
+Motivo: a tela já opera com sessão Supabase e o banco possui regra explícita de gestão. A RPC faz a autorização no próprio banco, atualiza o item, dispara os triggers de auditoria/custo e executa a conciliação Bling → fornecedor → SKU quando aplicável. Isso remove uma camada HTTP adicional que estava causando falhas de autenticação/execução na interface.
 
-A verificação no gateway não deve ser reativada sem revisar o fluxo do cliente. Ela causou rejeição da chamada antes de o código da função executar, resultando no erro genérico `Edge Function returned a non-2xx status code` na tela de validação.
+## Segurança da RPC
 
-## Interface
+A função `croma_set_supplier_catalog_validation` é `SECURITY DEFINER`, mas:
 
-`js/supplier-validation-ui.js` envia explicitamente o JWT da sessão no cabeçalho `Authorization` e tenta extrair a mensagem JSON retornada pela função para que erros de autorização ou validação apareçam de forma legível no painel.
+1. exige `auth.uid()` válido;
+2. exige `app_private.is_manager()`;
+3. só possui `EXECUTE` para `authenticated` e `service_role`;
+4. `anon` e `public` não possuem permissão de execução.
+
+A exposição a `authenticated` é intencional porque a autorização fina acontece dentro da própria função e aceita apenas perfis ativos `owner` ou `manager`.
+
+## Edge Function legada
+
+A Edge Function `croma-supplier-validation` permanece implantada por compatibilidade, com `verify_jwt=false` no gateway e validação interna do JWT em `manager(req)`. Ela não deve ser usada pelo frontend novo para as ações de validação.
+
+Se for removida futuramente, primeiro confirme que nenhum cliente antigo ainda a invoca.
