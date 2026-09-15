@@ -3,59 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>NFS-e | Croma Hub</title>
+  <title>Faturamento NFS-e | Croma Hub</title>
   <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
   <style>
-    .shell{max-width:1320px;margin:auto;padding:28px 18px 70px}.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}.hero-actions{display:flex;gap:8px;flex-wrap:wrap}.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}.status-card{background:#fff;border:1px solid var(--croma-line);border-radius:16px;padding:16px}.status-card small{display:block;color:var(--croma-muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.status-card strong{display:block;margin-top:6px;color:var(--croma-deep)}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#b7b3c4;margin-right:6px}.dot.ok{background:var(--croma-green)}.dot.warn{background:#d99b19}.layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;align-items:start}.panel{background:#fff;border:1px solid var(--croma-line);border-radius:20px;padding:20px}.panel h2{margin:0 0 14px;color:var(--croma-deep)}.form-grid{display:grid;grid-template-columns:1fr 170px;gap:12px}.field{margin-bottom:13px}.field label{display:block;font-size:.74rem;font-weight:900;text-transform:uppercase;color:var(--croma-purple);margin-bottom:5px}.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #d8d6e4;border-radius:10px;font:inherit;background:#fff}.field textarea{min-height:100px;resize:vertical}.customer-results{border:1px solid var(--croma-line);border-radius:12px;max-height:230px;overflow:auto;margin-top:6px}.customer-option{display:block;width:100%;border:0;border-bottom:1px solid #efedf4;background:#fff;text-align:left;padding:10px 12px;cursor:pointer}.customer-option:last-child{border-bottom:0}.customer-option:hover{background:#f8f7fc}.selected{padding:11px 12px;background:#f6f5fb;border-radius:12px;margin-top:8px}.fiscal-box{background:#f7f7fc;border:1px solid var(--croma-line);border-radius:14px;padding:13px;font-size:.87rem;line-height:1.55}.fiscal-box strong{color:var(--croma-deep)}.notice{padding:12px 14px;border-radius:12px;background:#fff3e6;color:#79490b;border:1px solid #f2d3aa;margin:12px 0}.notice.ok{background:#eef7e8;color:#496c22;border-color:#d9ebca}.notice.error{background:#fff0f0;color:#8c2f2f;border-color:#efcccc}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.actions button:disabled{opacity:.5;cursor:not-allowed}.table-wrap{overflow:auto;background:#fff;border:1px solid var(--croma-line);border-radius:18px;margin-top:16px}table{width:100%;border-collapse:collapse;min-width:950px}th,td{text-align:left;padding:11px 12px;border-bottom:1px solid #efedf4;font-size:.86rem}th{background:#fafafe;color:var(--croma-deep);font-size:.72rem;text-transform:uppercase}.pill{display:inline-block;padding:5px 8px;border-radius:999px;font-size:.72rem;font-weight:900;background:#efeff8;color:var(--croma-purple)}.pill.authorized{background:#eef7e8;color:#537b23}.pill.rejected{background:#fff0f0;color:#9b3434}.pill.sending{background:#fff7df;color:#836300}.row-actions{display:flex;gap:6px;flex-wrap:wrap}.mini{padding:7px 9px;border-radius:9px;border:1px solid var(--croma-line);background:#fff;color:var(--croma-purple);font-weight:850;cursor:pointer}.mini.primary{background:var(--croma-purple);color:#fff;border-color:var(--croma-purple)}.mini:disabled{opacity:.45;cursor:not-allowed}.external{margin-top:24px}.muted{color:var(--croma-muted)}.detail-list{display:grid;gap:8px;font-size:.88rem}.detail-list div{padding-bottom:8px;border-bottom:1px solid #efedf4}.detail-list b{display:block;color:var(--croma-deep);font-size:.75rem;text-transform:uppercase}.events{margin-top:14px;max-height:260px;overflow:auto}.event{padding:9px 0;border-bottom:1px solid #efedf4;font-size:.8rem}.event strong{display:block}.hidden{display:none!important}@media(max-width:980px){.layout{grid-template-columns:1fr}.status-grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.status-grid,.form-grid{grid-template-columns:1fr}.hero-actions{width:100%}.hero-actions .internal-btn{flex:1}}
+    .shell{max-width:1380px;margin:auto;padding:28px 18px 70px}.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}.hero-actions{display:flex;gap:8px;flex-wrap:wrap}.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}.status-card{background:#fff;border:1px solid var(--croma-line);border-radius:16px;padding:16px}.status-card small{display:block;color:var(--croma-muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.status-card strong{display:block;margin-top:6px;color:var(--croma-deep)}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#b7b3c4;margin-right:6px}.dot.ok{background:var(--croma-green)}.dot.warn{background:#d99b19}.layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}.panel{background:#fff;border:1px solid var(--croma-line);border-radius:20px;padding:20px}.panel h2{margin:0 0 8px;color:var(--croma-deep)}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0}.toolbar input{min-width:220px;flex:1;padding:11px 12px;border:1px solid #d8d6e4;border-radius:10px;font:inherit}.notice{padding:12px 14px;border-radius:12px;background:#fff3e6;color:#79490b;border:1px solid #f2d3aa;margin:12px 0}.notice.ok{background:#eef7e8;color:#496c22;border-color:#d9ebca}.notice.error{background:#fff0f0;color:#8c2f2f;border-color:#efcccc}.table-wrap{overflow:auto;background:#fff;border:1px solid var(--croma-line);border-radius:18px;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:900px}th,td{text-align:left;padding:11px 12px;border-bottom:1px solid #efedf4;font-size:.86rem}th{background:#fafafe;color:var(--croma-deep);font-size:.72rem;text-transform:uppercase}.pill{display:inline-block;padding:5px 8px;border-radius:999px;font-size:.72rem;font-weight:900;background:#efeff8;color:var(--croma-purple)}.pill.ok{background:#eef7e8;color:#537b23}.pill.warn{background:#fff7df;color:#836300}.pill.error{background:#fff0f0;color:#9b3434}.mini{padding:7px 9px;border-radius:9px;border:1px solid var(--croma-line);background:#fff;color:var(--croma-purple);font-weight:850;cursor:pointer}.mini.primary{background:var(--croma-purple);color:#fff;border-color:var(--croma-purple)}.mini:disabled{opacity:.45;cursor:not-allowed}.muted{color:var(--croma-muted)}.pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px}.detail-list{display:grid;gap:8px;font-size:.88rem;margin-top:12px}.detail-list>div{padding-bottom:8px;border-bottom:1px solid #efedf4}.detail-list b{display:block;color:var(--croma-deep);font-size:.72rem;text-transform:uppercase}.items{display:grid;gap:10px;margin-top:14px}.item-card{border:1px solid var(--croma-line);border-radius:14px;padding:12px;background:#fafafe}.item-card h4{margin:0 0 5px;color:var(--croma-deep);font-size:.9rem}.item-meta{font-size:.78rem;color:var(--croma-muted);line-height:1.5}.item-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:9px}.item-actions select{max-width:220px;padding:8px;border:1px solid #d8d6e4;border-radius:9px;background:#fff}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.actions button:disabled{opacity:.5;cursor:not-allowed}.section-sep{border-top:1px solid #efedf4;margin:18px 0}.external{margin-top:18px}.hidden{display:none!important}.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}.summary-cards div{padding:10px;border-radius:12px;background:#f7f7fc;text-align:center}.summary-cards strong{display:block;color:var(--croma-deep);font-size:1.1rem}.summary-cards span{font-size:.7rem;text-transform:uppercase;color:var(--croma-muted);font-weight:800}@media(max-width:1030px){.layout{grid-template-columns:1fr}.status-grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.status-grid,.summary-cards{grid-template-columns:1fr 1fr}.hero-actions{width:100%}.hero-actions .internal-btn{flex:1}.pager{flex-wrap:wrap}}
   </style>
 </head>
 <body hidden>
 <header class="internal-header"><a href="/interno/">← Croma Interno</a><div class="internal-header-actions"><a href="/interno/bling/">Integração Bling</a><button class="internal-btn secondary" id="logout">Sair</button></div></header>
 <main class="shell">
-  <div class="hero"><div><span class="internal-eyebrow">Fiscal · Ambiente Nacional</span><h1 class="internal-title" style="font-size:clamp(2rem,4vw,3.3rem)">Central NFS-e</h1><p class="internal-lead">Prepare, valide e emita notas de serviço pelo Bling com aprovação explícita e histórico auditável.</p></div><div class="hero-actions"><button class="internal-btn secondary" id="refresh">Atualizar</button><button class="internal-btn" id="newDraft">+ Preparar NFS-e</button></div></div>
+  <div class="hero">
+    <div><span class="internal-eyebrow">Fiscal · Pedidos do Bling</span><h1 class="internal-title" style="font-size:clamp(2rem,4vw,3.3rem)">Faturamento NFS-e</h1><p class="internal-lead">Analise pedidos de venda do Bling e emita NFS-e somente quando os itens de serviço estiverem fiscalmente classificados.</p></div>
+    <div class="hero-actions"><button class="internal-btn secondary" id="refresh">Atualizar pedidos</button></div>
+  </div>
+
   <section class="status-grid">
     <div class="status-card"><small>Bling</small><strong id="blingStatus"><span class="dot"></span>Verificando…</strong></div>
     <div class="status-card"><small>Configuração NFS-e</small><strong id="configStatus"><span class="dot"></span>Verificando…</strong></div>
-    <div class="status-card"><small>Perfil fiscal padrão</small><strong id="profileStatus">Carregando…</strong></div>
+    <div class="status-card"><small>Perfil fiscal disponível</small><strong id="profileStatus">Carregando…</strong></div>
   </section>
 
   <div id="globalMessage" class="notice hidden"></div>
 
   <section class="layout">
     <div>
-      <section class="panel hidden" id="editorPanel">
-        <h2 id="editorTitle">Preparar NFS-e</h2>
-        <form id="draftForm">
-          <input type="hidden" id="documentId">
-          <div class="field"><label for="customerSearch">Cliente</label><input id="customerSearch" autocomplete="off" placeholder="Digite nome, CPF ou CNPJ"><div id="customerResults" class="customer-results hidden"></div><div id="selectedCustomer" class="selected hidden"></div></div>
-          <input type="hidden" id="customerId">
-          <div class="form-grid"><div class="field"><label for="fiscalProfile">Perfil fiscal</label><select id="fiscalProfile" required></select></div><div class="field"><label for="serviceValue">Valor do serviço</label><input id="serviceValue" inputmode="decimal" placeholder="0,00" required></div></div>
-          <div id="fiscalPreview" class="fiscal-box"></div>
-          <div class="field" style="margin-top:13px"><label for="description">Descrição do serviço</label><textarea id="description" maxlength="1600" placeholder="Descreva o serviço prestado" required></textarea><div class="muted" id="descriptionCount">0 / 1600</div></div>
-          <div class="actions"><button type="button" class="internal-btn secondary" id="closeEditor">Fechar</button><button type="submit" class="internal-btn" id="saveDraft">Salvar rascunho</button></div>
-        </form>
-      </section>
-
-      <section class="panel" style="margin-top:16px">
-        <h2>NFS-e preparadas no Croma</h2>
-        <div class="muted" id="localSummary">Carregando…</div>
-        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Valor</th><th>Situação</th><th>NFS-e</th><th>Ações</th></tr></thead><tbody id="localBody"></tbody></table></div>
+      <section class="panel">
+        <h2>Pedidos de venda do Bling</h2>
+        <p class="muted">A lista vem diretamente do ERP. Os detalhes fiscais são analisados somente quando você abre um pedido.</p>
+        <div class="toolbar"><input id="orderSearch" inputmode="numeric" placeholder="Buscar pelo número do pedido"><button class="internal-btn secondary" id="searchOrder">Buscar</button><button class="internal-btn secondary" id="clearSearch">Limpar</button></div>
+        <div class="muted" id="orderSummary">Carregando…</div>
+        <div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Total</th><th>Situação</th><th>Fiscal</th><th></th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+        <div class="pager"><button class="mini" id="prevPage">← Anterior</button><span class="muted" id="pageLabel">Página 1</span><button class="mini" id="nextPage">Próxima →</button></div>
       </section>
 
       <section class="panel external">
-        <h2>Notas recentes no Bling</h2>
-        <p class="muted">Leitura do ERP, incluindo notas emitidas manualmente fora do Croma Hub.</p>
+        <h2>NFS-e recentes no Bling</h2>
+        <p class="muted">Consulta de conferência, incluindo notas emitidas diretamente no ERP.</p>
         <div class="table-wrap"><table><thead><tr><th>NFS-e</th><th>RPS</th><th>Cliente</th><th>Valor</th><th>Situação</th><th>Emissão</th></tr></thead><tbody id="externalBody"></tbody></table></div>
       </section>
     </div>
 
     <aside class="panel" id="detailPanel">
-      <h2>Detalhes</h2>
-      <div id="detailEmpty" class="muted">Selecione uma NFS-e preparada para ver validações e histórico.</div>
-      <div id="detailContent" class="hidden"><div id="detailFields" class="detail-list"></div><div id="detailMessage" class="notice hidden"></div><div class="actions" id="detailActions"></div><h3 style="margin:22px 0 6px;color:var(--croma-deep)">Histórico</h3><div id="events" class="events"></div></div>
+      <h2>Pedido</h2>
+      <div id="detailEmpty" class="muted">Selecione um pedido para analisar cliente, itens e enquadramento fiscal.</div>
+      <div id="detailContent" class="hidden">
+        <div id="detailFields" class="detail-list"></div>
+        <div id="analysisSummary" class="summary-cards"></div>
+        <div id="detailMessage" class="notice hidden"></div>
+        <div id="items" class="items"></div>
+        <div class="section-sep"></div>
+        <div id="fiscalPreview"></div>
+        <div class="actions" id="detailActions"></div>
+      </div>
     </aside>
   </section>
 </main>
-<script type="module" src="/js/interno-nfse.js?v=20260914-1"></script>
+<script type="module" src="/js/interno-nfse.js?v=20260915-2"></script>
 </body>
 </html>
