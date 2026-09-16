@@ -121,7 +121,7 @@ function imageSrc(remote: any) {
 
 async function freshProductListImage(product: any) {
   try {
-    const rows = await blingGet("/produtos", { pagina: "1", limite: "100", criterio: String(product.nome || "") });
+    const rows = await blingGet("/produtos", { pagina: "1", limite: "100", nome: String(product.nome || "") });
     const list = Array.isArray(rows) ? rows : [];
     const exact = list.find((row: any) => Number(row?.id) === Number(product.bling_product_id));
     return imageSrc(exact) || null;
@@ -162,6 +162,20 @@ async function productSources(product: any) {
   return candidates;
 }
 
+function looksLikeImage(bytes: Uint8Array) {
+  return (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) ||
+    (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) ||
+    (String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP");
+}
+
+function detectContentType(bytes: Uint8Array, header: string) {
+  if (header.startsWith("image/")) return header.split(";")[0];
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP") return "image/webp";
+  return "image/jpeg";
+}
+
 async function fetchImage(src: string) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -180,20 +194,6 @@ async function fetchImage(src: string) {
     }
   }
   return null;
-}
-
-function looksLikeImage(bytes: Uint8Array) {
-  return (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) ||
-    (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) ||
-    (String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP");
-}
-
-function detectContentType(bytes: Uint8Array, header: string) {
-  if (header.startsWith("image/")) return header.split(";")[0];
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
-  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
-  if (String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP") return "image/webp";
-  return "image/jpeg";
 }
 
 async function getStored(path: string) {
