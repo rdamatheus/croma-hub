@@ -2,10 +2,10 @@ import { supabase } from '/js/croma-supabase.js';
 
 const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
 const dateTime=new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short'});
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const statusLabel=status=>({draft:'Rascunho',sent:'Enviada',approved:'Aprovada',rejected:'Recusada',expired:'Expirada',cancelled:'Cancelada'})[status]||status||'Rascunho';
 const pct=value=>Number.isFinite(value)?`${value.toFixed(2).replace('.',',')}%`:'—';
-const multiplier=value=>Number.isFinite(value)?`${value.toFixed(2).replace('.',',')}×`:'—';
+const multiplier=value=>Number.isFinite(value)&&value>0?`${value.toFixed(2).replace('.',',')}×`:'—';
 
 function safeUrl(value){
   try{const url=new URL(value);return url.protocol==='https:'?url.href:null}catch{return null}
