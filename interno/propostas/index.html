@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Propostas | Croma Hub</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <style>
+    body{background:#f6f6fb}.proposal-shell{max-width:1180px;margin:auto;padding:28px 18px 70px}.topline{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:22px}.back{color:var(--croma-purple);font-weight:900;text-decoration:none}.page-head{display:grid;grid-template-columns:1fr minmax(260px,380px);gap:18px;align-items:end}.page-head h1{margin:.35rem 0;color:var(--croma-deep);font-size:clamp(2rem,5vw,3.5rem)}.page-head p{color:var(--croma-muted);max-width:760px;line-height:1.55}.search label{display:block;font-size:.72rem;font-weight:900;color:var(--croma-purple);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}.search input{width:100%;padding:13px 14px;border:1px solid var(--croma-line);border-radius:13px;background:#fff;font:inherit}.feedback{min-height:22px;margin:12px 0;color:var(--croma-muted);font-size:.86rem}.feedback[data-type="error"]{color:#a5303b}.list{display:grid;gap:16px}.proposal-card{background:#fff;border:1px solid var(--croma-line);border-radius:22px;padding:20px;box-shadow:0 10px 30px #30297f0a}.proposal-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.proposal-number{display:inline-block;color:var(--croma-purple);font-weight:900;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}.proposal-head h2{margin:4px 0 3px;color:var(--croma-deep)}.proposal-head p{margin:0;color:var(--croma-muted)}.status,.sku{background:#efeff8;color:var(--croma-purple);font-weight:900;border-radius:999px;padding:7px 10px;font-size:.74rem;white-space:nowrap}.notes{background:#f8f7fc;border-radius:12px;padding:11px 13px;color:var(--croma-muted);font-size:.9rem}.proposal-items{display:grid;gap:12px}.proposal-item{border:1px solid #ebe9f2;border-radius:17px;padding:15px}.proposal-item-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.proposal-item-head strong,.proposal-item-head small{display:block}.proposal-item-head small{margin-top:3px;color:var(--croma-muted)}.price-grid{display:grid;grid-template-columns:repeat(7,minmax(120px,1fr));gap:9px;margin-top:14px}.price-grid>div{background:#f8f7fc;border-radius:13px;padding:11px}.price-grid span{display:block;color:var(--croma-muted);font-size:.72rem;margin-bottom:4px}.price-grid strong{color:var(--croma-deep);font-size:1.02rem}.price-grid .market{background:#fff8df}.price-grid .suggested{background:#edf8f0}.price-grid .suggested strong{color:#1f6b3b}.analysis-strip{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;background:#fafafe;border-radius:11px;color:var(--croma-muted);font-size:.82rem}.analysis-strip b{color:var(--croma-deep)}.market-source{margin-top:10px;color:var(--croma-muted);font-size:.78rem;line-height:1.45}.market-source a{color:var(--croma-purple);font-weight:800}.proposal-card footer{text-align:right;color:var(--croma-muted);font-size:.76rem;margin-top:12px}.empty{color:var(--croma-muted)}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions a{display:inline-flex;align-items:center;text-decoration:none;background:var(--croma-purple);color:#fff;border-radius:11px;padding:10px 13px;font-weight:900;font-size:.84rem}.actions a.alt{background:#fff;color:var(--croma-purple);border:1px solid var(--croma-line)}@media(max-width:1050px){.price-grid{grid-template-columns:repeat(4,1fr)}}@media(max-width:760px){.page-head{grid-template-columns:1fr}.price-grid{grid-template-columns:repeat(2,1fr)}.proposal-head,.proposal-item-head{display:grid}.proposal-card footer{text-align:left}}@media(max-width:430px){.price-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body hidden>
+  <main class="proposal-shell">
+    <div class="topline"><a class="back" href="/interno/">← Painel interno</a><div class="actions"><a class="alt" href="/interno/comercial/">Comercial</a><a href="/interno/comercial/#proposalSection">Nova proposta</a></div></div>
+    <div class="page-head">
+      <div><span class="internal-eyebrow">Comercial</span><h1>Propostas</h1><p>Cotações registradas com snapshot de custo, frete, markup utilizado, referência pesquisada de mercado e preço sugerido para negociação.</p></div>
+      <div class="search"><label for="proposalSearch">Localizar proposta</label><input id="proposalSearch" type="search" placeholder="Nome, telefone ou número"></div>
+    </div>
+    <div id="proposalFeedback" class="feedback" aria-live="polite"></div>
+    <section id="proposalsList" class="list"></section>
+  </main>
+  <script type="module">
+    import { protectInternalPage } from '/js/interno-auth.js?v=20260916-1';
+    import { initProposalsAdmin } from '/js/proposals-admin.js?v=20260916-1';
+    const session=await protectInternalPage({roles:['owner','manager']});
+    if(!session) throw new Error('Acesso não autorizado.');
+    await initProposalsAdmin();
+  </script>
+</body>
+</html>
