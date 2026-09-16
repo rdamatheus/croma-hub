@@ -2,9 +2,10 @@ import { supabase } from '/js/croma-supabase.js';
 
 const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
 const dateTime=new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short'});
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
 const statusLabel=status=>({draft:'Rascunho',sent:'Enviada',approved:'Aprovada',rejected:'Recusada',expired:'Expirada',cancelled:'Cancelada'})[status]||status||'Rascunho';
 const pct=value=>Number.isFinite(value)?`${value.toFixed(2).replace('.',',')}%`:'—';
+const multiplier=value=>Number.isFinite(value)?`${value.toFixed(2).replace('.',',')}×`:'—';
 
 function safeUrl(value){
   try{const url=new URL(value);return url.protocol==='https:'?url.href:null}catch{return null}
@@ -32,12 +33,12 @@ function renderItem(item){
       <div><span>Custo do fornecedor</span><strong>${money.format(Number(item.base_cost||0))}</strong></div>
       <div><span>Frete</span><strong>${money.format(Number(item.freight_cost||0))}</strong></div>
       <div><span>Custo total</span><strong>${money.format(p.cost)}</strong></div>
-      <div><span>Markup definido</span><strong>${p.markup?`${p.markup.toFixed(2).replace('.',',')}×`:'—'}</strong></div>
+      <div><span>Markup definido</span><strong>${multiplier(p.markup)}</strong></div>
       <div><span>Preço pelo markup</span><strong>${money.format(p.markupPrice)}</strong></div>
       <div class="market"><span>Valor de mercado</span><strong>${p.market==null?'Pesquisa pendente':money.format(p.market)}</strong></div>
       <div class="suggested"><span>Preço sugerido</span><strong>${p.suggested==null?'A definir':money.format(p.suggested)}</strong></div>
     </div>
-    ${p.suggested!=null?`<div class="analysis-strip"><span>Markup implícito sugerido: <b>${p.suggestedMarkup.toFixed(2).replace('.',',')}×</b></span><span>Contribuição bruta: <b>${money.format(p.contribution)}</b></span><span>Margem sobre venda: <b>${pct(p.margin)}</b></span></div>`:''}
+    ${p.suggested!=null?`<div class="analysis-strip"><span>Markup implícito sugerido: <b>${multiplier(p.suggestedMarkup)}</b></span><span>Contribuição bruta: <b>${money.format(p.contribution)}</b></span><span>Margem sobre venda: <b>${pct(p.margin)}</b></span></div>`:''}
     ${marketSource?`<div class="market-source"><b>Referência:</b> ${esc(marketSource)}${sourceUrl?` · <a href="${esc(sourceUrl)}" target="_blank" rel="noopener">abrir fonte</a>`:''}${item.market_researched_at?` · pesquisado em ${esc(dateTime.format(new Date(item.market_researched_at)))}`:''}</div>`:''}
   </section>`;
 }
