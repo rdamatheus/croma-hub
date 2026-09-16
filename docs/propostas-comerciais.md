@@ -25,6 +25,20 @@ Rota: `/interno/propostas/`
 
 A página permite localizar propostas por número, nome ou telefone e exibe custo, frete, markup, preço pelo markup, valor de mercado e preço sugerido.
 
+## Permissões
+
+As tabelas `sales_proposals` e `sales_proposal_items` usam RLS e também precisam de privilégios SQL para o papel `authenticated`.
+
+Checklist obrigatório para novas tabelas internas expostas via Supabase:
+
+1. ativar RLS;
+2. criar a política correta por perfil;
+3. conceder apenas os `GRANT`s necessários ao papel `authenticated`;
+4. não conceder acesso ao papel `anon` quando o módulo for interno;
+5. validar a leitura e a escrita pela mesma sessão usada no frontend.
+
+No módulo de propostas, `authenticated` possui `SELECT`, `INSERT`, `UPDATE` e `DELETE`, mas a política RLS continua limitando o acesso efetivo a perfis ativos `owner` e `manager`.
+
 ## Exemplo inicial
 
 A Proposta #1, de Laura Giacomini, foi consolidada somente na grade de 250 credenciais, conforme solicitação da cliente. O item preserva o custo da Zap, frete, markup 2,5, referência de mercado e sugestão comercial como campos independentes.
