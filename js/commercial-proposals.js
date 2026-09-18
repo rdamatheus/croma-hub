@@ -81,6 +81,14 @@ async function loadProposals(list, feedback) {
   setFeedback(feedback, '');
 }
 
+async function resolveSalePrice(productId,quantity){
+  const qty=Math.max(1,Number(quantity||1));
+  const {data,error}=await supabase.rpc('resolve_product_sale_price',{p_product_id:productId,p_quantity:qty,p_variant_id:null,p_on_date:new Date().toISOString().slice(0,10)});
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  return row||null;
+}
+
 async function getSupplierSnapshot(productId) {
   const { data, error } = await supabase
     .from('product_suppliers')
@@ -94,7 +102,7 @@ async function getSupplierSnapshot(productId) {
   return data || null;
 }
 
-async function createProposal({ session, name, phone, product, value }) {
+async function createProposal({ session, name, phone, product, value, quantity, resolvedPrice }) {
   const { data: proposal, error: proposalError } = await supabase
     .from('sales_proposals')
     .insert({
@@ -119,20 +127,20 @@ async function createProposal({ session, name, phone, product, value }) {
       supplier_id: supplier?.supplier_id || null,
       supplier_catalog_item_id: supplier?.supplier_catalog_item_id || null,
       description: product.nome,
-      option_label: 'Proposta principal',
-      quantity: 1,
-      unit: 'lote',
+      option_label: quantity>1?`${Number(quantity).toLocaleString('pt-BR')} unidades`:'Proposta principal',
+      quantity,
+      unit: 'un',
       supplier_sku: supplier?.supplier_sku || null,
       base_cost: Number(supplier?.purchase_price || 0),
       freight_cost: Number(supplier?.freight_cost || 0),
       total_cost: effectiveCost,
       recommended_markup: recommendedMarkup,
       applied_markup: appliedMarkup,
-      unit_price: value,
+      unit_price: Number((value/Math.max(Number(quantity||1),1)).toFixed(4)),
       line_total: value,
       sort_order: 1,
       is_selected: true,
-      metadata: { source: 'commercial_ui', price_mode: 'manual' }
+      metadata: { source: 'commercial_ui', price_mode: resolvedPrice?.source==='base'?'base':'quantity_tier', price_tier_id: resolvedPrice?.tier_id||null, price_basis: resolvedPrice?.price_basis||'unit', quantity_rule: resolvedPrice?.quantity_rule||'base', tier_price: resolvedPrice?.tier_price??null }
     });
     if (itemError) throw itemError;
   } catch (error) {
@@ -150,6 +158,7 @@ export async function initCommercialProposals(session) {
   const nameInput = document.getElementById('proposalCustomerName');
   const phoneInput = document.getElementById('proposalCustomerPhone');
   const productSelect = document.getElementById('proposalProduct');
+  const quantityInput = document.getElementById('proposalQuantity');
   const valueInput = document.getElementById('proposalValue');
   const saveButton = document.getElementById('proposalSave');
   const refreshButton = document.getElementById('proposalsRefresh');
@@ -166,25 +175,46 @@ export async function initCommercialProposals(session) {
 
   await loadProposals(list, feedback);
 
+  const refreshResolvedPrice=async()=>{
+    const productId=productSelect.value;
+    const qty=Math.max(1,Number(quantityInput?.value||1));
+    if(!productId)return;
+    try{
+      const resolved=await resolveSalePrice(productId,qty);
+      if(resolved&&Number(resolved.total_price)>=0){
+        valueInput.value=Number(resolved.total_price).toFixed(2);
+        const label=resolved.source==='base'?'preço base':'grade por quantidade';
+        setFeedback(feedback,`Valor preenchido pela ${label}: ${money.format(Number(resolved.total_price))}.`,'success');
+      }
+    }catch(error){console.error(error);setFeedback(feedback,'Não foi possível calcular a grade automaticamente. Você ainda pode informar o valor manualmente.','error')}
+  };
+  productSelect?.addEventListener('change',refreshResolvedPrice);
+  quantityInput?.addEventListener('change',refreshResolvedPrice);
+  quantityInput?.addEventListener('input',()=>{if(Number(quantityInput.value)>=1)refreshResolvedPrice()});
+
   refreshButton?.addEventListener('click', () => loadProposals(list, feedback));
   saveButton?.addEventListener('click', async () => {
     const name = nameInput.value.trim();
     const phone = phoneInput.value.trim();
     const productId = productSelect.value;
+    const quantity = Math.max(1, Number(quantityInput?.value || 1));
     const value = Number(String(valueInput.value || '').replace(',', '.'));
     const product = products.find((item) => item.id === productId);
 
     if (!name) return setFeedback(feedback, 'Informe o nome da pessoa ou empresa.', 'error');
     if (!product) return setFeedback(feedback, 'Selecione um produto.', 'error');
+    if (!Number.isFinite(quantity) || quantity <= 0) return setFeedback(feedback, 'Informe uma quantidade válida.', 'error');
     if (!Number.isFinite(value) || value <= 0) return setFeedback(feedback, 'Informe um valor válido.', 'error');
 
     saveButton.disabled = true;
     setFeedback(feedback, 'Salvando proposta…');
     try {
-      const proposal = await createProposal({ session, name, phone, product, value });
+      const resolvedPrice = await resolveSalePrice(product.id,quantity).catch(()=>null);
+      const proposal = await createProposal({ session, name, phone, product, value, quantity, resolvedPrice });
       nameInput.value = '';
       phoneInput.value = '';
       productSelect.value = '';
+      if(quantityInput)quantityInput.value='1';
       valueInput.value = '';
       setFeedback(feedback, `Proposta #${proposal.proposal_no} salva.`, 'success');
       await loadProposals(list, null);
