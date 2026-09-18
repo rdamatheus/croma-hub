@@ -2,7 +2,7 @@
 
 ## Prompt curto para IA
 
-> Converta o arquivo do fornecedor para **Croma Supplier Catalog v2.1**. Preserve exatamente SKU/código e dados de origem. Não invente dados. Normalize dimensões, unidades, quantidade, prazo e preço. Quando o campo do fornecedor chamado “Cores” representar 4X0/4X4/1X0/1X1, grave como `printMode`, não como cor física. Diferencie **opção/atributo**, **variação**, **faixa de quantidade** e **regra de medida**. Use `measurementType=fixed|area|linear|none|unknown`; `pricingUnit=unit|lot|m2|cm2|linear_meter|unknown`; `quantityType=unit|exact|range|free|unknown`; `priceBasis=unit|lot`. Para produtos por medida, preencha limites mínimos/máximos de largura, altura e área apenas quando a origem informar ou houver regra confirmada. Se não houver evidência suficiente, use `unknown` ou omita o campo. Nunca corrija preço por inferência silenciosa: preserve `sourcePrice`, marque `validationStatus=review` e explique em `validationNotes`. Se um preço parecer deslocado, incoerente com a unidade, ou muito diferente do valor vigente, mantenha o valor recebido como candidato de revisão e não o trate como custo validado. Um SKU deve aparecer uma única vez por fornecedor em cada arquivo. Retorne somente XML válido compatível com `supplier-catalog-v2_1.xsd`.
+> Converta o arquivo do fornecedor para **Croma Supplier Catalog v2.1**. Preserve exatamente SKU/código e dados de origem. Não invente dados. Normalize dimensões, unidades, quantidade, prazo e preço. Quando o campo do fornecedor chamado “Cores” representar 4X0/4X4/1X0/1X1, grave como `printMode`, não como cor física. Diferencie **opção/atributo**, **variação**, **faixa de quantidade** e **regra de medida**. Use `measurementType=fixed|area|linear|none|unknown`; `pricingUnit=unit|lot|m2|cm2|linear_meter|unknown`; `quantityType=unit|exact|range|free|unknown`; `priceBasis=unit|lot`. Para produtos por medida, preencha limites mínimos/máximos de largura, altura e área apenas quando a origem informar ou houver regra confirmada. Se não houver evidência suficiente, use `unknown` ou omita o campo. Quando houver preço normal e promocional, grave o normal em `purchasePrice`/`listPrice`, o promocional em `promotionalPrice` e use `costPricePolicy=list`; promoção nunca deve reduzir silenciosamente o custo-base. Nunca corrija preço por inferência silenciosa: preserve `sourcePrice`, marque `validationStatus=review` e explique em `validationNotes`. Se um preço parecer deslocado, incoerente com a unidade, ou muito diferente do valor vigente, mantenha o valor recebido como candidato de revisão e não o trate como custo validado. Um SKU deve aparecer uma única vez por fornecedor em cada arquivo. Retorne somente XML válido compatível com `supplier-catalog-v2_1.xsd`.
 
 ## Conceitos oficiais
 
@@ -23,7 +23,7 @@
 - `quantityType=range`: use `minQuantity` e `maxQuantity`; `maxQuantity` pode ser omitido para “a partir de”.
 - `quantityType=free`: quantidade livre; limites podem ser omitidos.
 - `priceBasis=unit`: `purchasePrice` é por unidade dentro da regra.
-- `priceBasis=lot`: `purchasePrice` é pelo lote/faixa fechada.
+- `priceBasis=lot`: `purchasePrice` é pelo lote/faixa fechada.\n- `listPrice`: preço normal/de tabela; é a base segura quando `costPricePolicy=list`.\n- `promotionalPrice`: preço promocional apenas para referência; não substitui o custo-base.\n- `costPricePolicy=list|current`: define se o custo operacional usa preço normal/de tabela ou o preço corrente.
 
 ## Medidas
 
