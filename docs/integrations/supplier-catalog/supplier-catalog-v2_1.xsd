@@ -3,7 +3,7 @@
   <xs:simpleType name="measurementType"><xs:restriction base="xs:string"><xs:enumeration value="fixed"/><xs:enumeration value="area"/><xs:enumeration value="linear"/><xs:enumeration value="none"/><xs:enumeration value="unknown"/></xs:restriction></xs:simpleType>
   <xs:simpleType name="pricingUnit"><xs:restriction base="xs:string"><xs:enumeration value="unit"/><xs:enumeration value="lot"/><xs:enumeration value="m2"/><xs:enumeration value="cm2"/><xs:enumeration value="linear_meter"/><xs:enumeration value="unknown"/></xs:restriction></xs:simpleType>
   <xs:simpleType name="quantityType"><xs:restriction base="xs:string"><xs:enumeration value="unit"/><xs:enumeration value="exact"/><xs:enumeration value="range"/><xs:enumeration value="free"/><xs:enumeration value="unknown"/></xs:restriction></xs:simpleType>
-  <xs:simpleType name="priceBasis"><xs:restriction base="xs:string"><xs:enumeration value="unit"/><xs:enumeration value="lot"/></xs:restriction></xs:simpleType>
+  <xs:simpleType name="priceBasis"><xs:restriction base="xs:string"><xs:enumeration value="unit"/><xs:enumeration value="lot"/></xs:restriction></xs:simpleType>\n  <xs:simpleType name="costPricePolicy"><xs:restriction base="xs:string"><xs:enumeration value="list"/><xs:enumeration value="current"/></xs:restriction></xs:simpleType>
   <xs:simpleType name="validationStatus"><xs:restriction base="xs:string"><xs:enumeration value="ok"/><xs:enumeration value="review"/><xs:enumeration value="reject"/></xs:restriction></xs:simpleType>
   <xs:simpleType name="dimensionUnit"><xs:restriction base="xs:string"><xs:enumeration value="mm"/><xs:enumeration value="cm"/><xs:enumeration value="m"/></xs:restriction></xs:simpleType>
   <xs:element name="supplierCatalog">
@@ -29,7 +29,7 @@
                 <xs:element name="depth" type="xs:decimal" minOccurs="0"/>
                 <xs:element name="dimensionUnit" type="dimensionUnit" minOccurs="0"/>
                 <xs:element name="sourcePrice" type="xs:string" minOccurs="0"/>
-                <xs:element name="purchasePrice" type="xs:decimal"/>
+                <xs:element name="purchasePrice" type="xs:decimal"/>\n                <xs:element name="listPrice" type="xs:decimal" minOccurs="0"/>\n                <xs:element name="promotionalPrice" type="xs:decimal" minOccurs="0"/>\n                <xs:element name="costPricePolicy" type="costPricePolicy" minOccurs="0"/>
                 <xs:element name="measurementType" type="measurementType" minOccurs="0"/>
                 <xs:element name="pricingUnit" type="pricingUnit" minOccurs="0"/>
                 <xs:element name="quantityType" type="quantityType" minOccurs="0"/>
