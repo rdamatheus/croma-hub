@@ -53,7 +53,7 @@ function renderProposal(proposal){
 }
 
 async function loadProposals(){
-  const {data,error}=await supabase.from('sales_proposals').select('id,proposal_no,customer_name,customer_phone,status,notes,created_at,sales_proposal_items(id,product_id,supplier_id,supplier_catalog_item_id,description,share_description,option_label,quantity,unit,supplier_sku,base_cost,freight_cost,total_cost,recommended_markup,applied_markup,unit_price,line_total,sort_order,market_reference_price,suggested_price,final_offer_price,image_url,market_reference_source,market_researched_at,market_reference_metadata)').order('created_at',{ascending:false}).limit(200);
+  const {data,error}=await supabase.from('sales_proposals').select('id,proposal_no,customer_name,customer_phone,status,notes,created_at,sales_proposal_items(id,product_id,supplier_id,supplier_catalog_item_id,description,share_description,option_label,quantity,unit,supplier_sku,base_cost,freight_cost,total_cost,recommended_markup,applied_markup,unit_price,line_total,sort_order,market_reference_price,suggested_price,final_offer_price,image_url,market_reference_source,market_researched_at,market_reference_metadata,metadata)').order('created_at',{ascending:false}).limit(200);
   if(error) throw error; proposals=data||[]; return proposals;
 }
 async function loadProducts(){
@@ -101,20 +101,50 @@ async function openEdit(proposal){
 }
 
 function whatsappPhone(phone){let digits=String(phone||'').replace(/\D/g,'');if(!digits)return'';if(!digits.startsWith('55')&&digits.length<=11)digits=`55${digits}`;return digits}
-function shareMessage(proposal,item){const p=itemPricing(item),desc=(item.share_description||item.description||'Produto').trim();return `*${desc}*\nQuantidade: ${Number(item.quantity||1).toLocaleString('pt-BR')} ${item.unit||'un'}\nValor: *${money.format(p.final||p.suggested||p.markupPrice)}*\n\nProposta #${proposal.proposal_no} · Croma Gráfica e Papelaria`;}
+function shareMessage(proposal,items){
+  const sorted=[...(items||[])].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  if(!sorted.length)return `Proposta #${proposal.proposal_no} · Croma Gráfica e Papelaria`;
+  const common=sorted.filter(i=>i.metadata?.proposal_mode==='common');
+  const alternatives=sorted.filter(i=>i.metadata?.proposal_mode==='alternative');
+  const commonTotal=common.reduce((s,i)=>s+Number(itemPricing(i).final||i.line_total||0),0);
+  const lines=[`*Proposta #${proposal.proposal_no} — ${proposal.customer_name}*`];
+  if(common.length){
+    lines.push('');
+    common.forEach(i=>lines.push(`• ${(i.share_description||i.description||'Serviço').trim()}: *${money.format(Number(itemPricing(i).final||i.line_total||0))}*`));
+  }
+  if(alternatives.length){
+    alternatives.forEach((i,index)=>{
+      const p=itemPricing(i),value=Number(p.final||i.line_total||0),total=value+commonTotal;
+      lines.push('',`*${i.option_label||`Opção ${index+1}`}*`,(i.share_description||i.description||'').trim(),`Quantidade: ${Number(i.quantity||1).toLocaleString('pt-BR')} ${i.unit||'un'}`,`Valor da opção: *${money.format(value)}*`);
+      if(commonTotal>0)lines.push(`Total com serviços comuns: *${money.format(total)}*`);
+    });
+  }else{
+    sorted.filter(i=>!common.includes(i)).forEach(i=>{
+      const p=itemPricing(i);lines.push('',`*${i.option_label||i.description||'Item'}*`,`${Number(i.quantity||1).toLocaleString('pt-BR')} ${i.unit||'un'} · *${money.format(Number(p.final||i.line_total||0))}*`);
+    });
+  }
+  lines.push('','Croma Gráfica e Papelaria');
+  return lines.join('\n');
+}
 async function loadImage(url){if(!url)return null;try{const res=await fetch(url,{mode:'cors'});if(!res.ok)throw new Error('imagem');const blob=await res.blob(),obj=URL.createObjectURL(blob),img=new Image();await new Promise((ok,fail)=>{img.onload=ok;img.onerror=fail;img.src=obj});URL.revokeObjectURL(obj);return img}catch{return null}}
-async function buildCard(proposal,item,canvas){
+async function buildCard(proposal,items,canvas){
+  const sorted=[...(items||[])].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   const ctx=canvas.getContext('2d'),W=1080,H=1350;canvas.width=W;canvas.height=H;ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#30297F';ctx.fillRect(0,0,W,150);ctx.fillStyle='#fff';ctx.font='bold 60px Arial';ctx.fillText('CROMA',70,95);ctx.font='28px Arial';ctx.fillText('Gráfica e Papelaria',330,94);
-  const img=await loadImage(item.image_url);ctx.fillStyle='#f4f3f9';ctx.fillRect(70,200,940,600);if(img){const scale=Math.min(900/img.width,560/img.height),w=img.width*scale,h=img.height*scale;ctx.drawImage(img,540-w/2,500-h/2,w,h)}else{ctx.fillStyle='#706d80';ctx.font='32px Arial';ctx.textAlign='center';ctx.fillText('Imagem do produto',540,500);ctx.textAlign='left'}
-  const title=(item.share_description||item.description||'Produto').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();ctx.fillStyle='#211c5c';ctx.font='bold 44px Arial';wrapText(ctx,title,70,875,940,56,3);ctx.fillStyle='#706d80';ctx.font='34px Arial';ctx.fillText(`Quantidade: ${Number(item.quantity||1).toLocaleString('pt-BR')} ${item.unit||'un'}`,70,1090);ctx.fillStyle='#30297F';ctx.font='bold 64px Arial';ctx.fillText(money.format(itemPricing(item).final),70,1195);ctx.fillStyle='#706d80';ctx.font='24px Arial';ctx.fillText(`Proposta #${proposal.proposal_no}`,70,1280);
+  ctx.fillStyle='#211c5c';ctx.font='bold 48px Arial';ctx.fillText(`Proposta #${proposal.proposal_no}`,70,235);ctx.font='bold 38px Arial';wrapText(ctx,proposal.customer_name||'Cliente',70,290,940,48,2);
+  const common=sorted.filter(i=>i.metadata?.proposal_mode==='common'),alternatives=sorted.filter(i=>i.metadata?.proposal_mode==='alternative'),commonTotal=common.reduce((s,i)=>s+Number(itemPricing(i).final||i.line_total||0),0);
+  let y=395;
+  if(common.length){ctx.fillStyle='#706d80';ctx.font='28px Arial';common.forEach(i=>{wrapText(ctx,`+ ${i.option_label||i.description}: ${money.format(Number(itemPricing(i).final||i.line_total||0))}`,70,y,940,38,2);y+=70;});}
+  const cards=alternatives.length?alternatives:sorted.filter(i=>!common.includes(i));
+  cards.forEach((i,index)=>{const p=itemPricing(i),value=Number(p.final||i.line_total||0),total=value+(alternatives.length?commonTotal:0);ctx.fillStyle='#f4f3f9';ctx.fillRect(70,y,940,230);ctx.fillStyle='#30297F';ctx.font='bold 34px Arial';wrapText(ctx,i.option_label||`Opção ${index+1}`,95,y+52,890,42,2);ctx.fillStyle='#211c5c';ctx.font='28px Arial';wrapText(ctx,(i.share_description||i.description||'').replace(/\s+/g,' ').trim(),95,y+112,890,34,2);ctx.fillStyle='#30297F';ctx.font='bold 40px Arial';ctx.fillText(money.format(total),95,y+205);y+=255;});
+  ctx.fillStyle='#706d80';ctx.font='24px Arial';ctx.fillText('Valores sujeitos à validade informada na proposta.',70,1280);
   return new Promise(resolve=>canvas.toBlob(resolve,'image/png',0.95));
 }
 function wrapText(ctx,text,x,y,maxWidth,lineHeight,maxLines){const words=text.split(' ');let line='',lines=0;for(let i=0;i<words.length;i++){const test=line+words[i]+' ';if(ctx.measureText(test).width>maxWidth&&i>0){ctx.fillText(line.trim(),x,y);line=words[i]+' ';y+=lineHeight;lines++;if(lines>=maxLines-1)break}else line=test}if(lines<maxLines)ctx.fillText(line.trim(),x,y)}
 
 async function openShare(proposal){
-  const item=proposal.sales_proposal_items?.[0];if(!item)return;const message=shareMessage(proposal,item);
+  const items=[...(proposal.sales_proposal_items||[])].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));if(!items.length)return;const message=shareMessage(proposal,items);
   setModal(`<div class="modal-backdrop" data-modal-close><section class="modal" role="dialog" aria-modal="true"><h2>Encaminhar proposta #${esc(proposal.proposal_no)}</h2><p class="modal-lead">Revise a imagem e a mensagem antes de compartilhar.</p><div class="share-layout"><div class="share-card-wrap"><canvas id="shareCanvas"></canvas></div><div><div class="field"><label>Mensagem</label><textarea id="shareMessage" class="share-message">${esc(message)}</textarea></div><p class="share-note">O link do WhatsApp consegue preencher o texto, mas não anexar uma imagem automaticamente. No computador, use “Copiar imagem” e depois cole no WhatsApp. No celular compatível, “Compartilhar imagem + mensagem” abre o compartilhamento nativo.</p><div id="shareFeedback" class="modal-feedback"></div><div class="modal-actions"><button class="mini-btn alt" id="copyMessage">Copiar mensagem</button><button class="mini-btn alt" id="copyImage">Copiar imagem</button><button class="mini-btn" id="nativeShare">Compartilhar imagem + mensagem</button><button class="mini-btn share" id="openWhatsApp">Abrir WhatsApp</button><button class="mini-btn alt" data-close>Fechar</button></div></div></div></section></div>`);
-  const root=document.getElementById('proposalModalRoot'),canvas=root.querySelector('#shareCanvas'),fb=root.querySelector('#shareFeedback');fb.textContent='Gerando imagem…';const blob=await buildCard(proposal,item,canvas);fb.textContent='Prévia pronta.';fb.dataset.type='success';
+  const root=document.getElementById('proposalModalRoot'),canvas=root.querySelector('#shareCanvas'),fb=root.querySelector('#shareFeedback');fb.textContent='Gerando imagem…';const blob=await buildCard(proposal,items,canvas);fb.textContent='Prévia pronta.';fb.dataset.type='success';
   root.querySelector('[data-close]').onclick=closeModal;root.querySelector('[data-modal-close]').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
   root.querySelector('#copyMessage').onclick=async()=>{try{await navigator.clipboard.writeText(root.querySelector('#shareMessage').value);fb.textContent='Mensagem copiada.';fb.dataset.type='success'}catch{fb.textContent='Não foi possível copiar a mensagem.';fb.dataset.type='error'}};
   root.querySelector('#copyImage').onclick=async()=>{try{if(!blob||!window.ClipboardItem)throw new Error();await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);fb.textContent='Imagem copiada. Cole no WhatsApp com Ctrl+V.';fb.dataset.type='success'}catch{fb.textContent='Este navegador não permitiu copiar a imagem. Use o compartilhamento nativo ou salve pela prévia.';fb.dataset.type='error'}};
