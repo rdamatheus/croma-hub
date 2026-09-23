@@ -1,5 +1,6 @@
 import { optimizeRollLayout, calculateRollFinancials } from './roll-optimizer.js';
 import { optimizeSheetLayout } from './sheet-optimizer.js';
+import { IN_HOUSE_PRODUCTION } from '../data/in-house-production.js';
 
 const PREF_KEY='croma_roll_simulator_standalone_preferences_v1';
 const TYPE_CONFIG={
@@ -134,6 +135,30 @@ if(urlPreset && !urlPreset.__error){
       quantity:Math.max(1,Math.floor(Number(item.quantity)||1))
     })).filter(item=>item.width_cm>0 && item.height_cm>0);
   }
+}
+
+function loadInHouseProduction(){
+  const groupKey=simulationType==='contour'?'contour_all':simulationType;
+  const source=IN_HOUSE_PRODUCTION.groups?.[groupKey]||[];
+  if(!source.length){
+    setStatus('Não há itens sincronizados do In House para este tipo.','error');
+    return;
+  }
+  items=source.map((item,index)=>({
+    id:uid(),
+    name:String(item.name||`${itemBaseName()} ${index+1}`),
+    width_cm:Number(item.width_cm),
+    height_cm:Number(item.height_cm),
+    quantity:Math.max(1,Math.floor(Number(item.quantity)||1)),
+    source_folder:item.source_folder||''
+  }));
+  renderItems();
+  updatePreliminary();
+  currentResult=null;
+  $('resultSection').hidden=true;
+  const total=items.reduce((sum,item)=>sum+item.quantity,0);
+  setStatus(`In House carregado: ${items.length} artes, ${total} unidades. Calculando encaixe…`,'info');
+  optimize();
 }
 
 function activeType(){return TYPE_CONFIG[simulationType]||TYPE_CONFIG.roll;}
@@ -505,6 +530,7 @@ function copySummary(){
 $('addItem').addEventListener('click',()=>{syncItemsFromDom();items.push({id:uid(),name:`${itemBaseName()} ${items.length+1}`,width_cm:5,height_cm:5,quantity:100});renderItems();updatePreliminary();});
 $('optimizeBtn').addEventListener('click',optimize);
 $('saveDefaults').addEventListener('click',saveDefaults);
+$('loadInHouseBtn').addEventListener('click',loadInHouseProduction);
 $('copySummary').addEventListener('click',copySummary);
 $('copyShareLink').addEventListener('click',copyShareLink);
 $('copyPlacementMap').addEventListener('click',copyPlacementMap);
