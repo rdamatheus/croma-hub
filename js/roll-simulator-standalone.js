@@ -372,13 +372,7 @@ function copySummary(){
   navigator.clipboard.writeText(text).then(()=>setStatus('Resumo copiado para a área de transferência.','ok')).catch(()=>setStatus('Não foi possível copiar automaticamente.','error'));
 }
 
-$('addItem').addEventListener('click',()=>{syncItemsFromDom();items.push({id:uid(),name:`Adesivo ${items.length+1}`,width_cm:5,height_cm:5,quantity:100});renderItems();updatePreliminary();
-if(urlPreset?.__error){
-  setStatus('O link contém um preset inválido. A simulação foi aberta com os valores locais.','error');
-}else if(urlPreset){
-  setStatus('Simulação carregada pelo link. Calculando o melhor encaixe…','info');
-  optimize();
-}});
+$('addItem').addEventListener('click',()=>{syncItemsFromDom();items.push({id:uid(),name:`Adesivo ${items.length+1}`,width_cm:5,height_cm:5,quantity:100});renderItems();updatePreliminary();});
 $('optimizeBtn').addEventListener('click',optimize);
 $('saveDefaults').addEventListener('click',saveDefaults);
 $('copySummary').addEventListener('click',copySummary);
@@ -390,3 +384,9 @@ $('clearBtn').addEventListener('click',()=>{items=[{id:uid(),name:'Adesivo 1',wi
 window.addEventListener('resize',()=>{if(currentResult)renderSegments(currentResult)});
 
 renderItems();updatePreliminary();
+if(urlPreset?.__error){
+  setStatus('O link contém um preset inválido. A simulação foi aberta com os valores locais.','error');
+}else if(urlPreset){
+  setStatus('Simulação carregada pelo link. Calculando o melhor encaixe…','info');
+  optimize();
+}
