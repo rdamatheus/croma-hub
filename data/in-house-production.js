@@ -202,7 +202,7 @@ export const IN_HOUSE_PRODUCTION={
     ],
     "hollow": [
       {
-        "name": "LOGO CASA LARANJA - CORTE VAZADO 1X",
+        "name": "LOGO CASA LARANJA - CORTE VAZADO",
         "width_cm": 70,
         "height_cm": 93,
         "quantity": 1,
