@@ -300,8 +300,13 @@ async function loadSimulation(id){
   if(currentResult)renderResult(currentResult);else await optimize({silent:true});
   updateSimulationBadges();updatePreliminary();setStatus(`Simulação #${sim.simulation_no} carregada.`,'ok');
 }
-function newSimulation(kind=mode){
-  currentSimulation=null;currentResult=null;mode=kind;setMode(mode,{resetItems:true});$('simulationTitle').value='';$('simulationNotes').value='';$('proposalSelect').value='';$('freight').value=0;$('resultSection').hidden=true;updateSimulationBadges();setStatus('Nova simulação iniciada.','info');
+function newSimulation(kind=mode,{preserveProposal=true}={}){
+  const proposalId=preserveProposal?$('proposalSelect').value:'';
+  currentSimulation=null;currentResult=null;mode=kind;setMode(mode,{resetItems:true});$('simulationNotes').value='';$('freight').value=0;$('resultSection').hidden=true;
+  $('proposalSelect').value=proposalId;
+  const proposal=selectedProposal();
+  $('simulationTitle').value=proposal?`${proposal.customer_name} — ${mode==='roll'?'adesivos':'placas'}`:'';
+  updateSimulationBadges();setStatus('Nova simulação iniciada.','info');
 }
 async function openSavedModal(){
   const {data,error}=await supabase.from('production_simulations').select('id,simulation_no,simulation_type,title,proposal_id,customer_name,current_version,updated_at').order('updated_at',{ascending:false}).limit(100);if(error){setStatus(error.message,'error');return}
