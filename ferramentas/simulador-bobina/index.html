@@ -17,23 +17,23 @@
     <main class="sim-shell">
       <div class="sim-title-row"><div><span class="internal-eyebrow">Ferramentas de produção</span><h1>Simuladores de Produção</h1><p>Escolha o tipo de material, informe tamanhos e quantidades e gere o melhor encaixe para orçamento e montagem no CorelDRAW.</p></div><aside class="tip"><strong>Modo local</strong>O cálculo acontece neste navegador. Nada desta simulação é enviado ao banco de dados.</aside></div>
       <section class="type-picker" aria-label="Tipo de simulação">
-        <button class="type-card active" data-sim-type="roll"><strong>Bobina adesivo</strong><span>Otimização em largura contínua de bobina.</span></button>
-        <button class="type-card" data-sim-type="pvc"><strong>Placa PVC</strong><span>Distribuição em chapas com largura e altura máximas.</span></button>
-        <button class="type-card" data-sim-type="contour"><strong>Adesivo com recorte especial</strong><span>Peças com contorno, organizadas para melhor aproveitamento.</span></button>
-        <button class="type-card" data-sim-type="straight"><strong>Adesivo com corte reto</strong><span>Peças retangulares com organização para produção.</span></button>
+        <button class="type-card active" data-sim-type="straight"><strong>ADESIVOS CORTE RETO</strong><span>Peças retangulares organizadas para melhor aproveitamento.</span></button>
+        <button class="type-card" data-sim-type="contour"><strong>ADESIVOS CORTE ESPECIAL</strong><span>Peças com recorte especial organizadas para produção.</span></button>
+        <button class="type-card" data-sim-type="hollow"><strong>ADESIVOS CORTE VAZADO</strong><span>Artes vazadas organizadas pela área envolvente.</span></button>
+        <button class="type-card" data-sim-type="pvc"><strong>PLACAS PVC</strong><span>Distribuição em chapas com largura e altura máximas.</span></button>
       </section>
-      <div class="in-house-sync" id="inHouseSyncMeta"><strong>Drive sincronizado:</strong> In House → PRODUÇÃO · 26 arquivos · snapshot de 22/09/2026. Use “Carregar In House” para preencher o tipo selecionado.</div>
+      <div class="in-house-sync" id="inHouseSyncMeta"><strong>Drive sincronizado:</strong> In House → PRODUÇÃO · 26 arquivos · snapshot de 23/09/2026. Use “Carregar In House” para preencher o tipo selecionado.</div>
       <div class="grid-main"><div>
-        <section class="panel"><div class="panel-head"><div><h2 id="configTitle">Configuração da bobina</h2><p id="configDescription">Parâmetros físicos usados no cálculo de encaixe.</p></div><div class="panel-head-actions"><button class="btn secondary" id="loadInHouseBtn">Carregar In House</button><button class="btn secondary" id="saveDefaults">Salvar neste navegador</button></div></div><div class="panel-body">
+        <section class="panel"><div class="panel-head"><div><h2 id="configTitle">Adesivos Corte Reto</h2><p id="configDescription">Organização de peças retangulares para melhor aproveitamento da largura de produção.</p></div><div class="panel-head-actions"><button class="btn secondary" id="loadInHouseBtn">Carregar In House</button><button class="btn secondary" id="saveDefaults">Salvar neste navegador</button></div></div><div class="panel-body">
           <div class="config-grid">
-            <div class="field"><label id="widthLabel" for="rollWidthCm">Largura máxima da bobina (cm)</label><input id="rollWidthCm" type="number" min="1" step="0.1"><small id="widthHelp">Limite máximo permitido pelo fornecedor/equipamento.</small></div>
+            <div class="field"><label id="widthLabel" for="rollWidthCm">Largura máxima da área/bobina (cm)</label><input id="rollWidthCm" type="number" min="1" step="0.1"><small id="widthHelp">Limite máximo permitido pelo fornecedor/equipamento.</small></div>
             <div class="field" id="sheetHeightField" hidden><label for="sheetHeightCm">Altura máxima da placa (cm)</label><input id="sheetHeightCm" type="number" min="1" step="0.1" value="100"><small>Altura total disponível em cada placa.</small></div>
             <div class="field"><label id="marginLabel" for="marginCm">Margem lateral (cm)</label><input id="marginCm" type="number" min="0" step="0.1"><small id="marginHelp">A mesma margem é aplicada dos dois lados.</small></div>
             <div class="field"><label for="gapCm">Espaçamento entre adesivos (cm)</label><input id="gapCm" type="number" min="0" step="0.1"><small>Usado igualmente no sentido horizontal e vertical.</small></div>
             <label class="toggle-row"><input id="allowRotation" type="checkbox"><span><strong>Rotação automática</strong><br><small>Permitir giro de 90° para melhorar o encaixe.</small></span></label>
           </div>
           <details class="advanced" id="advancedRoll"><summary>Configurações avançadas</summary><div class="field"><label for="maxSegments">Máximo de segmentos</label><input id="maxSegments" type="number" min="1" max="8" step="1"><small>O sistema só divide a produção quando a soma das áreas fica menor.</small></div></details>
-          <div class="roll-illustration" aria-hidden="true"><div class="roll-visual"><div class="roll-core"></div><div class="roll-paper"><span class="roll-margin left"></span><span class="roll-margin right"></span><div class="roll-labels"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div><div class="roll-caption"><span>A bobina define apenas a <strong>largura máxima</strong>.</span><span>O comprimento é calculado pelo encaixe.</span></div></div>
+          <div class="roll-illustration" id="rollIllustration" aria-hidden="true"><div class="roll-visual"><div class="roll-core"></div><div class="roll-paper"><span class="roll-margin left"></span><span class="roll-margin right"></span><div class="roll-labels"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div><div class="roll-caption"><span>A bobina define apenas a <strong>largura máxima</strong>.</span><span>O comprimento é calculado pelo encaixe.</span></div></div>
         </div></section>
         <section class="panel items-panel"><div class="panel-head"><div><h2 id="itemsTitle">Adesivos da simulação</h2><p id="itemsDescription">Adicione todos os tamanhos e quantidades desta cotação.</p></div><button class="btn primary" id="addItem">＋ Adicionar adesivo</button></div><div class="panel-body"><div class="table-wrap"><table class="items-table"><thead><tr><th>#</th><th>Descrição</th><th>Largura (cm)</th><th>Altura (cm)</th><th>Quantidade</th><th>Ações</th></tr></thead><tbody id="itemsBody"></tbody></table></div><div class="actions-row"><button class="btn danger" id="clearBtn">Limpar</button><button class="btn primary" id="optimizeBtn">Otimizar encaixe</button></div><p id="status" class="status"></p></div></section>
       </div>
@@ -51,6 +51,6 @@
     </main>
   </section>
 </div>
-<script type="module" src="/js/roll-simulator-standalone.js?v=20260922-4"></script>
+<script type="module" src="/js/roll-simulator-standalone.js?v=20260923-1"></script>
 </body>
 </html>
