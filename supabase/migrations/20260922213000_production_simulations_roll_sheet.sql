@@ -72,4 +72,4 @@ using (exists (
 
 grant select, insert, update, delete on public.production_simulations to authenticated;
 grant select, insert, delete on public.production_simulation_versions to authenticated;
-grant usage, select on all sequences in schema public to authenticated;
+grant usage, select on sequence public.production_simulations_simulation_no_seq to authenticated;
