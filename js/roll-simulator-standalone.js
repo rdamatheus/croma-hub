@@ -1,6 +1,49 @@
 import { optimizeRollLayout, calculateRollFinancials } from './roll-optimizer.js';
+import { optimizeSheetLayout } from './sheet-optimizer.js';
 
 const PREF_KEY='croma_roll_simulator_standalone_preferences_v1';
+const TYPE_CONFIG={
+  roll:{
+    label:'Bobina adesivo',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
+    configTitle:'Configuração da bobina',
+    configDescription:'Parâmetros físicos usados no cálculo de encaixe contínuo.',
+    widthLabel:'Largura máxima da bobina (cm)',
+    widthHelp:'Limite máximo permitido pelo fornecedor/equipamento.',
+    marginLabel:'Margem lateral (cm)',
+    marginHelp:'A mesma margem é aplicada dos dois lados.',
+    providerNote:'Sobras fora do retângulo solicitado não entram no custo. Áreas em branco dentro de um segmento encomendado entram na área paga.'
+  },
+  pvc:{
+    label:'Placa PVC',mode:'sheet',itemSingular:'Peça',itemPlural:'Peças',
+    configTitle:'Configuração da placa PVC',
+    configDescription:'Defina o tamanho máximo da chapa e distribua as peças no menor número de placas.',
+    widthLabel:'Largura máxima da placa (cm)',
+    widthHelp:'Padrão inicial de 200 cm; pode ser alterado conforme o material disponível.',
+    marginLabel:'Margem da placa (cm)',
+    marginHelp:'Aplicada nos quatro lados da placa.',
+    providerNote:'O cálculo considera placas inteiras no tamanho informado e mostra quantas são necessárias, o aproveitamento e a sobra.'
+  },
+  contour:{
+    label:'Adesivo com recorte especial',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
+    configTitle:'Adesivo com recorte especial',
+    configDescription:'Organização das peças com contorno dentro da largura de produção.',
+    widthLabel:'Largura máxima da área/bobina (cm)',
+    widthHelp:'Informe a largura útil máxima disponível para produção.',
+    marginLabel:'Margem lateral (cm)',
+    marginHelp:'A mesma margem é aplicada dos dois lados.',
+    providerNote:'O encaixe usa o retângulo envolvente de cada peça. O formato real do contorno ainda não é usado no nesting geométrico.'
+  },
+  straight:{
+    label:'Adesivo com corte reto',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
+    configTitle:'Adesivo com corte reto',
+    configDescription:'Organização de peças retangulares para melhor aproveitamento da largura de produção.',
+    widthLabel:'Largura máxima da área/bobina (cm)',
+    widthHelp:'Informe a largura útil máxima disponível para produção.',
+    marginLabel:'Margem lateral (cm)',
+    marginHelp:'A mesma margem é aplicada dos dois lados.',
+    providerNote:'Otimização retangular para peças com corte reto, respeitando margem, espaçamento e rotação configurados.'
+  }
+};
 const $=id=>document.getElementById(id);
 const money=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const decimal=(value,digits=2)=>Number(value||0).toLocaleString('pt-BR',{minimumFractionDigits:digits,maximumFractionDigits:digits});
@@ -37,6 +80,7 @@ function readPresetFromUrl(){
 
 $('who').textContent='Modo local · sem banco de dados';
 
+let simulationType='roll';
 let currentResult=null;
 let items=[
   {id:uid(),name:'Adesivo 1',width_cm:5,height_cm:3,quantity:1000},
@@ -61,14 +105,18 @@ $('marginCm').value=(Number(rollDefaults.margin_mm)||5)/10;
 $('gapCm').value=(Number(rollDefaults.gap_mm)||3)/10;
 $('allowRotation').checked=rollDefaults.allow_rotation!==false;
 $('maxSegments').value=Number(rollDefaults.max_segments)||4;
+$('sheetHeightCm').value=Number(prefs.sheet_height_cm)||100;
+simulationType=TYPE_CONFIG[prefs.simulation_type]?prefs.simulation_type:'roll';
 $('pricePerM2').value=Number(prefs.price_per_m2)||0;
 $('freight').value=0;
 $('markup').value=Number(prefs.markup_pct)||0;
 
 const urlPreset=readPresetFromUrl();
 if(urlPreset && !urlPreset.__error){
+  if(TYPE_CONFIG[urlPreset.type]) simulationType=urlPreset.type;
   const cfg=urlPreset.config||{};
   if(Number(cfg.roll_width_cm)>0) $('rollWidthCm').value=Number(cfg.roll_width_cm);
+  if(Number(cfg.sheet_height_cm)>0) $('sheetHeightCm').value=Number(cfg.sheet_height_cm);
   if(Number(cfg.margin_cm)>=0 && cfg.margin_cm!=='' && cfg.margin_cm!=null) $('marginCm').value=Number(cfg.margin_cm);
   if(Number(cfg.gap_cm)>=0 && cfg.gap_cm!=='' && cfg.gap_cm!=null) $('gapCm').value=Number(cfg.gap_cm);
   if(typeof cfg.allow_rotation==='boolean') $('allowRotation').checked=cfg.allow_rotation;
@@ -80,7 +128,7 @@ if(urlPreset && !urlPreset.__error){
   if(Array.isArray(urlPreset.items) && urlPreset.items.length){
     items=urlPreset.items.slice(0,200).map((item,index)=>({
       id:uid(),
-      name:String(item.name||`Adesivo ${index+1}`),
+      name:String(item.name||`${itemBaseName()} ${index+1}`),
       width_cm:Number(item.width_cm),
       height_cm:Number(item.height_cm),
       quantity:Math.max(1,Math.floor(Number(item.quantity)||1))
@@ -88,11 +136,44 @@ if(urlPreset && !urlPreset.__error){
   }
 }
 
+function activeType(){return TYPE_CONFIG[simulationType]||TYPE_CONFIG.roll;}
+
+function itemBaseName(){return activeType().itemSingular;}
+
+function applySimulationType(type,{preserveValues=true}={}){
+  if(!TYPE_CONFIG[type]) return;
+  simulationType=type;
+  const cfg=activeType();
+  document.querySelectorAll('[data-sim-type]').forEach(btn=>btn.classList.toggle('active',btn.dataset.simType===type));
+  $('configTitle').textContent=cfg.configTitle;
+  $('configDescription').textContent=cfg.configDescription;
+  $('widthLabel').textContent=cfg.widthLabel;
+  $('widthHelp').textContent=cfg.widthHelp;
+  $('marginLabel').textContent=cfg.marginLabel;
+  $('marginHelp').textContent=cfg.marginHelp;
+  $('providerNote').textContent=cfg.providerNote;
+  $('itemsTitle').textContent=`${cfg.itemPlural} da simulação`;
+  $('itemsDescription').textContent=type==='pvc'
+    ?'Adicione todas as peças que precisam ser distribuídas nas placas.'
+    :'Adicione todos os tamanhos e quantidades desta cotação.';
+  $('addItem').textContent=`＋ Adicionar ${cfg.itemSingular.toLowerCase()}`;
+  $('sheetHeightField').hidden=cfg.mode!=='sheet';
+  $('advancedRoll').hidden=cfg.mode==='sheet';
+  if(!preserveValues && type==='pvc'){
+    $('rollWidthCm').value=200;
+    $('sheetHeightCm').value=100;
+  }
+  currentResult=null;
+  $('resultSection').hidden=true;
+  renderItems();
+  updatePreliminary();
+}
+
 function renderItems(){
   $('itemsBody').innerHTML=items.map((item,index)=>`
     <tr class="item-row" data-id="${item.id}">
       <td class="item-number">${index+1}</td>
-      <td><input class="item-name" value="${escapeHtml(item.name)}" aria-label="Descrição do adesivo ${index+1}"></td>
+      <td><input class="item-name" value="${escapeHtml(item.name)}" aria-label="Descrição da peça ${index+1}"></td>
       <td><input class="item-width" type="number" min="0.1" step="0.1" value="${item.width_cm}" aria-label="Largura em centímetros"></td>
       <td><input class="item-height" type="number" min="0.1" step="0.1" value="${item.height_cm}" aria-label="Altura em centímetros"></td>
       <td><input class="item-quantity" type="number" min="1" step="1" value="${item.quantity}" aria-label="Quantidade"></td>
@@ -117,7 +198,7 @@ function escapeHtml(value=''){
 function syncItemsFromDom(){
   items=[...document.querySelectorAll('.item-row')].map((row,index)=>({
     id:row.dataset.id,
-    name:row.querySelector('.item-name').value.trim() || `Adesivo ${index+1}`,
+    name:row.querySelector('.item-name').value.trim() || `${itemBaseName()} ${index+1}`,
     width_cm:Number(row.querySelector('.item-width').value),
     height_cm:Number(row.querySelector('.item-height').value),
     quantity:Math.floor(Number(row.querySelector('.item-quantity').value)||0)
@@ -125,11 +206,21 @@ function syncItemsFromDom(){
 }
 
 function currentConfig(){
-  return {
-    roll_width_mm:Number($('rollWidthCm').value)*10,
+  const base={
     margin_mm:Number($('marginCm').value)*10,
     gap_mm:Number($('gapCm').value)*10,
-    allow_rotation:$('allowRotation').checked,
+    allow_rotation:$('allowRotation').checked
+  };
+  if(activeType().mode==='sheet'){
+    return {
+      ...base,
+      sheet_width_mm:Number($('rollWidthCm').value)*10,
+      sheet_height_mm:Number($('sheetHeightCm').value)*10
+    };
+  }
+  return {
+    ...base,
+    roll_width_mm:Number($('rollWidthCm').value)*10,
     max_segments:Number($('maxSegments').value)||4,
     min_segment_width_mm:1
   };
@@ -144,10 +235,14 @@ function updatePreliminary(){
   try{
     syncItemsFromDom();
     const cfg=currentConfig();
-    const usable=cfg.roll_width_mm-(cfg.margin_mm*2);
+    const usable=(cfg.roll_width_mm??cfg.sheet_width_mm)-(cfg.margin_mm*2);
     $('preItems').textContent=String(items.length);
     $('preUnits').textContent=items.reduce((sum,item)=>sum+(Math.max(0,item.quantity)||0),0).toLocaleString('pt-BR');
-    $('preUsable').textContent=usable>0?`${decimal(usable/10,1)} cm`:'—';
+    $('preUsable').textContent=usable>0
+      ?(activeType().mode==='sheet'
+        ?`${decimal(usable/10,1)} × ${decimal((cfg.sheet_height_mm-cfg.margin_mm*2)/10,1)} cm`
+        :`${decimal(usable/10,1)} cm`)
+      :'—';
     $('preRotation').textContent=cfg.allow_rotation?'Ativada':'Desativada';
   }catch{}
 }
@@ -164,7 +259,10 @@ function colorFor(index,alpha=1){
 function renderResult(result){
   currentResult=result;
   $('resultSection').hidden=false;
-  $('metricLinear').textContent=`${decimal(result.total_linear_m,2)} m`;
+  const isSheet=result.mode==='sheet';
+  $('metricLinearLabel').textContent=isSheet?'Placas necessárias':'Soma dos comprimentos';
+  $('metricAreaLabel').textContent=isSheet?'Área total das placas':'Área efetivamente encomendada';
+  $('metricLinear').textContent=isSheet?`${result.sheet_count} placa${result.sheet_count===1?'':'s'}`:`${decimal(result.total_linear_m,2)} m`;
   $('metricOrderedArea').textContent=`${decimal(result.ordered_area_m2,3)} m²`;
   $('metricUtilization').textContent=`${decimal(result.utilization_pct,1)}%`;
   $('metricLoss').textContent=`${decimal(result.loss_pct,1)}%`;
@@ -173,7 +271,9 @@ function renderResult(result){
   $('metricGeometric').textContent=`${decimal(result.geometric_area_m2,3)} m²`;
   $('metricBlank').textContent=`${decimal(result.paid_blank_area_m2,3)} m²`;
 
-  if(result.segmentation_saving_m2>0.0005){
+  if(isSheet){
+    $('segmentationNote').innerHTML=`As peças foram distribuídas em <strong>${result.sheet_count} placa${result.sheet_count===1?'':'s'}</strong> de <strong>${decimal(result.config.sheet_width_mm/10,1)} × ${decimal(result.config.sheet_height_mm/10,1)} cm</strong>.`;
+  } else if(result.segmentation_saving_m2>0.0005){
     const pct=result.single_segment_area_m2>0?(result.segmentation_saving_m2/result.single_segment_area_m2)*100:0;
     $('segmentationNote').innerHTML=`A solução foi dividida em <strong>${result.segments.length} segmentos</strong> porque isso reduz a área encomendada em <strong>${decimal(result.segmentation_saving_m2,3)} m² (${decimal(pct,1)}%)</strong> em comparação com manter tudo em uma única faixa.`;
   } else {
@@ -194,7 +294,7 @@ function renderSegments(result){
       const item=result.items.find(i=>i.id===id); return `${escapeHtml(item?.name||id)}: ${Number(qty).toLocaleString('pt-BR')} un.`;
     }).join(' · ');
     return `<article class="segment-card">
-      <div class="segment-head"><div><strong>Segmento ${segment.index}</strong><span>${decimal(segment.width_mm/10,1)} cm × ${decimal(segment.height_mm/1000,2)} m</span></div><b>${decimal(segment.area_m2,3)} m²</b></div>
+      <div class="segment-head"><div><strong>${result.mode==='sheet'?'Placa':'Segmento'} ${segment.index}</strong><span>${result.mode==='sheet'?`${decimal(segment.width_mm/10,1)} × ${decimal(segment.height_mm/10,1)} cm`:`${decimal(segment.width_mm/10,1)} cm × ${decimal(segment.height_mm/1000,2)} m`}</span></div><b>${decimal(segment.area_m2,3)} m²</b></div>
       <div class="canvas-wrap"><canvas id="segmentCanvas${segment.index}" class="segment-canvas" aria-label="Representação visual do segmento ${segment.index}"></canvas></div>
       <small>${counts}</small>
     </article>`;
@@ -211,10 +311,32 @@ function drawSegment(canvas,segment,result,itemIndex){
   canvas.style.width='100%'; canvas.style.height=`${cssHeight}px`;
   const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
   const pad=38, availableW=cssWidth-pad*2, availableH=cssHeight-pad*2;
-  const scale=Math.min(availableW/Math.max(1,segment.height_mm),availableH/Math.max(1,segment.width_mm));
-  const drawW=segment.height_mm*scale, drawH=segment.width_mm*scale;
-  const ox=pad, oy=(cssHeight-drawH)/2;
+  const isSheet=result.mode==='sheet';
+  const physicalW=isSheet?segment.width_mm:segment.height_mm;
+  const physicalH=isSheet?segment.height_mm:segment.width_mm;
+  const scale=Math.min(availableW/Math.max(1,physicalW),availableH/Math.max(1,physicalH));
+  const drawW=physicalW*scale, drawH=physicalH*scale;
+  const ox=pad+(availableW-drawW)/2, oy=(cssHeight-drawH)/2;
   ctx.fillStyle='#fbfbfe';ctx.strokeStyle='#c9c7d8';ctx.lineWidth=1;ctx.fillRect(ox,oy,drawW,drawH);ctx.strokeRect(ox,oy,drawW,drawH);
+
+  if(isSheet){
+    const margin=result.config.margin_mm*scale;
+    if(margin>0.5){
+      ctx.strokeStyle='#c30079';ctx.setLineDash([4,4]);
+      ctx.strokeRect(ox+margin,oy+margin,Math.max(0,drawW-margin*2),Math.max(0,drawH-margin*2));
+      ctx.setLineDash([]);
+    }
+    for(const p of segment.placements){
+      const idx=itemIndex.get(p.item_id)||0;
+      const x=ox+p.x*scale,y=oy+p.y*scale,w=Math.max(.7,p.w*scale),h=Math.max(.7,p.h*scale);
+      ctx.fillStyle=colorFor(idx,.42);ctx.strokeStyle=colorFor(idx,.9);ctx.lineWidth=.7;ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+      if(w>28&&h>16){ctx.fillStyle=colorFor(idx,1);ctx.font='600 10px Inter, Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(idx+1),x+w/2,y+h/2);}
+    }
+    ctx.fillStyle='#706d80';ctx.font='11px Inter, Arial';ctx.textAlign='left';ctx.fillText(`${decimal(segment.width_mm/10,1)} cm`,ox,cssHeight-10);
+    ctx.textAlign='right';ctx.fillText(`${decimal(segment.height_mm/10,1)} cm`,ox+drawW,cssHeight-10);
+    return;
+  }
+
   const margin=result.config.margin_mm*scale;
   if(margin>0.5){ctx.strokeStyle='#c30079';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(ox,oy+margin);ctx.lineTo(ox+drawW,oy+margin);ctx.moveTo(ox,oy+drawH-margin);ctx.lineTo(ox+drawW,oy+drawH-margin);ctx.stroke();ctx.setLineDash([]);}
   for(const p of segment.placements){
@@ -261,8 +383,10 @@ function renderPlacementMap(result){
 function currentPresetPayload(){
   return {
     v:1,
+    type:simulationType,
     config:{
       roll_width_cm:Number($('rollWidthCm').value),
+      sheet_height_cm:Number($('sheetHeightCm').value),
       margin_cm:Number($('marginCm').value),
       gap_cm:Number($('gapCm').value),
       allow_rotation:$('allowRotation').checked,
@@ -304,7 +428,7 @@ function copyPlacementMap(){
   let piece=0;
   const lines=[];
   for(const segment of currentResult.segments){
-    lines.push(`SEGMENTO ${segment.index} — ${decimal(segment.width_mm/10,1)} cm × ${decimal(segment.height_mm/10,1)} cm`);
+    lines.push(`${currentResult.mode==='sheet'?'PLACA':'SEGMENTO'} ${segment.index} — ${decimal(segment.width_mm/10,1)} cm × ${decimal(segment.height_mm/10,1)} cm`);
     for(const p of segment.placements){
       piece++;
       lines.push(`#${piece} · ${p.name} · X ${decimal(p.x/10,1)} cm · Y ${decimal(p.y/10,1)} cm · ${decimal(p.w/10,1)} × ${decimal(p.h/10,1)} cm · rotação ${p.rotated?'90°':'0°'}`);
@@ -331,7 +455,9 @@ async function optimize(){
   $('optimizeBtn').disabled=true; $('optimizeBtn').textContent='Otimizando…';
   await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,20)));
   try{
-    const result=optimizeRollLayout(currentItemsForOptimizer(),currentConfig());
+    const result=activeType().mode==='sheet'
+      ?optimizeSheetLayout(currentItemsForOptimizer(),currentConfig())
+      :optimizeRollLayout(currentItemsForOptimizer(),currentConfig());
     renderResult(result);
     setStatus('Encaixe calculado e validado: todas as unidades foram alocadas.','ok');
   }catch(error){
@@ -344,6 +470,8 @@ function saveDefaults(){
   try{
     const cfg=currentConfig();
     const payload={
+      simulation_type:simulationType,
+      sheet_height_cm:Number($('sheetHeightCm').value)||100,
       roll:{
         roll_width_mm:cfg.roll_width_mm,
         margin_mm:cfg.margin_mm,
@@ -366,24 +494,27 @@ function saveDefaults(){
 function copySummary(){
   if(!currentResult) return;
   const fin=calculateRollFinancials(currentResult,{price_per_m2:Number($('pricePerM2').value),freight:Number($('freight').value),markup_pct:Number($('markup').value)});
-  const segmentLines=currentResult.segments.map(s=>`• Segmento ${s.index}: ${decimal(s.width_mm/10,1)} cm × ${decimal(s.linear_m,2)} m = ${decimal(s.area_m2,3)} m²`).join('\n');
+  const segmentLines=currentResult.segments.map(s=>currentResult.mode==='sheet'
+    ?`• Placa ${s.index}: ${decimal(s.width_mm/10,1)} × ${decimal(s.height_mm/10,1)} cm = ${decimal(s.area_m2,3)} m²`
+    :`• Segmento ${s.index}: ${decimal(s.width_mm/10,1)} cm × ${decimal(s.linear_m,2)} m = ${decimal(s.area_m2,3)} m²`).join('\n');
   const itemLines=currentResult.items.map(i=>`• ${i.name}: ${decimal(i.width_mm/10,1)} × ${decimal(i.height_mm/10,1)} cm — ${i.quantity.toLocaleString('pt-BR')} un.`).join('\n');
-  const text=`SIMULAÇÃO DE BOBINA DE ADESIVOS\n\n${itemLines}\n\n${segmentLines}\n\nÁrea geométrica: ${decimal(currentResult.geometric_area_m2,3)} m²\nÁrea encomendada: ${decimal(currentResult.ordered_area_m2,3)} m²\nAproveitamento: ${decimal(currentResult.utilization_pct,1)}%\nSoma dos comprimentos: ${decimal(currentResult.total_linear_m,2)} m\n\nMaterial: ${money(fin.material_cost)}\nFrete: ${money(fin.freight)}\nCusto total: ${money(fin.total_cost)}\nPreço de revenda: ${money(fin.resale_price)}`;
+  const text=`SIMULAÇÃO — ${activeType().label.toUpperCase()}\n\n${itemLines}\n\n${segmentLines}\n\nÁrea geométrica: ${decimal(currentResult.geometric_area_m2,3)} m²\nÁrea encomendada: ${decimal(currentResult.ordered_area_m2,3)} m²\nAproveitamento: ${decimal(currentResult.utilization_pct,1)}%\nSoma dos comprimentos: ${decimal(currentResult.total_linear_m,2)} m\n\nMaterial: ${money(fin.material_cost)}\nFrete: ${money(fin.freight)}\nCusto total: ${money(fin.total_cost)}\nPreço de revenda: ${money(fin.resale_price)}`;
   navigator.clipboard.writeText(text).then(()=>setStatus('Resumo copiado para a área de transferência.','ok')).catch(()=>setStatus('Não foi possível copiar automaticamente.','error'));
 }
 
-$('addItem').addEventListener('click',()=>{syncItemsFromDom();items.push({id:uid(),name:`Adesivo ${items.length+1}`,width_cm:5,height_cm:5,quantity:100});renderItems();updatePreliminary();});
+$('addItem').addEventListener('click',()=>{syncItemsFromDom();items.push({id:uid(),name:`${itemBaseName()} ${items.length+1}`,width_cm:5,height_cm:5,quantity:100});renderItems();updatePreliminary();});
 $('optimizeBtn').addEventListener('click',optimize);
 $('saveDefaults').addEventListener('click',saveDefaults);
 $('copySummary').addEventListener('click',copySummary);
 $('copyShareLink').addEventListener('click',copyShareLink);
 $('copyPlacementMap').addEventListener('click',copyPlacementMap);
-$('clearBtn').addEventListener('click',()=>{items=[{id:uid(),name:'Adesivo 1',width_cm:5,height_cm:5,quantity:100}];renderItems();currentResult=null;$('resultSection').hidden=true;$('freight').value=0;updatePreliminary();setStatus('Simulação limpa.','info');});
-['rollWidthCm','marginCm','gapCm','allowRotation','maxSegments'].forEach(id=>$(id).addEventListener('input',updatePreliminary));
+$('clearBtn').addEventListener('click',()=>{items=[{id:uid(),name:`${itemBaseName()} 1`,width_cm:5,height_cm:5,quantity:100}];renderItems();currentResult=null;$('resultSection').hidden=true;$('freight').value=0;updatePreliminary();setStatus('Simulação limpa.','info');});
+['rollWidthCm','sheetHeightCm','marginCm','gapCm','allowRotation','maxSegments'].forEach(id=>$(id).addEventListener('input',updatePreliminary));
+document.querySelectorAll('[data-sim-type]').forEach(btn=>btn.addEventListener('click',()=>applySimulationType(btn.dataset.simType)));
 ['pricePerM2','freight','markup'].forEach(id=>$(id).addEventListener('input',updateFinancials));
 window.addEventListener('resize',()=>{if(currentResult)renderSegments(currentResult)});
 
-renderItems();updatePreliminary();
+applySimulationType(simulationType);
 if(urlPreset?.__error){
   setStatus('O link contém um preset inválido. A simulação foi aberta com os valores locais.','error');
 }else if(urlPreset){
