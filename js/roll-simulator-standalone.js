@@ -4,45 +4,45 @@ import { IN_HOUSE_PRODUCTION } from '../data/in-house-production.js';
 
 const PREF_KEY='croma_roll_simulator_standalone_preferences_v1';
 const TYPE_CONFIG={
-  roll:{
-    label:'Bobina adesivo',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
-    configTitle:'Configuração da bobina',
-    configDescription:'Parâmetros físicos usados no cálculo de encaixe contínuo.',
-    widthLabel:'Largura máxima da bobina (cm)',
-    widthHelp:'Limite máximo permitido pelo fornecedor/equipamento.',
+  straight:{
+    label:'ADESIVOS CORTE RETO',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
+    configTitle:'Adesivos Corte Reto',
+    configDescription:'Organização de peças retangulares para melhor aproveitamento da largura de produção.',
+    widthLabel:'Largura máxima da área/bobina (cm)',
+    widthHelp:'Informe a largura útil máxima disponível para produção.',
     marginLabel:'Margem lateral (cm)',
     marginHelp:'A mesma margem é aplicada dos dois lados.',
-    providerNote:'Sobras fora do retângulo solicitado não entram no custo. Áreas em branco dentro de um segmento encomendado entram na área paga.'
+    providerNote:'Otimização retangular para adesivos com corte reto, respeitando margem, espaçamento e rotação.'
+  },
+  contour:{
+    label:'ADESIVOS CORTE ESPECIAL',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
+    configTitle:'Adesivos Corte Especial',
+    configDescription:'Organização das peças com recorte especial dentro da largura de produção.',
+    widthLabel:'Largura máxima da área/bobina (cm)',
+    widthHelp:'Informe a largura útil máxima disponível para produção.',
+    marginLabel:'Margem lateral (cm)',
+    marginHelp:'A mesma margem é aplicada dos dois lados.',
+    providerNote:'O encaixe usa o retângulo envolvente de cada arte. O contorno vetorial real ainda não é usado no nesting.'
+  },
+  hollow:{
+    label:'ADESIVOS CORTE VAZADO',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
+    configTitle:'Adesivos Corte Vazado',
+    configDescription:'Organização das artes vazadas dentro da largura de produção.',
+    widthLabel:'Largura máxima da área/bobina (cm)',
+    widthHelp:'Informe a largura útil máxima disponível para produção.',
+    marginLabel:'Margem lateral (cm)',
+    marginHelp:'A mesma margem é aplicada dos dois lados.',
+    providerNote:'O encaixe usa a caixa envolvente de cada arte vazada. O vazado interno não reduz a área geométrica considerada.'
   },
   pvc:{
-    label:'Placa PVC',mode:'sheet',itemSingular:'Peça',itemPlural:'Peças',
-    configTitle:'Configuração da placa PVC',
+    label:'PLACAS PVC',mode:'sheet',itemSingular:'Peça',itemPlural:'Peças',
+    configTitle:'Placas PVC',
     configDescription:'Defina o tamanho máximo da chapa e distribua as peças no menor número de placas.',
     widthLabel:'Largura máxima da placa (cm)',
     widthHelp:'Padrão inicial de 200 cm; pode ser alterado conforme o material disponível.',
     marginLabel:'Margem da placa (cm)',
     marginHelp:'Aplicada nos quatro lados da placa.',
     providerNote:'O cálculo considera placas inteiras no tamanho informado e mostra quantas são necessárias, o aproveitamento e a sobra.'
-  },
-  contour:{
-    label:'Adesivo com recorte especial',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
-    configTitle:'Adesivo com recorte especial',
-    configDescription:'Organização das peças com contorno dentro da largura de produção.',
-    widthLabel:'Largura máxima da área/bobina (cm)',
-    widthHelp:'Informe a largura útil máxima disponível para produção.',
-    marginLabel:'Margem lateral (cm)',
-    marginHelp:'A mesma margem é aplicada dos dois lados.',
-    providerNote:'O encaixe usa o retângulo envolvente de cada peça. O formato real do contorno ainda não é usado no nesting geométrico.'
-  },
-  straight:{
-    label:'Adesivo com corte reto',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
-    configTitle:'Adesivo com corte reto',
-    configDescription:'Organização de peças retangulares para melhor aproveitamento da largura de produção.',
-    widthLabel:'Largura máxima da área/bobina (cm)',
-    widthHelp:'Informe a largura útil máxima disponível para produção.',
-    marginLabel:'Margem lateral (cm)',
-    marginHelp:'A mesma margem é aplicada dos dois lados.',
-    providerNote:'Otimização retangular para peças com corte reto, respeitando margem, espaçamento e rotação configurados.'
   }
 };
 const $=id=>document.getElementById(id);
@@ -81,7 +81,7 @@ function readPresetFromUrl(){
 
 $('who').textContent='Modo local · sem banco de dados';
 
-let simulationType='roll';
+let simulationType='straight';
 let currentResult=null;
 let items=[
   {id:uid(),name:'Adesivo 1',width_cm:5,height_cm:3,quantity:1000},
@@ -107,14 +107,15 @@ $('gapCm').value=(Number(rollDefaults.gap_mm)||3)/10;
 $('allowRotation').checked=rollDefaults.allow_rotation!==false;
 $('maxSegments').value=Number(rollDefaults.max_segments)||4;
 $('sheetHeightCm').value=Number(prefs.sheet_height_cm)||100;
-simulationType=TYPE_CONFIG[prefs.simulation_type]?prefs.simulation_type:'roll';
+simulationType=prefs.simulation_type==='roll'?'straight':(TYPE_CONFIG[prefs.simulation_type]?prefs.simulation_type:'straight');
 $('pricePerM2').value=Number(prefs.price_per_m2)||0;
 $('freight').value=0;
 $('markup').value=Number(prefs.markup_pct)||0;
 
 const urlPreset=readPresetFromUrl();
 if(urlPreset && !urlPreset.__error){
-  if(TYPE_CONFIG[urlPreset.type]) simulationType=urlPreset.type;
+  const presetType=urlPreset.type==='roll'?'straight':urlPreset.type;
+  if(TYPE_CONFIG[presetType]) simulationType=presetType;
   const cfg=urlPreset.config||{};
   if(Number(cfg.roll_width_cm)>0) $('rollWidthCm').value=Number(cfg.roll_width_cm);
   if(Number(cfg.sheet_height_cm)>0) $('sheetHeightCm').value=Number(cfg.sheet_height_cm);
@@ -138,8 +139,7 @@ if(urlPreset && !urlPreset.__error){
 }
 
 function loadInHouseProduction(){
-  const groupKey=simulationType==='contour'?'contour_all':simulationType;
-  const source=IN_HOUSE_PRODUCTION.groups?.[groupKey]||[];
+  const source=IN_HOUSE_PRODUCTION.groups?.[simulationType]||[];
   if(!source.length){
     setStatus('Não há itens sincronizados do In House para este tipo.','error');
     return;
@@ -161,7 +161,7 @@ function loadInHouseProduction(){
   optimize();
 }
 
-function activeType(){return TYPE_CONFIG[simulationType]||TYPE_CONFIG.roll;}
+function activeType(){return TYPE_CONFIG[simulationType]||TYPE_CONFIG.straight;}
 
 function itemBaseName(){return activeType().itemSingular;}
 
@@ -184,6 +184,7 @@ function applySimulationType(type,{preserveValues=true}={}){
   $('addItem').textContent=`＋ Adicionar ${cfg.itemSingular.toLowerCase()}`;
   $('sheetHeightField').hidden=cfg.mode!=='sheet';
   $('advancedRoll').hidden=cfg.mode==='sheet';
+  if($('rollIllustration')) $('rollIllustration').hidden=cfg.mode==='sheet';
   if(!preserveValues && type==='pvc'){
     $('rollWidthCm').value=200;
     $('sheetHeightCm').value=100;
