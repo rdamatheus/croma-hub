@@ -25,10 +25,15 @@ function tokenScore(a,b){
   return overlap/Math.max(1,Math.max(aTokens.size,bTokens.size))*500;
 }
 
+const PHYSICAL_FOLDER_ALIASES=Object.freeze({
+  'ADESIVOS CORTE RETO':'Adesivos Brilho'
+});
+
 export function resolveInHouseSource(item,production){
   if(item?.source_file_name) return item;
-  const folder=String(item?.source_folder||'');
-  const files=production?.files_by_folder?.[folder]||[];
+  const categoryFolder=String(item?.source_folder||'');
+  const physicalFolder=PHYSICAL_FOLDER_ALIASES[categoryFolder]||categoryFolder;
+  const files=production?.files_by_folder?.[physicalFolder]||[];
   if(!files.length) return item;
   let best=null;
   for(const file of files){
@@ -38,6 +43,8 @@ export function resolveInHouseSource(item,production){
   if(!best||best.score<120) return item;
   return {
     ...item,
+    source_category:categoryFolder,
+    source_folder:physicalFolder,
     source_file_name:best.file.title,
     source_mime_type:best.file.mime_type
   };
