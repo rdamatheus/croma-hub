@@ -34,19 +34,27 @@ export function resolveInHouseSource(item,production){
   const categoryFolder=String(item?.source_folder||'');
   const preferredFolder=PHYSICAL_FOLDER_ALIASES[categoryFolder]||categoryFolder;
   const allFolders=production?.files_by_folder||{};
-  const folderOrder=[preferredFolder,...Object.keys(allFolders).filter(name=>name!==preferredFolder)];
-  let best=null;
 
-  for(const folderName of folderOrder){
-    const files=allFolders[folderName]||[];
-    for(const file of files){
-      const rawScore=tokenScore(item.name,file.title);
-      const score=rawScore+(folderName===preferredFolder?25:0);
-      if(!best||score>best.score) best={file,folderName,score,rawScore};
+  const chooseBest=(folderName)=>{
+    let best=null;
+    for(const file of allFolders[folderName]||[]){
+      const score=tokenScore(item.name,file.title);
+      if(!best||score>best.score) best={file,folderName,score};
+    }
+    return best;
+  };
+
+  let best=chooseBest(preferredFolder);
+  if(!best||best.score<120){
+    best=null;
+    for(const folderName of Object.keys(allFolders)){
+      if(folderName===preferredFolder) continue;
+      const candidate=chooseBest(folderName);
+      if(candidate&&(!best||candidate.score>best.score)) best=candidate;
     }
   }
 
-  if(!best||best.rawScore<120) return item;
+  if(!best||best.score<120) return item;
   return {
     ...item,
     source_category:categoryFolder,
