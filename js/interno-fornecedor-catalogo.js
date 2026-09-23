@@ -58,11 +58,26 @@ async function loadRows(){
   try{
     const linkFilter=el('linkFilter').value,divergent=el('onlyDivergent').checked;
     if(linkFilter||divergent){
-      let rows=await fetchAllBase();
-      if(linkFilter==='linked')rows=rows.filter(r=>state.linkedIds.has(r.id));
-      if(linkFilter==='unlinked')rows=rows.filter(r=>!state.linkedIds.has(r.id));
-      if(divergent)rows=rows.filter(r=>state.divergentIds.has(r.id));
-      state.allFiltered=rows;state.total=rows.length;state.page=Math.min(state.page,Math.max(1,Math.ceil(state.total/state.pageSize)));renderRows(rows.slice((state.page-1)*state.pageSize,state.page*state.pageSize));
+      const params={
+        p_supplier_id:supplierId,
+        p_search:sanitizeSearch(el('catalogSearch').value),
+        p_validation:el('validationFilter').value||'',
+        p_category:el('categoryFilter').value||'',
+        p_update_mode:el('updateFilter').value||'',
+        p_sort:el('sortFilter').value||'sku',
+        p_link_filter:linkFilter||'',
+        p_divergent_only:!!divergent,
+        p_divergent_ids:[...state.divergentIds],
+        p_offset:(state.page-1)*state.pageSize,
+        p_limit:state.pageSize
+      };
+      let result=await supabase.rpc('supplier_catalog_filtered_page',params);
+      if(result.error)throw result.error;
+      let rows=result.data||[];
+      state.total=rows.length?Number(rows[0].total_count||0):0;
+      const pages=Math.max(1,Math.ceil(state.total/state.pageSize));
+      if(state.page>pages){state.page=pages;params.p_offset=(state.page-1)*state.pageSize;result=await supabase.rpc('supplier_catalog_filtered_page',params);if(result.error)throw result.error;rows=result.data||[];state.total=rows.length?Number(rows[0].total_count||0):0;}
+      state.allFiltered=null;renderRows(rows.map(({total_count,...row})=>row));
     }else{
       state.allFiltered=null;let from=(state.page-1)*state.pageSize;let result=await baseQuery().range(from,from+state.pageSize-1);if(result.error)throw result.error;state.total=result.count||0;const pages=Math.max(1,Math.ceil(state.total/state.pageSize));if(state.page>pages){state.page=pages;from=(state.page-1)*state.pageSize;result=await baseQuery().range(from,from+state.pageSize-1);if(result.error)throw result.error}renderRows(result.data||[]);
     }
