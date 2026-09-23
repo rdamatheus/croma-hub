@@ -32,19 +32,25 @@ const PHYSICAL_FOLDER_ALIASES=Object.freeze({
 export function resolveInHouseSource(item,production){
   if(item?.source_file_name) return item;
   const categoryFolder=String(item?.source_folder||'');
-  const physicalFolder=PHYSICAL_FOLDER_ALIASES[categoryFolder]||categoryFolder;
-  const files=production?.files_by_folder?.[physicalFolder]||[];
-  if(!files.length) return item;
+  const preferredFolder=PHYSICAL_FOLDER_ALIASES[categoryFolder]||categoryFolder;
+  const allFolders=production?.files_by_folder||{};
+  const folderOrder=[preferredFolder,...Object.keys(allFolders).filter(name=>name!==preferredFolder)];
   let best=null;
-  for(const file of files){
-    const score=tokenScore(item.name,file.title);
-    if(!best||score>best.score) best={file,score};
+
+  for(const folderName of folderOrder){
+    const files=allFolders[folderName]||[];
+    for(const file of files){
+      const rawScore=tokenScore(item.name,file.title);
+      const score=rawScore+(folderName===preferredFolder?25:0);
+      if(!best||score>best.score) best={file,folderName,score,rawScore};
+    }
   }
-  if(!best||best.score<120) return item;
+
+  if(!best||best.rawScore<120) return item;
   return {
     ...item,
     source_category:categoryFolder,
-    source_folder:physicalFolder,
+    source_folder:best.folderName,
     source_file_name:best.file.title,
     source_mime_type:best.file.mime_type
   };
