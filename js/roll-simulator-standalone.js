@@ -1,6 +1,7 @@
 import { optimizeRollLayout, calculateRollFinancials } from './roll-optimizer.js';
 import { optimizeSheetLayout } from './sheet-optimizer.js';
 import { IN_HOUSE_PRODUCTION } from '../data/in-house-production.js';
+import { enrichInHouseItems, buildCorelCsv, buildCorelManifest, downloadTextFile, safeFileStem } from './corel-layout-export.js';
 
 const PREF_KEY='croma_roll_simulator_standalone_preferences_v1';
 const TYPE_CONFIG={
@@ -133,7 +134,10 @@ if(urlPreset && !urlPreset.__error){
       name:String(item.name||`${itemBaseName()} ${index+1}`),
       width_cm:Number(item.width_cm),
       height_cm:Number(item.height_cm),
-      quantity:Math.max(1,Math.floor(Number(item.quantity)||1))
+      quantity:Math.max(1,Math.floor(Number(item.quantity)||1)),
+      source_folder:String(item.source_folder||''),
+      source_file_name:String(item.source_file_name||''),
+      source_mime_type:String(item.source_mime_type||'')
     })).filter(item=>item.width_cm>0 && item.height_cm>0);
   }
 }
@@ -144,14 +148,16 @@ function loadInHouseProduction(){
     setStatus('Não há itens sincronizados do In House para este tipo.','error');
     return;
   }
-  items=source.map((item,index)=>({
+  items=enrichInHouseItems(source.map((item,index)=>({
     id:uid(),
     name:String(item.name||`${itemBaseName()} ${index+1}`),
     width_cm:Number(item.width_cm),
     height_cm:Number(item.height_cm),
     quantity:Math.max(1,Math.floor(Number(item.quantity)||1)),
-    source_folder:item.source_folder||''
-  }));
+    source_folder:item.source_folder||'',
+    source_file_name:item.source_file_name||'',
+    source_mime_type:item.source_mime_type||''
+  })),IN_HOUSE_PRODUCTION);
   renderItems();
   updatePreliminary();
   currentResult=null;
@@ -222,13 +228,20 @@ function escapeHtml(value=''){
 }
 
 function syncItemsFromDom(){
-  items=[...document.querySelectorAll('.item-row')].map((row,index)=>({
-    id:row.dataset.id,
-    name:row.querySelector('.item-name').value.trim() || `${itemBaseName()} ${index+1}`,
-    width_cm:Number(row.querySelector('.item-width').value),
-    height_cm:Number(row.querySelector('.item-height').value),
-    quantity:Math.floor(Number(row.querySelector('.item-quantity').value)||0)
-  }));
+  const previous=new Map(items.map(item=>[String(item.id),item]));
+  items=[...document.querySelectorAll('.item-row')].map((row,index)=>{
+    const old=previous.get(String(row.dataset.id))||{};
+    return {
+      id:row.dataset.id,
+      name:row.querySelector('.item-name').value.trim() || `${itemBaseName()} ${index+1}`,
+      width_cm:Number(row.querySelector('.item-width').value),
+      height_cm:Number(row.querySelector('.item-height').value),
+      quantity:Math.floor(Number(row.querySelector('.item-quantity').value)||0),
+      source_folder:old.source_folder||'',
+      source_file_name:old.source_file_name||'',
+      source_mime_type:old.source_mime_type||''
+    };
+  });
 }
 
 function currentConfig(){
@@ -386,15 +399,24 @@ function renderDetailTable(result){
 }
 
 function renderPlacementMap(result){
+  syncItemsFromDom();
+  items=enrichInHouseItems(items,IN_HOUSE_PRODUCTION);
+  const itemMap=new Map(items.map(item=>[String(item.id),item]));
   let piece=0;
   const rows=[];
   for(const segment of result.segments){
     for(const placement of segment.placements){
       piece++;
+      const source=itemMap.get(String(placement.item_id))||{};
+      const fileCell=source.source_file_name
+        ?escapeHtml(source.source_file_name)
+        :'<span style="color:#a63838">não vinculado</span>';
       rows.push(`<tr>
         <td>${segment.index}</td>
         <td>${piece}</td>
         <td>${escapeHtml(placement.name)}</td>
+        <td>${escapeHtml(source.source_folder||'—')}</td>
+        <td>${fileCell}</td>
         <td>${decimal(placement.x/10,1)} cm</td>
         <td>${decimal(placement.y/10,1)} cm</td>
         <td>${decimal(placement.w/10,1)} cm</td>
@@ -407,6 +429,8 @@ function renderPlacementMap(result){
 }
 
 function currentPresetPayload(){
+  syncItemsFromDom();
+  items=enrichInHouseItems(items,IN_HOUSE_PRODUCTION);
   return {
     v:1,
     type:simulationType,
@@ -418,11 +442,13 @@ function currentPresetPayload(){
       allow_rotation:$('allowRotation').checked,
       max_segments:Number($('maxSegments').value)||4
     },
-    items:currentItemsForOptimizer().map(item=>({
+    items:items.map(item=>({
       name:item.name,
-      width_cm:item.width_mm/10,
-      height_cm:item.height_mm/10,
-      quantity:item.quantity
+      width_cm:item.width_cm,
+      height_cm:item.height_cm,
+      quantity:item.quantity,
+      source_folder:item.source_folder||'',
+      source_file_name:item.source_file_name||''
     })),
     financials:{
       price_per_m2:Number($('pricePerM2').value)||0,
@@ -465,6 +491,46 @@ function copyPlacementMap(){
   navigator.clipboard.writeText(text)
     .then(()=>setStatus('Mapa de montagem copiado para a área de transferência.','ok'))
     .catch(()=>setStatus('Não foi possível copiar o mapa automaticamente.','error'));
+}
+
+function exportCorelCsv(){
+  if(!currentResult){
+    setStatus('Calcule o encaixe antes de exportar para o CorelDRAW.','error');
+    return;
+  }
+  syncItemsFromDom();
+  items=enrichInHouseItems(items,IN_HOUSE_PRODUCTION);
+  const manifest=buildCorelManifest(currentResult,items,{
+    simulation_type:simulationType,
+    source_root:'In House / PRODUÇÃO'
+  });
+  const csv=buildCorelCsv(currentResult,items);
+  const stamp=new Date().toISOString().slice(0,10);
+  const stem=`croma-${safeFileStem(activeType().label)}-${stamp}`;
+  downloadTextFile(`${stem}-corel.csv`,csv,'text/csv;charset=utf-8');
+  const missing=manifest.missing_source_files.length;
+  if(missing){
+    setStatus(`CSV exportado. Atenção: ${missing} peça(s) estão sem arquivo de origem vinculado e serão ignoradas pela macro até o vínculo ser corrigido.`,'error');
+  }else{
+    setStatus('Mapa para CorelDRAW exportado. No Corel, execute CromaImportarMapa e selecione este CSV e a pasta local PRODUÇÃO.','ok');
+  }
+}
+
+function exportCorelManifest(){
+  if(!currentResult){
+    setStatus('Calcule o encaixe antes de exportar o manifesto.','error');
+    return;
+  }
+  syncItemsFromDom();
+  items=enrichInHouseItems(items,IN_HOUSE_PRODUCTION);
+  const manifest=buildCorelManifest(currentResult,items,{
+    simulation_type:simulationType,
+    source_root:'In House / PRODUÇÃO'
+  });
+  const stamp=new Date().toISOString().slice(0,10);
+  const stem=`croma-${safeFileStem(activeType().label)}-${stamp}`;
+  downloadTextFile(`${stem}-manifest.json`,JSON.stringify(manifest,null,2),'application/json;charset=utf-8');
+  setStatus('Manifesto técnico JSON exportado.','ok');
 }
 
 function updateFinancials(){
@@ -535,6 +601,8 @@ $('loadInHouseBtn').addEventListener('click',loadInHouseProduction);
 $('copySummary').addEventListener('click',copySummary);
 $('copyShareLink').addEventListener('click',copyShareLink);
 $('copyPlacementMap').addEventListener('click',copyPlacementMap);
+$('exportCorelCsv').addEventListener('click',exportCorelCsv);
+$('exportCorelManifest').addEventListener('click',exportCorelManifest);
 $('clearBtn').addEventListener('click',()=>{items=[{id:uid(),name:`${itemBaseName()} 1`,width_cm:5,height_cm:5,quantity:100}];renderItems();currentResult=null;$('resultSection').hidden=true;$('freight').value=0;updatePreliminary();setStatus('Simulação limpa.','info');});
 ['rollWidthCm','sheetHeightCm','marginCm','gapCm','allowRotation','maxSegments'].forEach(id=>$(id).addEventListener('input',updatePreliminary));
 document.querySelectorAll('[data-sim-type]').forEach(btn=>btn.addEventListener('click',()=>applySimulationType(btn.dataset.simType)));
