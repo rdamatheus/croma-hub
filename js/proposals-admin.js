@@ -8,7 +8,6 @@ const pct=value=>Number.isFinite(value)?`${value.toFixed(2).replace('.',',')}%`:
 const multiplier=value=>Number.isFinite(value)&&value>0?`${value.toFixed(2).replace('.',',')}×`:'—';
 const n=value=>{const x=Number(String(value??'').replace(',','.'));return Number.isFinite(x)?x:null};
 let proposals=[];
-let productsCache=null;
 
 function safeUrl(value){try{const url=new URL(value);return url.protocol==='https:'?url.href:null}catch{return null}}
 function setModal(html=''){document.getElementById('proposalModalRoot').innerHTML=html}
@@ -56,32 +55,53 @@ async function loadProposals(){
   const {data,error}=await supabase.from('sales_proposals').select('id,proposal_no,customer_name,customer_phone,status,notes,created_at,sales_proposal_items(id,product_id,supplier_id,supplier_catalog_item_id,description,share_description,option_label,quantity,unit,supplier_sku,base_cost,freight_cost,total_cost,recommended_markup,applied_markup,unit_price,line_total,sort_order,market_reference_price,suggested_price,final_offer_price,image_url,market_reference_source,market_researched_at,market_reference_metadata,metadata)').order('created_at',{ascending:false}).limit(200);
   if(error) throw error; proposals=data||[]; return proposals;
 }
-async function loadProducts(){
-  if(productsCache)return productsCache;
-  const {data,error}=await supabase.from('products').select('id,nome,sku,descricao,short_description,default_markup').eq('ativo',true).eq('is_sellable',true).order('nome').limit(3500);
-  if(error)throw error; productsCache=data||[]; return productsCache;
+function productSearchTerm(value){return String(value||'').trim().replace(/[,%()]/g,' ').replace(/\s+/g,' ').slice(0,80)}
+async function searchProducts(term='',currentId=''){
+  const clean=productSearchTerm(term);
+  let query=supabase.from('products').select('id,nome,sku,descricao,short_description,default_markup').eq('ativo',true).eq('is_sellable',true).order('nome').limit(40);
+  if(clean)query=query.or(`nome.ilike.%${clean}%,sku.ilike.%${clean}%`);
+  const {data,error}=await query;if(error)throw error;
+  const rows=[...(data||[])];
+  if(currentId&&!rows.some(p=>p.id===currentId)){
+    const {data:current,error:cErr}=await supabase.from('products').select('id,nome,sku,descricao,short_description,default_markup').eq('id',currentId).maybeSingle();
+    if(cErr)throw cErr;if(current)rows.unshift(current);
+  }
+  return rows;
 }
 async function getProductSnapshot(productId){
-  const product=(await loadProducts()).find(p=>p.id===productId)||null;
-  const [{data:supplier,error:sErr},{data:media,error:mErr}]=await Promise.all([
+  const [{data:product,error:pErr},{data:supplier,error:sErr},{data:media,error:mErr}]=await Promise.all([
+    supabase.from('products').select('id,nome,sku,descricao,short_description,default_markup').eq('id',productId).maybeSingle(),
     supabase.from('product_suppliers').select('supplier_id,supplier_catalog_item_id,supplier_sku,purchase_price,freight_cost,effective_unit_cost,preferred,active').eq('product_id',productId).eq('active',true).order('preferred',{ascending:false}).limit(1).maybeSingle(),
     supabase.from('product_media').select('url').eq('product_id',productId).eq('ativo',true).eq('kind','image').order('is_primary',{ascending:false}).order('ordem',{ascending:true}).limit(1).maybeSingle()
   ]);
-  if(sErr)throw sErr;if(mErr)throw mErr;return {product,supplier:supplier||null,imageUrl:media?.url||null};
+  if(pErr)throw pErr;if(sErr)throw sErr;if(mErr)throw mErr;return {product:product||null,supplier:supplier||null,imageUrl:media?.url||null};
 }
 
 function optionProductHtml(products,currentId){return products.map(p=>`<option value="${esc(p.id)}" ${p.id===currentId?'selected':''}>${esc(p.nome)}${p.sku?` · ${esc(p.sku)}`:''}</option>`).join('')}
 
 async function openEdit(proposal){
   const item=proposal.sales_proposal_items?.[0]; if(!item)return;
-  let products=[]; try{products=await loadProducts()}catch(error){alert(error.message);return}
+  let products=[]; try{products=await searchProducts('',item.product_id||'')}catch(error){alert(error.message);return}
   setModal(`<div class="modal-backdrop" data-modal-close><section class="modal" role="dialog" aria-modal="true"><h2>Editar proposta #${esc(proposal.proposal_no)}</h2><p class="modal-lead">As alterações ficam somente nesta cotação e não mudam automaticamente o cadastro mestre do produto.</p>
     <div class="form-grid"><div class="field"><label>Cliente</label><input id="editCustomer" value="${esc(proposal.customer_name)}"></div><div class="field"><label>Telefone</label><input id="editPhone" value="${esc(proposal.customer_phone||'')}"></div><div class="field"><label>Status</label><select id="editStatus">${['draft','sent','approved','rejected','expired','cancelled'].map(s=>`<option value="${s}" ${s===proposal.status?'selected':''}>${statusLabel(s)}</option>`).join('')}</select></div><div class="field full"><label>Observações internas</label><textarea id="editNotes">${esc(proposal.notes||'')}</textarea></div></div>
-    <div class="form-section"><h3>Item da proposta</h3><div class="form-grid"><div class="field full"><label>Produto vinculado</label><select id="editProduct"><option value="">Sem produto vinculado</option>${optionProductHtml(products,item.product_id)}</select></div><div class="field full"><label>Descrição comercial</label><textarea id="editDescription">${esc(item.share_description||item.description||'')}</textarea></div><div class="field"><label>Quantidade</label><input id="editQuantity" type="number" min="0.01" step="0.01" value="${esc(item.quantity)}"></div><div class="field"><label>Markup desta cotação</label><input id="editMarkup" type="number" min="0.01" step="0.01" value="${esc(item.applied_markup||item.recommended_markup||'')}"></div><div class="field"><label>Custo fornecedor</label><input id="editBaseCost" type="number" min="0" step="0.01" value="${esc(item.base_cost)}"></div><div class="field"><label>Frete</label><input id="editFreight" type="number" min="0" step="0.01" value="${esc(item.freight_cost)}"></div><div class="field"><label>Preço de mercado</label><input id="editMarket" type="number" min="0" step="0.01" value="${esc(item.market_reference_price??'')}"></div><div class="field"><label>Preço sugerido</label><input id="editSuggested" type="number" min="0" step="0.01" value="${esc(item.suggested_price??'')}"></div><div class="field"><label>Preço final ao cliente</label><input id="editFinal" type="number" min="0" step="0.01" value="${esc(item.final_offer_price??item.suggested_price??item.line_total)}"></div><div class="field"><label>Imagem da proposta (URL)</label><input id="editImage" value="${esc(item.image_url||'')}"></div></div><div id="editCalc" class="analysis-strip"></div></div>
+    <div class="form-section"><h3>Item da proposta</h3><div class="form-grid"><div class="field full"><label>Produto vinculado</label><input id="editProductSearch" autocomplete="off" placeholder="Digite nome ou SKU para buscar" style="margin-bottom:7px"><select id="editProduct"><option value="">Sem produto vinculado</option>${optionProductHtml(products,item.product_id)}</select><small>Até 40 resultados por busca. O catálogo completo não é mais carregado ao abrir a proposta.</small></div><div class="field full"><label>Descrição comercial</label><textarea id="editDescription">${esc(item.share_description||item.description||'')}</textarea></div><div class="field"><label>Quantidade</label><input id="editQuantity" type="number" min="0.01" step="0.01" value="${esc(item.quantity)}"></div><div class="field"><label>Markup desta cotação</label><input id="editMarkup" type="number" min="0.01" step="0.01" value="${esc(item.applied_markup||item.recommended_markup||'')}"></div><div class="field"><label>Custo fornecedor</label><input id="editBaseCost" type="number" min="0" step="0.01" value="${esc(item.base_cost)}"></div><div class="field"><label>Frete</label><input id="editFreight" type="number" min="0" step="0.01" value="${esc(item.freight_cost)}"></div><div class="field"><label>Preço de mercado</label><input id="editMarket" type="number" min="0" step="0.01" value="${esc(item.market_reference_price??'')}"></div><div class="field"><label>Preço sugerido</label><input id="editSuggested" type="number" min="0" step="0.01" value="${esc(item.suggested_price??'')}"></div><div class="field"><label>Preço final ao cliente</label><input id="editFinal" type="number" min="0" step="0.01" value="${esc(item.final_offer_price??item.suggested_price??item.line_total)}"></div><div class="field"><label>Imagem da proposta (URL)</label><input id="editImage" value="${esc(item.image_url||'')}"></div></div><div id="editCalc" class="analysis-strip"></div></div>
     <div id="editFeedback" class="modal-feedback"></div><div class="modal-actions"><button class="mini-btn alt" data-close>Cancelar</button><button class="mini-btn" id="saveEdit">Salvar alterações</button></div></section></div>`);
   const root=document.getElementById('proposalModalRoot');
   const calc=()=>{const base=n(root.querySelector('#editBaseCost').value)||0, freight=n(root.querySelector('#editFreight').value)||0, markup=n(root.querySelector('#editMarkup').value)||0, cost=base+freight, price=cost*markup;root.querySelector('#editCalc').innerHTML=`<span>Custo total: <b>${money.format(cost)}</b></span><span>Preço pelo markup: <b>${money.format(price)}</b></span>`};
   ['#editBaseCost','#editFreight','#editMarkup'].forEach(sel=>root.querySelector(sel).addEventListener('input',calc));calc();
+  let productSearchTimer=null;
+  root.querySelector('#editProductSearch').addEventListener('input',e=>{
+    clearTimeout(productSearchTimer);
+    productSearchTimer=setTimeout(async()=>{
+      const select=root.querySelector('#editProduct'),selected=select.value;
+      try{
+        const rows=await searchProducts(e.target.value,selected||item.product_id||'');
+        select.innerHTML='<option value="">Sem produto vinculado</option>'+optionProductHtml(rows,selected||item.product_id);
+      }catch(error){
+        const fb=root.querySelector('#editFeedback');fb.textContent=error.message||'Não foi possível buscar produtos.';fb.dataset.type='error';
+      }
+    },300);
+  });
   root.querySelector('#editProduct').addEventListener('change',async e=>{if(!e.target.value)return;const fb=root.querySelector('#editFeedback');fb.textContent='Carregando dados do produto…';try{const snap=await getProductSnapshot(e.target.value);if(snap.product){root.querySelector('#editDescription').value=snap.product.short_description||snap.product.nome;root.querySelector('#editMarkup').value=snap.product.default_markup||root.querySelector('#editMarkup').value}if(snap.supplier){root.querySelector('#editBaseCost').value=snap.supplier.purchase_price||0;root.querySelector('#editFreight').value=snap.supplier.freight_cost||0}if(snap.imageUrl)root.querySelector('#editImage').value=snap.imageUrl;calc();fb.textContent='Dados do produto carregados. Revise antes de salvar.'}catch(error){fb.textContent=error.message;fb.dataset.type='error'}});
   root.querySelector('[data-close]').onclick=closeModal;root.querySelector('[data-modal-close]').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
   root.querySelector('#saveEdit').onclick=async()=>{
