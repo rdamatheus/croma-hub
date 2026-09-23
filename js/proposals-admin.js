@@ -8,7 +8,8 @@ const pct=value=>Number.isFinite(value)?`${value.toFixed(2).replace('.',',')}%`:
 const multiplier=value=>Number.isFinite(value)&&value>0?`${value.toFixed(2).replace('.',',')}×`:'—';
 const n=value=>{const x=Number(String(value??'').replace(',','.'));return Number.isFinite(x)?x:null};
 let proposals=[];
-let productsCache=null;\nlet simulationsByProposal=new Map();
+let productsCache=null;
+let simulationsByProposal=new Map();
 
 function safeUrl(value){try{const url=new URL(value);return url.protocol==='https:'?url.href:null}catch{return null}}
 function setModal(html=''){document.getElementById('proposalModalRoot').innerHTML=html}
