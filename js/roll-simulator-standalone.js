@@ -6,6 +6,35 @@ const money=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',cur
 const decimal=(value,digits=2)=>Number(value||0).toLocaleString('pt-BR',{minimumFractionDigits:digits,maximumFractionDigits:digits});
 const uid=()=>globalThis.crypto?.randomUUID?.() || `item-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+function encodePreset(payload){
+  const bytes=new TextEncoder().encode(JSON.stringify(payload));
+  let binary='';
+  for(const byte of bytes) binary+=String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+function decodePreset(raw){
+  const normalized=String(raw||'').replace(/-/g,'+').replace(/_/g,'/');
+  const padded=normalized+'='.repeat((4-normalized.length%4)%4);
+  const binary=atob(padded);
+  const bytes=Uint8Array.from(binary,char=>char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function readPresetFromUrl(){
+  try{
+    const params=new URLSearchParams(location.hash.replace(/^#/,''));
+    const raw=params.get('sim');
+    if(!raw) return null;
+    const preset=decodePreset(raw);
+    if(!preset || typeof preset!=='object' || Number(preset.v||1)!==1) throw new Error('versão do preset não suportada');
+    return preset;
+  }catch(error){
+    console.warn('Preset da URL inválido.',error);
+    return {__error:true};
+  }
+}
+
 $('who').textContent='Modo local · sem banco de dados';
 
 let currentResult=null;
@@ -35,6 +64,29 @@ $('maxSegments').value=Number(rollDefaults.max_segments)||4;
 $('pricePerM2').value=Number(prefs.price_per_m2)||0;
 $('freight').value=0;
 $('markup').value=Number(prefs.markup_pct)||0;
+
+const urlPreset=readPresetFromUrl();
+if(urlPreset && !urlPreset.__error){
+  const cfg=urlPreset.config||{};
+  if(Number(cfg.roll_width_cm)>0) $('rollWidthCm').value=Number(cfg.roll_width_cm);
+  if(Number(cfg.margin_cm)>=0 && cfg.margin_cm!=='' && cfg.margin_cm!=null) $('marginCm').value=Number(cfg.margin_cm);
+  if(Number(cfg.gap_cm)>=0 && cfg.gap_cm!=='' && cfg.gap_cm!=null) $('gapCm').value=Number(cfg.gap_cm);
+  if(typeof cfg.allow_rotation==='boolean') $('allowRotation').checked=cfg.allow_rotation;
+  if(Number(cfg.max_segments)>=1) $('maxSegments').value=Math.min(8,Math.max(1,Math.floor(Number(cfg.max_segments))));
+  const fin=urlPreset.financials||{};
+  if(Number(fin.price_per_m2)>=0 && fin.price_per_m2!=='' && fin.price_per_m2!=null) $('pricePerM2').value=Number(fin.price_per_m2);
+  if(Number(fin.freight)>=0 && fin.freight!=='' && fin.freight!=null) $('freight').value=Number(fin.freight);
+  if(Number(fin.markup_pct)>=0 && fin.markup_pct!=='' && fin.markup_pct!=null) $('markup').value=Number(fin.markup_pct);
+  if(Array.isArray(urlPreset.items) && urlPreset.items.length){
+    items=urlPreset.items.slice(0,200).map((item,index)=>({
+      id:uid(),
+      name:String(item.name||`Adesivo ${index+1}`),
+      width_cm:Number(item.width_cm),
+      height_cm:Number(item.height_cm),
+      quantity:Math.max(1,Math.floor(Number(item.quantity)||1))
+    })).filter(item=>item.width_cm>0 && item.height_cm>0);
+  }
+}
 
 function renderItems(){
   $('itemsBody').innerHTML=items.map((item,index)=>`
@@ -130,6 +182,7 @@ function renderResult(result){
 
   renderSegments(result);
   renderDetailTable(result);
+  renderPlacementMap(result);
   updateFinancials();
   $('resultSection').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -182,6 +235,86 @@ function renderDetailTable(result){
   }
   $('detailBody').innerHTML=result.items.map((item,index)=>`
     <tr><td><span class="legend-dot" style="background:${colorFor(index)}"></span>${escapeHtml(item.name)}</td><td>${decimal(item.width_mm/10,1)} × ${decimal(item.height_mm/10,1)} cm</td><td>${item.quantity.toLocaleString('pt-BR')}</td><td>${(allocated[item.id]||0).toLocaleString('pt-BR')}</td><td>${(rotated[item.id]||0).toLocaleString('pt-BR')}</td><td>${decimal((item.width_mm*item.height_mm*item.quantity)/1e6,3)} m²</td></tr>`).join('');
+}
+
+function renderPlacementMap(result){
+  let piece=0;
+  const rows=[];
+  for(const segment of result.segments){
+    for(const placement of segment.placements){
+      piece++;
+      rows.push(`<tr>
+        <td>${segment.index}</td>
+        <td>${piece}</td>
+        <td>${escapeHtml(placement.name)}</td>
+        <td>${decimal(placement.x/10,1)} cm</td>
+        <td>${decimal(placement.y/10,1)} cm</td>
+        <td>${decimal(placement.w/10,1)} cm</td>
+        <td>${decimal(placement.h/10,1)} cm</td>
+        <td>${placement.rotated?'90°':'0°'}</td>
+      </tr>`);
+    }
+  }
+  $('placementBody').innerHTML=rows.join('');
+}
+
+function currentPresetPayload(){
+  return {
+    v:1,
+    config:{
+      roll_width_cm:Number($('rollWidthCm').value),
+      margin_cm:Number($('marginCm').value),
+      gap_cm:Number($('gapCm').value),
+      allow_rotation:$('allowRotation').checked,
+      max_segments:Number($('maxSegments').value)||4
+    },
+    items:currentItemsForOptimizer().map(item=>({
+      name:item.name,
+      width_cm:item.width_mm/10,
+      height_cm:item.height_mm/10,
+      quantity:item.quantity
+    })),
+    financials:{
+      price_per_m2:Number($('pricePerM2').value)||0,
+      freight:Number($('freight').value)||0,
+      markup_pct:Number($('markup').value)||0
+    },
+    auto:true
+  };
+}
+
+function buildShareUrl(){
+  const base=`${location.origin}${location.pathname}`;
+  return `${base}#sim=${encodePreset(currentPresetPayload())}`;
+}
+
+function copyShareLink(){
+  try{
+    const url=buildShareUrl();
+    navigator.clipboard.writeText(url)
+      .then(()=>setStatus('Link da simulação copiado. Ao abrir, os dados serão preenchidos e otimizados automaticamente.','ok'))
+      .catch(()=>setStatus('Não foi possível copiar o link automaticamente.','error'));
+  }catch(error){
+    setStatus(`Não foi possível gerar o link: ${error.message}`,'error');
+  }
+}
+
+function copyPlacementMap(){
+  if(!currentResult) return;
+  let piece=0;
+  const lines=[];
+  for(const segment of currentResult.segments){
+    lines.push(`SEGMENTO ${segment.index} — ${decimal(segment.width_mm/10,1)} cm × ${decimal(segment.height_mm/10,1)} cm`);
+    for(const p of segment.placements){
+      piece++;
+      lines.push(`#${piece} · ${p.name} · X ${decimal(p.x/10,1)} cm · Y ${decimal(p.y/10,1)} cm · ${decimal(p.w/10,1)} × ${decimal(p.h/10,1)} cm · rotação ${p.rotated?'90°':'0°'}`);
+    }
+    lines.push('');
+  }
+  const text=`MAPA DE MONTAGEM — ORIGEM X/Y NO CANTO SUPERIOR ESQUERDO DE CADA SEGMENTO\n\n${lines.join('\n')}`;
+  navigator.clipboard.writeText(text)
+    .then(()=>setStatus('Mapa de montagem copiado para a área de transferência.','ok'))
+    .catch(()=>setStatus('Não foi possível copiar o mapa automaticamente.','error'));
 }
 
 function updateFinancials(){
@@ -239,10 +372,18 @@ function copySummary(){
   navigator.clipboard.writeText(text).then(()=>setStatus('Resumo copiado para a área de transferência.','ok')).catch(()=>setStatus('Não foi possível copiar automaticamente.','error'));
 }
 
-$('addItem').addEventListener('click',()=>{syncItemsFromDom();items.push({id:uid(),name:`Adesivo ${items.length+1}`,width_cm:5,height_cm:5,quantity:100});renderItems();updatePreliminary();});
+$('addItem').addEventListener('click',()=>{syncItemsFromDom();items.push({id:uid(),name:`Adesivo ${items.length+1}`,width_cm:5,height_cm:5,quantity:100});renderItems();updatePreliminary();
+if(urlPreset?.__error){
+  setStatus('O link contém um preset inválido. A simulação foi aberta com os valores locais.','error');
+}else if(urlPreset){
+  setStatus('Simulação carregada pelo link. Calculando o melhor encaixe…','info');
+  optimize();
+}});
 $('optimizeBtn').addEventListener('click',optimize);
 $('saveDefaults').addEventListener('click',saveDefaults);
 $('copySummary').addEventListener('click',copySummary);
+$('copyShareLink').addEventListener('click',copyShareLink);
+$('copyPlacementMap').addEventListener('click',copyPlacementMap);
 $('clearBtn').addEventListener('click',()=>{items=[{id:uid(),name:'Adesivo 1',width_cm:5,height_cm:5,quantity:100}];renderItems();currentResult=null;$('resultSection').hidden=true;$('freight').value=0;updatePreliminary();setStatus('Simulação limpa.','info');});
 ['rollWidthCm','marginCm','gapCm','allowRotation','maxSegments'].forEach(id=>$(id).addEventListener('input',updatePreliminary));
 ['pricePerM2','freight','markup'].forEach(id=>$(id).addEventListener('input',updateFinancials));
