@@ -1,49 +1,28 @@
 import { optimizeRollLayout, calculateRollFinancials } from './roll-optimizer.js';
-import { optimizeSheetLayout } from './sheet-optimizer.js';
 import { IN_HOUSE_PRODUCTION } from '../data/in-house-production.js';
 import { enrichInHouseItems, buildCorelCsv, buildCorelManifest, downloadTextFile, safeFileStem } from './corel-layout-export.js';
 
 const PREF_KEY='croma_roll_simulator_standalone_preferences_v1';
 const TYPE_CONFIG={
-  straight:{
-    label:'ADESIVOS CORTE RETO',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
-    configTitle:'Adesivos Corte Reto',
-    configDescription:'Organização de peças retangulares para melhor aproveitamento da largura de produção.',
+  printed:{
+    label:'IMPRESSOS',mode:'roll',itemSingular:'Item',itemPlural:'Itens',
+    configTitle:'Materiais Impressos',
+    configDescription:'Junta adesivos de corte reto, corte especial e artes aplicadas em PVC no mesmo aproveitamento de impressão.',
     widthLabel:'Largura máxima da área/bobina (cm)',
-    widthHelp:'Informe a largura útil máxima disponível para produção.',
+    widthHelp:'Informe a largura útil máxima disponível para impressão.',
     marginLabel:'Margem lateral (cm)',
     marginHelp:'A mesma margem é aplicada dos dois lados.',
-    providerNote:'Otimização retangular para adesivos com corte reto, respeitando margem, espaçamento e rotação.'
-  },
-  contour:{
-    label:'ADESIVOS CORTE ESPECIAL',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
-    configTitle:'Adesivos Corte Especial',
-    configDescription:'Organização das peças com recorte especial dentro da largura de produção.',
-    widthLabel:'Largura máxima da área/bobina (cm)',
-    widthHelp:'Informe a largura útil máxima disponível para produção.',
-    marginLabel:'Margem lateral (cm)',
-    marginHelp:'A mesma margem é aplicada dos dois lados.',
-    providerNote:'O encaixe usa o retângulo envolvente de cada arte. O contorno vetorial real ainda não é usado no nesting.'
+    providerNote:'Todos os itens que passam por impressão entram juntos no mesmo aproveitamento. Itens de PVC continuam identificados pela origem para cálculo de chapa em etapa separada.'
   },
   hollow:{
     label:'ADESIVOS CORTE VAZADO',mode:'roll',itemSingular:'Adesivo',itemPlural:'Adesivos',
     configTitle:'Adesivos Corte Vazado',
-    configDescription:'Organização das artes vazadas dentro da largura de produção.',
-    widthLabel:'Largura máxima da área/bobina (cm)',
-    widthHelp:'Informe a largura útil máxima disponível para produção.',
+    configDescription:'Vinil já na cor, sem impressão; cálculo separado dos materiais impressos.',
+    widthLabel:'Largura máxima do vinil (cm)',
+    widthHelp:'Informe a largura útil do vinil colorido disponível para corte.',
     marginLabel:'Margem lateral (cm)',
     marginHelp:'A mesma margem é aplicada dos dois lados.',
-    providerNote:'O encaixe usa a caixa envolvente de cada arte vazada. O vazado interno não reduz a área geométrica considerada.'
-  },
-  pvc:{
-    label:'PLACAS PVC',mode:'sheet',itemSingular:'Peça',itemPlural:'Peças',
-    configTitle:'Placas PVC',
-    configDescription:'Defina o tamanho máximo da chapa e distribua as peças no menor número de placas.',
-    widthLabel:'Largura máxima da placa (cm)',
-    widthHelp:'Padrão inicial de 200 cm; pode ser alterado conforme o material disponível.',
-    marginLabel:'Margem da placa (cm)',
-    marginHelp:'Aplicada nos quatro lados da placa.',
-    providerNote:'O cálculo considera placas inteiras no tamanho informado e mostra quantas são necessárias, o aproveitamento e a sobra.'
+    providerNote:'Este grupo não entra no custo de impressão. O cálculo considera somente o aproveitamento do vinil colorido e o corte.'
   }
 };
 const $=id=>document.getElementById(id);
@@ -82,7 +61,7 @@ function readPresetFromUrl(){
 
 $('who').textContent='Modo local · sem banco de dados';
 
-let simulationType='straight';
+let simulationType='printed';
 let currentResult=null;
 let items=[
   {id:uid(),name:'Adesivo 1',width_cm:5,height_cm:3,quantity:1000},
@@ -108,14 +87,14 @@ $('gapCm').value=(Number(rollDefaults.gap_mm)||3)/10;
 $('allowRotation').checked=rollDefaults.allow_rotation!==false;
 $('maxSegments').value=Number(rollDefaults.max_segments)||4;
 $('sheetHeightCm').value=Number(prefs.sheet_height_cm)||100;
-simulationType=prefs.simulation_type==='roll'?'straight':(TYPE_CONFIG[prefs.simulation_type]?prefs.simulation_type:'straight');
+simulationType=['roll','straight','contour','pvc'].includes(prefs.simulation_type)?'printed':(TYPE_CONFIG[prefs.simulation_type]?prefs.simulation_type:'printed');
 $('pricePerM2').value=Number(prefs.price_per_m2)||0;
 $('freight').value=0;
 $('markup').value=Number(prefs.markup_pct)||0;
 
 const urlPreset=readPresetFromUrl();
 if(urlPreset && !urlPreset.__error){
-  const presetType=urlPreset.type==='roll'?'straight':urlPreset.type;
+  const presetType=['roll','straight','contour','pvc'].includes(urlPreset.type)?'printed':urlPreset.type;
   if(TYPE_CONFIG[presetType]) simulationType=presetType;
   const cfg=urlPreset.config||{};
   if(Number(cfg.roll_width_cm)>0) $('rollWidthCm').value=Number(cfg.roll_width_cm);
@@ -167,7 +146,7 @@ function loadInHouseProduction(){
   optimize();
 }
 
-function activeType(){return TYPE_CONFIG[simulationType]||TYPE_CONFIG.straight;}
+function activeType(){return TYPE_CONFIG[simulationType]||TYPE_CONFIG.printed;}
 
 function itemBaseName(){return activeType().itemSingular;}
 
@@ -188,9 +167,9 @@ function applySimulationType(type,{preserveValues=true}={}){
     ?'Adicione todas as peças que precisam ser distribuídas nas placas.'
     :'Adicione todos os tamanhos e quantidades desta cotação.';
   $('addItem').textContent=`＋ Adicionar ${cfg.itemSingular.toLowerCase()}`;
-  $('sheetHeightField').hidden=cfg.mode!=='sheet';
-  $('advancedRoll').hidden=cfg.mode==='sheet';
-  if($('rollIllustration')) $('rollIllustration').hidden=cfg.mode==='sheet';
+  $('sheetHeightField').hidden=true;
+  $('advancedRoll').hidden=false;
+  if($('rollIllustration')) $('rollIllustration').hidden=false;
   if(!preserveValues && type==='pvc'){
     $('rollWidthCm').value=200;
     $('sheetHeightCm').value=100;
@@ -250,13 +229,6 @@ function currentConfig(){
     gap_mm:Number($('gapCm').value)*10,
     allow_rotation:$('allowRotation').checked
   };
-  if(activeType().mode==='sheet'){
-    return {
-      ...base,
-      sheet_width_mm:Number($('rollWidthCm').value)*10,
-      sheet_height_mm:Number($('sheetHeightCm').value)*10
-    };
-  }
   return {
     ...base,
     roll_width_mm:Number($('rollWidthCm').value)*10,
@@ -547,9 +519,7 @@ async function optimize(){
   $('optimizeBtn').disabled=true; $('optimizeBtn').textContent='Otimizando…';
   await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,20)));
   try{
-    const result=activeType().mode==='sheet'
-      ?optimizeSheetLayout(currentItemsForOptimizer(),currentConfig())
-      :optimizeRollLayout(currentItemsForOptimizer(),currentConfig());
+    const result=optimizeRollLayout(currentItemsForOptimizer(),currentConfig());
     renderResult(result);
     setStatus('Encaixe calculado e validado: todas as unidades foram alocadas.','ok');
   }catch(error){
