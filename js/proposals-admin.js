@@ -8,7 +8,7 @@ const pct=value=>Number.isFinite(value)?`${value.toFixed(2).replace('.',',')}%`:
 const multiplier=value=>Number.isFinite(value)&&value>0?`${value.toFixed(2).replace('.',',')}×`:'—';
 const n=value=>{const x=Number(String(value??'').replace(',','.'));return Number.isFinite(x)?x:null};
 let proposals=[];
-let productsCache=null;
+let productsCache=null;\nlet simulationsByProposal=new Map();
 
 function safeUrl(value){try{const url=new URL(value);return url.protocol==='https:'?url.href:null}catch{return null}}
 function setModal(html=''){document.getElementById('proposalModalRoot').innerHTML=html}
@@ -43,10 +43,16 @@ function renderItem(item){
   </section>`;
 }
 
+function renderSimulationLinks(proposal){
+  const sims=simulationsByProposal.get(proposal.id)||[];
+  if(!sims.length)return '<div class="simulation-links"><span>Nenhuma simulação de produção vinculada.</span></div>';
+  return '<div class="simulation-links"><strong>Simulações de produção</strong>'+sims.map(s=>`<a href="/interno/simulador-bobina/?simulation=${encodeURIComponent(s.id)}">#${s.simulation_no} · ${s.simulation_type==='roll'?'Bobina':'Placas'} · v${s.current_version}</a>`).join('')+'</div>';
+}
+
 function renderProposal(proposal){
   const items=[...(proposal.sales_proposal_items||[])].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   return `<article class="proposal-card" data-proposal-id="${esc(proposal.id)}" data-search="${esc(`${proposal.proposal_no} ${proposal.customer_name} ${proposal.customer_phone||''}`.toLowerCase())}">
-    <header class="proposal-head"><div><span class="proposal-number">Proposta #${esc(proposal.proposal_no)}</span><h2>${esc(proposal.customer_name)}</h2><p>${esc(proposal.customer_phone||'Sem telefone')}</p></div><div class="proposal-head-side"><span class="status">${esc(statusLabel(proposal.status))}</span><button class="mini-btn alt" data-action="edit">Editar</button><button class="mini-btn share" data-action="share">Encaminhar proposta</button></div></header>
+    <header class="proposal-head"><div><span class="proposal-number">Proposta #${esc(proposal.proposal_no)}</span><h2>${esc(proposal.customer_name)}</h2><p>${esc(proposal.customer_phone||'Sem telefone')}</p></div><div class="proposal-head-side"><span class="status">${esc(statusLabel(proposal.status))}</span><button class="mini-btn alt" data-action="edit">Editar</button><a class="mini-btn alt" href="/interno/simulador-bobina/?proposal=${encodeURIComponent(proposal.id)}">Simular produção</a><button class="mini-btn share" data-action="share">Encaminhar proposta</button></div></header>
     ${proposal.notes?`<p class="notes">${esc(proposal.notes)}</p>`:''}<div class="proposal-items">${items.length?items.map(renderItem).join(''):'<p class="empty">Sem itens nesta proposta.</p>'}</div>
     <footer>Criada em ${esc(dateTime.format(new Date(proposal.created_at)))}</footer>
   </article>`;
@@ -54,7 +60,16 @@ function renderProposal(proposal){
 
 async function loadProposals(){
   const {data,error}=await supabase.from('sales_proposals').select('id,proposal_no,customer_name,customer_phone,status,notes,created_at,sales_proposal_items(id,product_id,supplier_id,supplier_catalog_item_id,description,share_description,option_label,quantity,unit,supplier_sku,base_cost,freight_cost,total_cost,recommended_markup,applied_markup,unit_price,line_total,sort_order,market_reference_price,suggested_price,final_offer_price,image_url,market_reference_source,market_researched_at,market_reference_metadata,metadata)').order('created_at',{ascending:false}).limit(200);
-  if(error) throw error; proposals=data||[]; return proposals;
+  if(error) throw error;
+  proposals=data||[];
+  simulationsByProposal=new Map();
+  if(proposals.length){
+    const ids=proposals.map(p=>p.id);
+    const {data:sims,error:sError}=await supabase.from('production_simulations').select('id,simulation_no,simulation_type,proposal_id,current_version,title').in('proposal_id',ids).order('updated_at',{ascending:false});
+    if(sError)throw sError;
+    for(const sim of sims||[]){const list=simulationsByProposal.get(sim.proposal_id)||[];list.push(sim);simulationsByProposal.set(sim.proposal_id,list);}
+  }
+  return proposals;
 }
 async function loadProducts(){
   if(productsCache)return productsCache;
