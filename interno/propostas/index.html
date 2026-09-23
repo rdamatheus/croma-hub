@@ -22,7 +22,7 @@
   <div id="proposalModalRoot"></div>
   <script type="module">
     import { protectInternalPage } from '/js/interno-auth.js?v=20260916-1';
-    import { initProposalsAdmin } from '/js/proposals-admin.js?v=20260916-2';
+    import { initProposalsAdmin } from '/js/proposals-admin.js?v=20260923-1';
     const session=await protectInternalPage({roles:['owner','manager']});
     if(!session) throw new Error('Acesso não autorizado.');
     await initProposalsAdmin(session);
