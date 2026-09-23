@@ -40,6 +40,9 @@ create index if not exists production_simulations_proposal_id_idx on public.prod
 create index if not exists production_simulations_customer_id_idx on public.production_simulations(customer_id);
 create index if not exists production_simulations_type_updated_idx on public.production_simulations(simulation_type, updated_at desc);
 create index if not exists production_simulation_versions_simulation_idx on public.production_simulation_versions(simulation_id, version_number desc);
+create index if not exists production_simulations_created_by_idx on public.production_simulations(created_by);
+create index if not exists production_simulations_updated_by_idx on public.production_simulations(updated_by);
+create index if not exists production_simulation_versions_created_by_idx on public.production_simulation_versions(created_by);
 
 alter table public.production_simulations enable row level security;
 alter table public.production_simulation_versions enable row level security;
