@@ -85,15 +85,11 @@ function detailOf(id){return detailsMap.get(id)||{};}
 function stockOf(id){return stockMap.get(id)||null;}
 function supplierOf(id){const link=supplierMap.get(id);return link?supplierNameMap.get(link.supplier_id)||'Fornecedor':'—';}
 function productAvailability(p){
-  const children=childrenMap.get(p.id)||[];
-  if(children.length){
-    const values=children.map(c=>stockOf(c.id)?.available_stock).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
-    if(values.length)return values.reduce((a,b)=>a+Number(b),0);
-  }
+  if(p.available_stock_effective!==undefined&&p.available_stock_effective!==null)return p.available_stock_effective;
   return stockOf(p.id)?.available_stock ?? null;
 }
 function structureKey(p){
-  const hasChildren=(childrenMap.get(p.id)||[]).length>0;
+  const hasChildren=Number(p.child_count||0)>0 || (childrenMap.get(p.id)||[]).length>0;
   if(p.parent_product_id&&p.product_format==='composition')return 'variation_composition';
   if(p.parent_product_id)return 'variation';
   if(hasChildren)return 'parent';
@@ -198,7 +194,7 @@ function renderList(){
   const template=rowTemplate();
   list.innerHTML=shown.length?shown.map(p=>{const image=mediaMap.get(p.id),d=detailOf(p.id),available=productAvailability(p),stockClass=available===null?'':Number(available)<0?'stock-negative':Number(available)===0?'stock-zero':'stock-positive',cat=categoryPath(categories.find(c=>c.id===p.catalog_category_id))||'Sem categoria',href=detailHref(p.id);let cells='';
     if(columns.category)cells+=`<div class="data-cell"><div class="product-meta">Categoria</div><strong>${esc(cat)}</strong></div>`;
-    if(columns.stock)cells+=`<div class="data-cell"><div class="product-meta">Disponível</div><strong class="${stockClass}">${fmtQty(available)}</strong>${(childrenMap.get(p.id)||[]).length?'<div class="product-meta">soma das variações</div>':''}</div>`;
+    if(columns.stock)cells+=`<div class="data-cell"><div class="product-meta">Disponível</div><strong class="${stockClass}">${fmtQty(available)}</strong>${(Number(p.child_count||0)>0||(childrenMap.get(p.id)||[]).length)?'<div class="product-meta">soma das variações</div>':''}</div>`;
     if(columns.price)cells+=`<div class="data-cell"><div class="product-meta">Preço</div><strong>${fmtMoney(p.preco)}</strong></div>`;
     if(columns.origin)cells+=`<div class="data-cell"><div class="product-meta">Origem</div><strong>${esc(productionLabel(d.production_mode))}</strong></div>`;
     if(columns.supplier)cells+=`<div class="data-cell"><div class="product-meta">Fornecedor</div><strong>${esc(supplierOf(p.id))}</strong></div>`;
@@ -215,19 +211,28 @@ function rebuildMaps(){
 
 async function loadListMode(){
   if($('#productCount'))$('#productCount').textContent='Carregando itens…';
-  const basePromise=fetchAll(()=>supabase.from('products').select('id,nome,sku,slug,catalog_category_id,preco,bling_product_id,bling_parent_id,bling_sku,bling_sync_status,product_type,product_format,parent_product_id,ativo,is_input,is_sellable,is_purchasable,controls_stock,published_on_site').order('nome'));
   const results=await Promise.allSettled([
-    basePromise,
+    supabase.rpc('internal_products_catalog_snapshot'),
     fetchAll(()=>supabase.from('catalog_categories').select('id,nome,parent_id,ordem,catalog_scope,ativo').order('ordem').order('nome')),
-    fetchAll(()=>supabase.from('product_details').select('product_id,brand,model,barcode,gtin,ncm,cest,production_mode')),
-    fetchAll(()=>supabase.from('product_stock_snapshots').select('product_id,available_stock,virtual_stock,minimum_stock,maximum_stock,storage_location,synced_at').eq('source','bling')),
-    fetchAll(()=>supabase.from('suppliers').select('id,name,active').order('name')),
-    fetchAll(()=>supabase.from('product_suppliers').select('product_id,supplier_id,preferred,active,purchase_price').eq('active',true)),
-    fetchAll(()=>supabase.from('product_media').select('product_id,url,is_primary,ordem,ativo,kind').eq('ativo',true).eq('kind','image').order('is_primary',{ascending:false}).order('ordem'))
+    fetchAll(()=>supabase.from('suppliers').select('id,name,active').eq('active',true).order('name'))
   ]);
-  if(results[0].status==='rejected')throw results[0].reason;products=results[0].value;
-  categories=results[1].status==='fulfilled'?results[1].value:[];detailsRows=results[2].status==='fulfilled'?results[2].value:[];stockSnapshots=results[3].status==='fulfilled'?results[3].value:[];suppliers=results[4].status==='fulfilled'?results[4].value:[];supplierLinks=results[5].status==='fulfilled'?results[5].value:[];
-  mediaMap=new Map();if(results[6].status==='fulfilled')for(const row of results[6].value)if(!mediaMap.has(row.product_id)&&row.url)mediaMap.set(row.product_id,row.url);
+  if(results[0].status==='rejected')throw results[0].reason;
+  const snapshotResult=results[0].value;
+  if(snapshotResult.error)throw snapshotResult.error;
+  const rows=snapshotResult.data||[];
+  products=rows.map(r=>({
+    id:r.id,nome:r.nome,sku:r.sku,slug:r.slug,catalog_category_id:r.catalog_category_id,preco:r.preco,
+    bling_product_id:r.bling_product_id,bling_parent_id:r.bling_parent_id,bling_sku:r.bling_sku,bling_sync_status:r.bling_sync_status,
+    product_type:r.product_type,product_format:r.product_format,parent_product_id:r.parent_product_id,ativo:r.ativo,is_input:r.is_input,
+    is_sellable:r.is_sellable,is_purchasable:r.is_purchasable,controls_stock:r.controls_stock,published_on_site:r.published_on_site,
+    available_stock_effective:r.available_stock_effective,child_count:Number(r.child_count||0)
+  }));
+  categories=results[1].status==='fulfilled'?results[1].value:[];
+  suppliers=results[2].status==='fulfilled'?results[2].value:[];
+  detailsRows=rows.map(r=>({product_id:r.id,brand:r.brand,model:r.model,barcode:r.barcode,gtin:r.gtin,ncm:r.ncm,cest:r.cest,production_mode:r.production_mode}));
+  stockSnapshots=rows.map(r=>({product_id:r.id,available_stock:r.available_stock_effective,minimum_stock:r.minimum_stock}));
+  supplierLinks=rows.filter(r=>r.supplier_id).map(r=>({product_id:r.id,supplier_id:r.supplier_id,preferred:true,active:true}));
+  mediaMap=new Map(rows.filter(r=>r.image_url).map(r=>[r.id,r.image_url]));
   rebuildMaps();refreshFilters();renderList();
 }
 
