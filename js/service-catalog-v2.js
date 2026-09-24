@@ -1,4 +1,4 @@
-import { loadPublicCatalog, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20260910-2';
+import { loadPublicCatalogMeta, loadPublicCatalogItems, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20260923-1';
 
 const root=document.querySelector('#catalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -6,7 +6,7 @@ const plain=s=>{const d=document.createElement('div');d.innerHTML=String(s??'');
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const params=new URLSearchParams(location.search);
 let familySlug=params.get('familia')||'',categorySlug=params.get('categoria')||'';
-let families=[],categories=[],services=[];
+let families=[],categories=[];
 const quoteBase='https://wa.me/553230253588?text=';
 
 function commercialPrice(p){
@@ -22,7 +22,6 @@ function commercialPrice(p){
 }
 function familyMedia(f){return f?.image_url||''}
 function categoryMedia(c,f){return c?.image_url||familyMedia(f)||''}
-function categoryServices(id){const ids=descendantIds(categories,id);return services.filter(s=>ids.has(s.catalog_category_id))}
 function rootsForFamily(id){return rootCategories(categories,id)}
 function childrenFor(id){return categoryChildren(categories,id)}
 function setUrl(family='',category=''){const u=new URL(location.href);u.searchParams.delete('familia');u.searchParams.delete('categoria');if(family)u.searchParams.set('familia',family);if(category)u.searchParams.set('categoria',category);history.replaceState({},'',u.pathname+(u.search?u.search:''));familySlug=family;categorySlug=category}
@@ -49,11 +48,12 @@ function openFamily(slug,scroll=true){const f=families.find(x=>x.slug===slug),ca
 async function renderCategory(){
   const cat=categories.find(c=>c.slug===categorySlug),fam=families.find(f=>f.slug===familySlug)||families.find(f=>f.id===cat?.family_id);
   if(!cat||!fam){setUrl('','');renderHome();return}
-  const ids=descendantIds(categories,cat.id),rows=services.filter(s=>ids.has(s.catalog_category_id));
+  const ids=[...descendantIds(categories,cat.id)];
+  const rows=await loadPublicCatalogItems('servico',{requirePublished:true,categoryIds:ids,pageSize:100});
   const media=await loadPrimaryMedia(rows.map(r=>r.id));
   const path=categoryPath(categories,families,cat.id),children=childrenFor(cat.id);
   const genericQuote=`${quoteBase}${encodeURIComponent(`Olá! Vim pelo site da Croma e gostaria de solicitar orçamento para ${cat.nome}.`)}`;
   root.innerHTML=`<div class="service-catalog"><div class="sc-breadcrumb"><a href="/">Início</a><span>›</span><a href="/servicos/">Serviços</a>${path.map((x,i)=>i===path.length-1?`<span>›</span><strong>${esc(x.nome)}</strong>`:`<span>›</span><a href="${i===0?`/servicos/?familia=${encodeURIComponent(fam.slug)}`:`/servicos/?familia=${encodeURIComponent(fam.slug)}&categoria=${encodeURIComponent(x.slug||'')}`}">${esc(x.nome)}</a>`).join('')}</div><section class="sc-family-hero">${familyMedia(fam)?`<img src="${esc(familyMedia(fam))}" alt="${esc(fam.image_alt||fam.nome)}">`:''}<div class="sc-family-hero-copy"><p class="sc-eyebrow">${esc(fam.nome)}</p><h1>${esc(cat.nome)}</h1><p>${esc(cat.descricao||'Consulte opções, formatos e possibilidades para esta categoria.')}</p></div></section>${children.length?`<div class="sc-sibling-grid">${children.map(c=>`<a class="sc-sibling-card" href="/servicos/?familia=${encodeURIComponent(fam.slug)}&categoria=${encodeURIComponent(c.slug)}"><div class="sc-sibling-copy"><strong>${esc(c.nome)}</strong><span>Explorar opções</span><i class="sc-sibling-arrow">→</i></div></a>`).join('')}</div>`:''}<div class="sc-category-heading"><h2>${rows.length?'Opções disponíveis':'Precisa desta solução?'}</h2><p>${rows.length?'Escolha uma opção abaixo ou fale com a Croma para um orçamento sob medida.':'Fale com a Croma para consultar materiais, medidas, quantidades e acabamentos disponíveis.'}</p></div>${rows.length?`<section class="sc-service-results"><div class="sc-services-grid">${rows.map(p=>{const m=media.get(p.id),desc=plain(p.short_description||p.descricao||'Solicite um orçamento para este serviço.'),price=commercialPrice(p),optionInfo=Number(p.child_count||0)>0?`<div class="sc-service-options">${Number(p.child_count)} opção(ões) cadastrada(s)</div>`:'';return `<article class="sc-service-card"><div class="sc-service-media">${m?.url?`<img src="${esc(m.url)}" alt="${esc(m.alt_text||p.nome)}" loading="lazy">`:''}</div><div class="sc-service-copy"><h4>${esc(p.nome)}</h4><p>${esc(desc)}</p>${optionInfo}<div class="sc-service-price ${price.consult?'is-consult':''}">${esc(price.label)}</div><a class="sc-cta" href="${quoteBase}${encodeURIComponent(`Olá! Vim pelo site da Croma e gostaria de ${price.consult?'consultar o valor':'solicitar orçamento'} para ${p.nome}.`)}" target="_blank" rel="noopener noreferrer">${price.consult?'Consultar pelo WhatsApp':'Solicitar orçamento'} →</a></div></article>`}).join('')}</div></section>`:`<div class="sc-empty"><p>Podemos orientar a melhor configuração para o seu projeto.</p><a class="sc-cta" href="${genericQuote}" target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp →</a></div>`}</div>`;
 }
 
-try{const data=await loadPublicCatalog('servico');families=data.families;categories=data.categories;services=data.items;if(categorySlug)await renderCategory();else renderHome()}catch(e){console.error('Falha ao carregar catálogo público de serviços.',e);root.innerHTML='<div class="service-catalog"><div class="sc-empty">Não foi possível carregar os serviços agora.</div></div>'}
+try{const data=await loadPublicCatalogMeta('servico',{requirePublished:true});families=data.families;categories=data.categories;if(categorySlug)await renderCategory();else renderHome()}catch(e){console.error('Falha ao carregar catálogo público de serviços.',e);root.innerHTML='<div class="service-catalog"><div class="sc-empty">Não foi possível carregar os serviços agora.</div></div>'}
