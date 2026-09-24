@@ -13,8 +13,8 @@ begin
   loop
     new_command := replace(
       j.command,
-      "not in ('synced','blocked')",
-      "not in ('synced','blocked','waiting_baseline')"
+      'not in (''synced'',''blocked'')',
+      'not in (''synced'',''blocked'',''waiting_baseline'')'
     );
     perform cron.alter_job(j.jobid, command := new_command, active := false);
   end loop;
