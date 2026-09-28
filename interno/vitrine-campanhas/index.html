@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Vitrine & Campanhas | Croma</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <style>
+    .shell{max-width:1260px;margin:auto;padding:28px 18px 80px}.grid{display:grid;grid-template-columns:430px 1fr;gap:16px}.card{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:18px}.field{display:grid;gap:6px;margin-bottom:11px}.field label{font-size:.7rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:var(--croma-purple)}input,select,textarea{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #d8d6e4;border-radius:10px;font:inherit;background:#fff}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.check{display:flex;gap:8px;align-items:center;margin:10px 0}.check input{width:auto}.btn{border:0;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer;background:var(--croma-purple);color:#fff}.btn.light{background:#fff;color:var(--croma-purple);border:1px solid var(--croma-line)}.btn.bad{background:#fff;color:#a63838;border:1px solid #edcccc}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{min-height:22px;font-weight:800}.status.ok{color:#537b23}.status.bad{color:#a63838}.help{padding:11px 12px;border-radius:12px;background:#f7f6fb;color:var(--croma-muted);font-size:.82rem;line-height:1.5;margin-bottom:14px}.preview{min-height:220px;border-radius:18px;padding:22px;display:flex;flex-direction:column;justify-content:flex-end;background:radial-gradient(circle at 82% 18%,#d8007845,transparent 29%),linear-gradient(135deg,#102536,#211c5c);color:#fff;background-size:cover;background-position:center;overflow:hidden}.preview small{font-weight:900;letter-spacing:.1em}.preview h2{margin:8px 0 7px;font-size:1.8rem;line-height:1.05}.preview p{margin:0;max-width:620px;color:#e1deeb;line-height:1.5}.preview a{display:inline-flex;align-self:flex-start;margin-top:14px;padding:9px 13px;border-radius:999px;background:#fff;color:#211c5c;text-decoration:none;font-weight:900;font-size:.8rem}.list{display:grid;gap:10px;margin-top:14px}.item{display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px;border:1px solid #e7e4ef;border-radius:14px}.item strong{color:var(--croma-deep)}.muted{color:var(--croma-muted);font-size:.82rem;line-height:1.45}.pill{display:inline-flex;padding:5px 8px;border-radius:999px;background:#efedf6;color:var(--croma-deep);font-size:.7rem;font-weight:900}.pill.on{background:#eef8e8;color:#537b23}.item-actions{display:flex;gap:6px;align-items:center}.item-actions .btn{padding:7px 9px;font-size:.76rem}@media(max-width:940px){.grid{grid-template-columns:1fr}}@media(max-width:600px){.two{grid-template-columns:1fr}.item{grid-template-columns:1fr}.item-actions{justify-content:flex-start}}
+  </style>
+</head>
+<body hidden>
+  <header class="internal-header"><a href="/interno/">← Croma Interno</a><strong>Vitrine & Campanhas</strong></header>
+  <main class="shell">
+    <span class="internal-eyebrow">Site comercial</span>
+    <h1 class="internal-title">Vitrine & Campanhas</h1>
+    <p class="internal-lead">Primeira versão do gestor comercial da Home. Começamos pelos banners; destaques e campanhas segmentadas entram nas próximas evoluções.</p>
+
+    <div class="grid">
+      <section class="card">
+        <h2 id="formTitle">Novo banner</h2>
+        <div class="help">O banner pode levar para qualquer página do site agora. O tipo e a referência deixam o registro preparado para, depois, escolher produtos, famílias, categorias e segmentos diretamente pelo painel.</div>
+        <div class="field"><label>Nome interno</label><input id="name" placeholder="Ex.: Campanha cartões outubro"></div>
+        <div class="field"><label>Chamada curta</label><input id="eyebrow" placeholder="Ex.: Croma Gráfica"></div>
+        <div class="field"><label>Título</label><input id="title" placeholder="Título principal do banner"></div>
+        <div class="field"><label>Texto</label><textarea id="subtitle" rows="3" placeholder="Descrição curta da campanha"></textarea></div>
+        <div class="field"><label>Imagem desktop / URL</label><input id="imageDesktop" type="url" placeholder="https://..."></div>
+        <div class="field"><label>Imagem mobile / URL</label><input id="imageMobile" type="url" placeholder="https://..."></div>
+        <div class="two">
+          <div class="field"><label>Texto do botão</label><input id="ctaLabel" placeholder="Ver produtos"></div>
+          <div class="field"><label>Tipo de destino</label><select id="targetType"><option value="page">Página</option><option value="product">Produto</option><option value="family">Família</option><option value="category">Categoria</option><option value="segment">Segmento</option><option value="campaign">Campanha</option><option value="external">Link externo</option></select></div>
+        </div>
+        <div class="field"><label>Referência do destino</label><input id="targetRef" placeholder="Opcional: slug, ID ou nome de referência"></div>
+        <div class="field"><label>URL final do botão</label><input id="targetUrl" placeholder="/grafica-papelaria/ ou https://..."></div>
+        <div class="two">
+          <div class="field"><label>Início</label><input id="startsAt" type="datetime-local"></div>
+          <div class="field"><label>Fim</label><input id="endsAt" type="datetime-local"></div>
+        </div>
+        <div class="field"><label>Ordem</label><input id="displayOrder" type="number" value="0"></div>
+        <label class="check"><input id="active" type="checkbox"> Ativo</label>
+        <p class="status" id="status"></p>
+        <div class="actions"><button class="btn" id="save">Salvar banner</button><button class="btn light" id="newBtn">Novo</button><button class="btn bad" id="del" style="display:none">Excluir</button></div>
+      </section>
+
+      <section class="card">
+        <h2>Prévia</h2>
+        <div class="preview" id="preview"><small id="previewEyebrow">VITRINE CROMA</small><h2 id="previewTitle">Seu próximo banner aparece aqui.</h2><p id="previewSubtitle">Preencha os campos ao lado para visualizar a chamada.</p><a id="previewCta" href="#">Ver mais</a></div>
+        <h2 style="margin-top:24px">Banners cadastrados</h2>
+        <div id="list" class="list"><p class="muted">Carregando...</p></div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="/js/interno-vitrine-campanhas.js?v=20260928-1"></script>
+</body>
+</html>
