@@ -3,8 +3,9 @@ import { supabase } from './croma-supabase.js';
 const $ = selector => document.querySelector(selector);
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const pageParams = new URLSearchParams(location.search);
-const productId = pageParams.get('produto') || '';
-const isProductDetail = pageParams.get('modo') === 'ficha' && !!productId;
+const initialProductId = pageParams.get('produto') || '';
+const isProductDetail = pageParams.get('modo') === 'ficha' && !!initialProductId;
+const currentProductId = () => new URLSearchParams(location.search).get('produto') || '';
 
 const chipTranslations = new Map([
   ['Status: active', 'Status: Ativos'],
@@ -149,15 +150,16 @@ function mountInputsShortcut() {
 }
 
 async function mountInputControls() {
-  if (!productId) return;
+  const id = currentProductId();
+  if (!id) return;
   for (let i = 0; i < 80; i++) {
     const actions = document.querySelector('.editor-actions');
-    if (actions) {
-      const { data, error } = await supabase.from('products').select('id,is_input,product_format').eq('id', productId).maybeSingle();
+    if (actions && document.querySelector('#editor.open')) {
+      const { data, error } = await supabase.from('products').select('id,is_input,product_format').eq('id', id).maybeSingle();
       if (error || !data) return;
       const costsLink = $('#costsLink');
       if (costsLink) {
-        costsLink.href = `/interno/composicao-custos/?produto=${encodeURIComponent(productId)}`;
+        costsLink.href = `/interno/composicao-custos/?produto=${encodeURIComponent(id)}`;
         costsLink.textContent = 'Composição / insumos';
       }
       let button = $('#inputRoleToggle');
@@ -168,6 +170,7 @@ async function mountInputControls() {
         button.className = 'btn light';
         actions.prepend(button);
       }
+      button.dataset.productId = id;
       const paint = value => {
         button.dataset.enabled = value ? '1' : '0';
         button.textContent = value ? '✓ Usado como insumo' : 'Marcar como insumo';
@@ -175,10 +178,11 @@ async function mountInputControls() {
       };
       paint(!!data.is_input);
       button.onclick = async () => {
+        const targetId = button.dataset.productId;
         const next = button.dataset.enabled !== '1';
         button.disabled = true;
         try {
-          const { error: updateError } = await supabase.from('products').update({ is_input: next, updated_at: new Date().toISOString() }).eq('id', productId);
+          const { error: updateError } = await supabase.from('products').update({ is_input: next, updated_at: new Date().toISOString() }).eq('id', targetId);
           if (updateError) throw updateError;
           paint(next);
         } catch (e) {
@@ -210,6 +214,12 @@ $('#clearProductFilters')?.addEventListener('click', () => setTimeout(() => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }, 0));
+
+const detailObserver = new MutationObserver(() => {
+  if (document.querySelector('#editor.open')) mountInputControls();
+});
+detailObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+window.addEventListener('popstate', mountInputControls);
 
 refreshPresentation();
 mountInputsShortcut();
