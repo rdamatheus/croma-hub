@@ -3,7 +3,8 @@ import { supabase } from './croma-supabase.js';
 const $ = selector => document.querySelector(selector);
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const pageParams = new URLSearchParams(location.search);
-const isProductDetail = pageParams.get('modo') === 'ficha' && !!pageParams.get('produto');
+const productId = pageParams.get('produto') || '';
+const isProductDetail = pageParams.get('modo') === 'ficha' && !!productId;
 
 const chipTranslations = new Map([
   ['Status: active', 'Status: Ativos'],
@@ -129,6 +130,69 @@ function loadStructureEnhancement() {
   import('/js/interno-produtos-structure-v1.js?v=20260910-1').catch(error => console.error('Falha ao carregar visão estrutural de produtos', error));
 }
 
+function loadSupplierEnhancement() {
+  import('/js/interno-produtos-supplier-enhancer.js?v=20260928-1').catch(error => console.error('Falha ao carregar fornecedores do produto', error));
+}
+
+function mountInputsShortcut() {
+  if ($('#inputsShortcut')) return;
+  const host = document.querySelector('.list-head') || document.querySelector('.editor-head');
+  if (!host) return;
+  const a = document.createElement('a');
+  a.id = 'inputsShortcut';
+  a.className = 'btn light';
+  a.href = '/interno/insumos/';
+  a.textContent = 'Insumos';
+  const search = host.querySelector('#productSearch,.search');
+  if (search?.parentElement === host) host.insertBefore(a, search);
+  else host.appendChild(a);
+}
+
+async function mountInputControls() {
+  if (!productId) return;
+  for (let i = 0; i < 80; i++) {
+    const actions = document.querySelector('.editor-actions');
+    if (actions) {
+      const { data, error } = await supabase.from('products').select('id,is_input,product_format').eq('id', productId).maybeSingle();
+      if (error || !data) return;
+      const costsLink = $('#costsLink');
+      if (costsLink) {
+        costsLink.href = `/interno/composicao-custos/?produto=${encodeURIComponent(productId)}`;
+        costsLink.textContent = 'Composição / insumos';
+      }
+      let button = $('#inputRoleToggle');
+      if (!button) {
+        button = document.createElement('button');
+        button.id = 'inputRoleToggle';
+        button.type = 'button';
+        button.className = 'btn light';
+        actions.prepend(button);
+      }
+      const paint = value => {
+        button.dataset.enabled = value ? '1' : '0';
+        button.textContent = value ? '✓ Usado como insumo' : 'Marcar como insumo';
+        button.title = value ? 'Este produto pode ser usado como componente de outros produtos/serviços.' : 'Habilita este mesmo produto para uso em composições, sem criar cadastro duplicado.';
+      };
+      paint(!!data.is_input);
+      button.onclick = async () => {
+        const next = button.dataset.enabled !== '1';
+        button.disabled = true;
+        try {
+          const { error: updateError } = await supabase.from('products').update({ is_input: next, updated_at: new Date().toISOString() }).eq('id', productId);
+          if (updateError) throw updateError;
+          paint(next);
+        } catch (e) {
+          alert(e.message || 'Não foi possível alterar a classificação de insumo.');
+        } finally {
+          button.disabled = false;
+        }
+      };
+      return;
+    }
+    await wait(50);
+  }
+}
+
 await loadTypeTotals();
 await applyDefaultProductFilter();
 await checkOperationalReads();
@@ -148,4 +212,7 @@ $('#clearProductFilters')?.addEventListener('click', () => setTimeout(() => {
 }, 0));
 
 refreshPresentation();
+mountInputsShortcut();
 loadStructureEnhancement();
+loadSupplierEnhancement();
+mountInputControls();
