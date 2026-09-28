@@ -1,4 +1,4 @@
-import { INTERNAL_GROUPS, activeModuleKey, iconSvg } from './interno-navigation.js';
+import { INTERNAL_GROUPS, activeModuleKey, iconSvg } from './interno-navigation.js?v=20260928-2';
 
 const STORAGE_COLLAPSED='croma_internal_sidebar_collapsed';
 const STORAGE_GROUPS='croma_internal_sidebar_groups';
@@ -77,7 +77,7 @@ function addMobileButton(){
 function add(){
   document.body.classList.add('croma-modern');
   if(!document.querySelector('link[data-croma-modern]')){
-    const link=document.createElement('link');link.rel='stylesheet';link.href='/css/interno-modern.css?v=20260928-1';link.dataset.cromaModern='1';document.head.appendChild(link);
+    const link=document.createElement('link');link.rel='stylesheet';link.href='/css/interno-modern.css?v=20260928-2';link.dataset.cromaModern='1';document.head.appendChild(link);
   }
   buildSidebar();
   addMobileButton();
