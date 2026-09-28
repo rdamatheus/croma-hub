@@ -53,6 +53,9 @@ function translateChips() {
 
 let productTotal = null;
 let serviceTotal = null;
+let inputControlsProductId = '';
+let inputControlsMounting = null;
+let detailObserver = null;
 
 async function loadTypeTotals() {
   const [productsResult, servicesResult] = await Promise.all([
@@ -132,7 +135,7 @@ function loadStructureEnhancement() {
 }
 
 function loadSupplierEnhancement() {
-  import('/js/interno-produtos-supplier-enhancer.js?v=20260928-1').catch(error => console.error('Falha ao carregar fornecedores do produto', error));
+  import('/js/interno-produtos-supplier-enhancer.js?v=20260928-2').catch(error => console.error('Falha ao carregar fornecedores do produto', error));
 }
 
 function mountInputsShortcut() {
@@ -152,48 +155,58 @@ function mountInputsShortcut() {
 async function mountInputControls() {
   const id = currentProductId();
   if (!id) return;
-  for (let i = 0; i < 80; i++) {
-    const actions = document.querySelector('.editor-actions');
-    if (actions && document.querySelector('#editor.open')) {
-      const { data, error } = await supabase.from('products').select('id,is_input,product_format').eq('id', id).maybeSingle();
-      if (error || !data) return;
-      const costsLink = $('#costsLink');
-      if (costsLink) {
-        costsLink.href = `/interno/composicao-custos/?produto=${encodeURIComponent(id)}`;
-        costsLink.textContent = 'Composição / insumos';
-      }
-      let button = $('#inputRoleToggle');
-      if (!button) {
-        button = document.createElement('button');
-        button.id = 'inputRoleToggle';
-        button.type = 'button';
-        button.className = 'btn light';
-        actions.prepend(button);
-      }
-      button.dataset.productId = id;
-      const paint = value => {
-        button.dataset.enabled = value ? '1' : '0';
-        button.textContent = value ? '✓ Usado como insumo' : 'Marcar como insumo';
-        button.title = value ? 'Este produto pode ser usado como componente de outros produtos/serviços.' : 'Habilita este mesmo produto para uso em composições, sem criar cadastro duplicado.';
-      };
-      paint(!!data.is_input);
-      button.onclick = async () => {
-        const targetId = button.dataset.productId;
-        const next = button.dataset.enabled !== '1';
-        button.disabled = true;
-        try {
-          const { error: updateError } = await supabase.from('products').update({ is_input: next, updated_at: new Date().toISOString() }).eq('id', targetId);
-          if (updateError) throw updateError;
-          paint(next);
-        } catch (e) {
-          alert(e.message || 'Não foi possível alterar a classificação de insumo.');
-        } finally {
-          button.disabled = false;
+  if (inputControlsProductId === id && $('#inputRoleToggle')?.dataset.productId === id) return;
+  if (inputControlsMounting) return inputControlsMounting;
+  inputControlsMounting = (async () => {
+    for (let i = 0; i < 80; i++) {
+      const actions = document.querySelector('.editor-actions');
+      if (actions && document.querySelector('#editor.open')) {
+        const { data, error } = await supabase.from('products').select('id,is_input,product_format').eq('id', id).maybeSingle();
+        if (error || !data) return;
+        const costsLink = $('#costsLink');
+        if (costsLink) {
+          costsLink.href = `/interno/composicao-custos/?produto=${encodeURIComponent(id)}`;
+          costsLink.textContent = 'Composição / insumos';
         }
-      };
-      return;
+        let button = $('#inputRoleToggle');
+        if (!button) {
+          button = document.createElement('button');
+          button.id = 'inputRoleToggle';
+          button.type = 'button';
+          button.className = 'btn light';
+          actions.prepend(button);
+        }
+        button.dataset.productId = id;
+        const paint = value => {
+          button.dataset.enabled = value ? '1' : '0';
+          button.textContent = value ? '✓ Usado como insumo' : 'Marcar como insumo';
+          button.title = value ? 'Este produto pode ser usado como componente de outros produtos/serviços.' : 'Habilita este mesmo produto para uso em composições, sem criar cadastro duplicado.';
+        };
+        paint(!!data.is_input);
+        button.onclick = async () => {
+          const targetId = button.dataset.productId;
+          const next = button.dataset.enabled !== '1';
+          button.disabled = true;
+          try {
+            const { error: updateError } = await supabase.from('products').update({ is_input: next, updated_at: new Date().toISOString() }).eq('id', targetId);
+            if (updateError) throw updateError;
+            paint(next);
+          } catch (e) {
+            alert(e.message || 'Não foi possível alterar a classificação de insumo.');
+          } finally {
+            button.disabled = false;
+          }
+        };
+        inputControlsProductId = id;
+        return;
+      }
+      await wait(50);
     }
-    await wait(50);
+  })();
+  try {
+    return await inputControlsMounting;
+  } finally {
+    inputControlsMounting = null;
   }
 }
 
@@ -215,14 +228,27 @@ $('#clearProductFilters')?.addEventListener('click', () => setTimeout(() => {
   }
 }, 0));
 
-const detailObserver = new MutationObserver(() => {
-  if (document.querySelector('#editor.open')) mountInputControls();
+function observeDetailEditor() {
+  const editor = $('#editor');
+  if (!editor) {
+    setTimeout(observeDetailEditor, 100);
+    return;
+  }
+  detailObserver?.disconnect();
+  detailObserver = new MutationObserver(() => {
+    if (editor.classList.contains('open')) mountInputControls();
+  });
+  detailObserver.observe(editor, { attributes: true, attributeFilter: ['class'] });
+  if (editor.classList.contains('open')) mountInputControls();
+}
+
+window.addEventListener('popstate', () => {
+  inputControlsProductId = '';
+  observeDetailEditor();
 });
-detailObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
-window.addEventListener('popstate', mountInputControls);
 
 refreshPresentation();
 mountInputsShortcut();
 loadStructureEnhancement();
 loadSupplierEnhancement();
-mountInputControls();
+observeDetailEditor();

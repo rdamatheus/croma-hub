@@ -9,12 +9,13 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const labels={nao_sincronizado:'Não sincronizado',pendente:'Pendente',sincronizando:'Sincronizando',sincronizado:'Sincronizado',erro:'Erro',conflito:'Conflito'};
 const PAGE_SIZE=50;
-let page=1,total=0,currentRows=[],editing=null;
+let page=1,total=0,currentRows=[],editing=null,searchTimer=null,loadSeq=0;
 
 $('#logout').onclick=async()=>{await signOutStaff();location.href='/interno/'};
 if(!isOwner) document.querySelectorAll('[data-owner-only]').forEach(el=>el.hidden=true);
 if(!canManage) document.querySelectorAll('[data-manage-only]').forEach(el=>el.hidden=true);
-for(const id of ['q','role','person','sync']) $('#'+id).addEventListener(id==='q'?'input':'change',()=>{page=1;load()});
+for(const id of ['role','person','sync']) $('#'+id).addEventListener('change',()=>{page=1;load()});
+$('#q').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{page=1;load()},300)});
 
 function syncClass(v){return v==='sincronizado'?'ok':v==='erro'||v==='conflito'?'bad':'warn'}
 function roles(c){const rows=c.contact_roles||[];if(rows.length)return rows.map(x=>x.role_label||x.role_code).filter(Boolean).join(', ');const raw=Array.isArray(c.tipos_contato)?c.tipos_contato:[];return raw.map(x=>typeof x==='string'?x:(x.label||x.descricao||x.nome||x.code)).filter(Boolean).join(', ')}
@@ -34,6 +35,7 @@ function render(list){
 function renderPager(){const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));const box=$('#pager');const start=Math.max(1,page-2),end=Math.min(pages,page+2);let html=`<button ${page<=1?'disabled':''} data-page="${page-1}">← Anterior</button>`;if(start>1)html+=`<button data-page="1">1</button>${start>2?'<span>…</span>':''}`;for(let p=start;p<=end;p++)html+=`<button class="${p===page?'active':''}" data-page="${p}">${p}</button>`;if(end<pages)html+=`${end<pages-1?'<span>…</span>':''}<button data-page="${pages}">${pages}</button>`;html+=`<button ${page>=pages?'disabled':''} data-page="${page+1}">Próxima →</button>`;box.innerHTML=html;box.querySelectorAll('button[data-page]').forEach(b=>b.onclick=()=>{const p=Number(b.dataset.page);if(p>=1&&p<=pages&&p!==page){page=p;load();scrollTo({top:0,behavior:'smooth'})}})}
 async function loadKpis(){const [t,a,c,s]=await Promise.all([supabase.from('customer_profiles').select('id',{count:'exact',head:true}),supabase.from('customer_profiles').select('id',{count:'exact',head:true}).eq('ativo',true),supabase.from('contact_roles').select('id',{count:'exact',head:true}).ilike('role_label','%cliente%'),supabase.from('contact_roles').select('id',{count:'exact',head:true}).ilike('role_label','%fornecedor%')]);$('#kTotal').textContent=(t.count||0).toLocaleString('pt-BR');$('#kActive').textContent=(a.count||0).toLocaleString('pt-BR');$('#kClients').textContent=(c.count||0).toLocaleString('pt-BR');$('#kSuppliers').textContent=(s.count||0).toLocaleString('pt-BR')}
 async function load(){
+  const seq=++loadSeq;
   $('#summary').textContent='Carregando…';
   const role=$('#role').value,person=$('#person').value,sync=$('#sync').value,q=$('#q').value.trim();
   const select=role?'*,contact_roles!inner(role_label,role_code)':'*,contact_roles(role_label,role_code)';
@@ -43,6 +45,7 @@ async function load(){
   if(sync) req=req.eq('bling_sync_status',sync);
   if(q){const safe=q.replaceAll(',',' ');if(/^\d+$/.test(q)&&q.length>10) req=req.or(`cpf.eq.${q},bling_contact_id.eq.${q}`);else req=req.or(`nome.ilike.%${safe}%,nome_fantasia.ilike.%${safe}%,email.ilike.%${safe}%,cpf.ilike.%${safe}%,telefone.ilike.%${safe}%,celular.ilike.%${safe}%`)}
   const from=(page-1)*PAGE_SIZE,to=from+PAGE_SIZE-1;const {data,error,count}=await req.range(from,to);
+  if(seq!==loadSeq)return;
   if(error){console.error(error);$('#body').innerHTML='<tr><td colspan="8" style="padding:28px">Não foi possível carregar os contatos.</td></tr>';$('#summary').textContent='Erro ao carregar';return}
   total=count||0;render(data||[]);
 }
