@@ -25,6 +25,7 @@ const ICONS={
   treinamento:'<path d="m2 9 10-5 10 5-10 5L2 9Z"/><path d="M6 11v5c3 3 9 3 12 0v-5"/>',
   formularios:'<path d="M6 2h12v20H6z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
   marketing:'<path d="m3 11 15-6v14L3 13v-2Z"/><path d="M7 14v5a2 2 0 0 0 2 2h1"/>',
+  vitrine:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h7M7 17h4"/>',
   copiloto:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   pesquisa:'<path d="M9 2v6l-5 9a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 20 17l-5-9V2"/><path d="M7 13h10"/>',
   evolucao:'<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="m4 8 6-4 6 7 6-5"/>',
@@ -58,14 +59,15 @@ export const INTERNAL_GROUPS=[
     {key:'portfolio',label:'Portfólio',href:'/interno/portfolio/',description:'Biblioteca de trabalhos reais e materiais do portfólio.',icon:ICONS.portfolio,roles:MANAGEMENT_ROLES},
     {key:'simulador-bobina',label:'Simulador de Bobina',href:'/interno/simulador-bobina/',description:'Encaixe, metragem, área, custo e revenda de materiais em bobina.',icon:ICONS.simulador}
   ]},
-  {id:'operacao',label:'Operação e equipe',description:'Rotinas, gestão, treinamento e execução diária da loja.',tag:'Equipe',items:[
+  {id:'operacao',label:'Operação e equipe',description:'Rotinas, gestão, treinamento, marketing e execução diária da loja.',tag:'Equipe',items:[
     {key:'gestao',label:'Gestão',href:'/interno/gestao/',description:'Prioridades, acompanhamento gerencial e visão da operação.',icon:ICONS.gestao},
     {key:'rotinas',label:'Centro operacional',href:'/interno/rotinas/',description:'Tarefas, calendário, rotinas e acompanhamento do trabalho.',icon:ICONS.rotinas},
     {key:'operacao',label:'Rotina operacional',href:'/interno/operacao/',description:'Checklist de abertura, atendimento, cobertura e fechamento.',icon:ICONS.operacao},
     {key:'integracao-equipe',label:'Integração da equipe',href:'/interno/integracao/',description:'Onboarding e checklist do primeiro dia de funcionários.',icon:ICONS.equipe},
     {key:'treinamento',label:'Treinamento',href:'/interno/treinamento/',description:'Materiais e rotinas de capacitação da equipe.',icon:ICONS.treinamento},
     {key:'formularios',label:'Formulários',href:'/interno/formularios/',description:'Formulários internos de apoio à operação.',icon:ICONS.formularios},
-    {key:'marketing',label:'Marketing',href:'/interno/marketing/',description:'Conteúdo, calendário editorial e comunicação.',icon:ICONS.marketing}
+    {key:'marketing',label:'Marketing',href:'/interno/marketing/',description:'Conteúdo, calendário editorial e comunicação.',icon:ICONS.marketing},
+    {key:'vitrine-campanhas',label:'Vitrine & Campanhas',href:'/interno/vitrine-campanhas/',description:'Banners, destaques e campanhas do site público.',icon:ICONS.vitrine,roles:MANAGEMENT_ROLES}
   ]},
   {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:[
     {key:'copiloto',label:'Copiloto Croma',href:'/interno/copiloto/',description:'Insights, decisões, roadmap, tarefas e memória operacional.',icon:ICONS.copiloto},
