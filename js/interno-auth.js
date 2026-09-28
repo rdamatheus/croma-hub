@@ -1,5 +1,5 @@
 import './croma-brand.js';
-import './interno-polish.js';
+import './interno-polish.js?v=20260928-3';
 import { supabase } from './croma-supabase.js';
 
 if (location.pathname.startsWith('/interno/produtos')) {
