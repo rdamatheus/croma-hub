@@ -15,7 +15,10 @@ function saveGroupState(sidebar){
 
 function applyRole(sidebar,role){
   sidebar.dataset.role=role||'';
-  sidebar.querySelectorAll('[data-owner-only="true"]').forEach(el=>{el.hidden=role!=='owner'});
+  sidebar.querySelectorAll('[data-roles]').forEach(el=>{
+    const roles=(el.dataset.roles||'').split(',').filter(Boolean);
+    el.hidden=roles.length>0&&!roles.includes(role);
+  });
 }
 
 function buildSidebar(){
@@ -28,7 +31,10 @@ function buildSidebar(){
   side.setAttribute('aria-label','Navegação administrativa');
   const groups=INTERNAL_GROUPS.map(group=>{
     const open=groupState[group.id]!==false;
-    const links=group.items.map(item=>`<a href="${item.href}" data-module-key="${item.key}" data-owner-only="${item.ownerOnly?'true':'false'}" class="${item.key===activeKey?'active':''}"${item.ownerOnly?' hidden':''} title="${item.label}">${iconSvg(item.icon)}<span>${item.label}</span></a>`).join('');
+    const links=group.items.map(item=>{
+      const roles=(item.roles||[]).join(',');
+      return `<a href="${item.href}" data-module-key="${item.key}" data-roles="${roles}" class="${item.key===activeKey?'active':''}"${roles?' hidden':''} title="${item.label}">${iconSvg(item.icon)}<span>${item.label}</span></a>`;
+    }).join('');
     return `<details class="croma-nav-section" data-group="${group.id}"${open?' open':''}><summary><span>${group.label}</span><i aria-hidden="true">⌄</i></summary><div class="croma-nav-links">${links}</div></details>`;
   }).join('');
   side.innerHTML=`<div class="croma-sidebar-top"><a class="brand" href="/interno/" title="Painel interno"><img src="/favicon.svg?v=20260831-3" alt=""><span><strong>Croma Hub</strong><small>Administração</small></span></a><button class="croma-sidebar-collapse" type="button" aria-label="Recolher menu" title="Recolher menu">‹</button></div><nav class="croma-sidebar-nav">${groups}</nav><div class="croma-sidebar-spacer"></div><div class="croma-sidebar-footer"><a href="/" title="Ver site">${iconSvg('<path d="M3 12h18M3 12l7-7M3 12l7 7"/>')}<span>Ver site</span></a></div>`;
@@ -56,6 +62,7 @@ function buildSidebar(){
   side.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobile));
   window.addEventListener('keydown',event=>{if(event.key==='Escape')closeMobile()});
   window.addEventListener('croma:staff-role',event=>applyRole(side,event.detail?.role||null));
+  applyRole(side,document.body.dataset.staffRole||null);
 }
 
 function addMobileButton(){
