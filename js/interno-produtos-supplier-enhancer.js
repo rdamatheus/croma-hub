@@ -3,7 +3,7 @@ import { listSupplierDirectory, linkCatalogItem, linkSupplier, setPreferredSuppl
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:4});
-let mountedFor=null,selectedCatalogItem=null,searchTimer=null,directory=[],currentLinks=[];
+let mountedFor=null,selectedCatalogItem=null,searchTimer=null,directory=[],currentLinks=[],mounting=null,editorObserver=null;
 function currentKey(){return new URLSearchParams(location.search).get('produto')||''}
 function dirKey(x){return x?.contactId||(`supplier:${x?.supplierId||''}`)}
 function selectedDirectory(){const key=document.querySelector('#multiSupplierContact')?.value;return directory.find(x=>dirKey(x)===key)||null}
@@ -25,7 +25,17 @@ async function loadDirectory(){
   return [...base,...extra].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
 }
 
-async function mount(){const p=await resolveProduct();if(!p)return;if(mountedFor===p.id&&document.querySelector('#supplierMultiEnhancer')){await refreshPublication(p);await loadLinks(p);return}mountedFor=p.id;selectedCatalogItem=null;ensureStyles();mountPublication(p);await mountSupplier(p)}
+async function mount(){
+  const key=currentKey();if(!key)return;
+  if(mountedFor===key&&document.querySelector('#supplierMultiEnhancer'))return;
+  if(mounting)return mounting;
+  mounting=(async()=>{
+    const p=await resolveProduct();if(!p)return;
+    if(mountedFor===p.id&&document.querySelector('#supplierMultiEnhancer'))return;
+    mountedFor=p.id;selectedCatalogItem=null;ensureStyles();mountPublication(p);await mountSupplier(p);
+  })();
+  try{return await mounting}finally{mounting=null}
+}
 function mountPublication(p){const actions=document.querySelector('.editor-actions');if(!actions)return;document.querySelector('#sitePublishEnhancer')?.remove();const box=document.createElement('div');box.id='sitePublishEnhancer';box.className='site-publish-box';box.innerHTML=`<span class="site-state ${p.published_on_site?'on':'off'}" id="sitePublishState">${p.published_on_site?'Publicado no site':'Fora do site'}</span><button class="btn light" id="sitePublishToggle" type="button">${p.published_on_site?'Retirar do site':'Publicar no site'}</button>`;actions.prepend(box);box.querySelector('#sitePublishToggle').onclick=()=>togglePublication(p)}
 async function refreshPublication(p){const{data}=await supabase.from('products').select('id,ativo,published_on_site').eq('id',p.id).single();if(!data)return;const st=document.querySelector('#sitePublishState'),bt=document.querySelector('#sitePublishToggle');if(!st||!bt)return;st.textContent=data.published_on_site?'Publicado no site':'Fora do site';st.className=`site-state ${data.published_on_site?'on':'off'}`;bt.textContent=data.published_on_site?'Retirar do site':'Publicar no site'}
 async function togglePublication(p){const bt=document.querySelector('#sitePublishToggle');if(!bt)return;bt.disabled=true;try{const{data:row,error:rerr}=await supabase.from('products').select('ativo,published_on_site').eq('id',p.id).single();if(rerr)throw rerr;if(!row.ativo&&!row.published_on_site)throw new Error('Ative o produto no cadastro antes de publicá-lo no site.');const next=!row.published_on_site;const{error}=await supabase.from('products').update({published_on_site:next,updated_at:new Date().toISOString()}).eq('id',p.id);if(error)throw error;p.published_on_site=next;await refreshPublication(p)}catch(e){alert(e.message||'Não foi possível alterar a publicação.')}finally{bt.disabled=false}}
@@ -88,4 +98,13 @@ async function editLink(p,id){
   }catch(e){alert(e.message||'Não foi possível atualizar os dados de compra.')}
 }
 
-const observer=new MutationObserver(()=>{if(document.querySelector('#editor.open'))mount()});observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});window.addEventListener('popstate',mount);setTimeout(mount,400);
+function observeEditor(){
+  const editor=document.querySelector('#editor');
+  if(!editor){setTimeout(observeEditor,100);return}
+  editorObserver?.disconnect();
+  editorObserver=new MutationObserver(()=>{if(editor.classList.contains('open'))mount()});
+  editorObserver.observe(editor,{attributes:true,attributeFilter:['class']});
+  if(editor.classList.contains('open'))mount();
+}
+window.addEventListener('popstate',()=>{mountedFor=null;observeEditor()});
+observeEditor();

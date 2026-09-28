@@ -86,11 +86,27 @@ Validação na Zap Gráfica:
 - Vinculado: 9 itens ativos retornados, aproximadamente **2,3 KB**;
 - paginação, busca, categoria, validação, data e ordenação permanecem disponíveis.
 
+## Auditoria controlada — 2026-09-28
+
+Um teste manual de aproximadamente quatro minutos, com navegação em produtos, pedidos, contatos e fornecedores, registrou **2.268 requisições**. Destas, 2.117 eram GETs.
+
+O principal problema estava na ficha de produto: observadores globais de DOM em `product-rules-v21.js` e `interno-produtos-supplier-enhancer.js` reexecutavam consultas sempre que a própria interface sofria mutações. Um único produto chegou a gerar aproximadamente 1.956 requisições repetidas entre `products` e `product_suppliers`.
+
+A correção substitui esses observadores globais por observação restrita ao estado do editor e adiciona proteção contra montagens concorrentes/repetidas. Consultas explícitas após ações do usuário — publicar, vincular fornecedor, trocar preferencial ou salvar — permanecem preservadas.
+
+Também foram encontradas duas outras fontes de leituras evitáveis:
+
+- o catálogo de fornecedor varria mais de 21 mil itens em páginas de 1.000 apenas para descobrir as categorias disponíveis; agora `supplier_catalog_category_options(...)` devolve somente as categorias distintas em uma chamada. No fornecedor medido, foram 141 categorias em cerca de 14 ms no teste direto do banco;
+- a busca de contatos disparava a listagem a cada tecla. Agora possui debounce de 300 ms e ignora respostas antigas de requisições sobrepostas.
+
+Na Home pública, a vitrine de serviços também deixou de carregar todos os serviços apenas para montar os cartões de famílias. Ela passa a consultar somente metadados de famílias/categorias nesse fluxo.
+
+Os números pós-correção devem ser medidos novamente após o deploy com o mesmo roteiro do teste controlado; não devem ser inferidos a partir dos números anteriores.
+
 ## O que não foi alterado
 
 Para reduzir risco:
 
-- a ficha individual de produto não foi simplificada;
 - a importação XML de fornecedor continua funcionando como antes;
 - exportação CSV continua sendo uma ação explícita que pode ler o catálogo completo;
 - nenhuma tabela ou registro comercial foi apagado;
@@ -104,8 +120,9 @@ As telas administrativas deixam de transformar navegação rotineira em cargas d
 
 A maior redução ocorre em:
 
-1. Produtos internos: ~1,36 MB para ~16–19 KB de dados da lista por página;
+1. Produtos internos: ~1,36 MB para ~16–19 KB de dados da lista por página, além da eliminação do loop de consultas da ficha;
 2. Propostas: até 3.500 produtos para até 40 por busca;
-3. Catálogo de fornecedor com filtros especiais: até 21 mil+ registros para 30 por página.
+3. Catálogo de fornecedor com filtros especiais: até 21 mil+ registros para 30 por página e categorias distintas em uma única consulta;
+4. Contatos: busca consolidada após 300 ms, em vez de uma nova consulta por tecla.
 
-A próxima etapa deve ser observar o uso real do Supabase com os crons pausados e estas páginas paginadas antes de reativar sincronizações automáticas.
+A próxima etapa deve ser repetir o teste de navegação com os crons pausados e comparar o volume real antes/depois antes de reativar qualquer sincronização automática.

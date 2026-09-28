@@ -32,8 +32,9 @@ async function init(){
 
 async function loadLatestImport(){const{data,error}=await supabase.from('supplier_catalog_imports').select('id,original_file_name,status,items_processed,imported_at,completed_at,metadata,error_message').eq('supplier_id',supplierId).order('imported_at',{ascending:false}).limit(1).maybeSingle();if(error)throw error;state.latestImport=data||null}
 async function loadCategories(){
-  const rows=await fetchAll('supplier_catalog_items','category',q=>q.eq('supplier_id',supplierId).eq('active',true).not('category','is',null));
-  state.categories=[...new Set(rows.map(x=>String(x.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const {data,error}=await supabase.rpc('supplier_catalog_category_options',{p_supplier_id:supplierId});
+  if(error)throw error;
+  state.categories=(data||[]).map(x=>String(x.category||'').trim()).filter(Boolean);
   el('categoryFilter').innerHTML='<option value="">Todas</option>'+state.categories.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
 }
 function renderHeader(){const name=state.directory?.name||state.supplier.name;el('supplierName').textContent=name;el('supplierAvatar').textContent=initials(name);el('supplierBling').textContent=state.directory?.blingContactId?`Contato Bling: ${state.directory.legalName||name} · ID ${state.directory.blingContactId}`:'Fornecedor cadastrado no Croma Hub'}

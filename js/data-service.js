@@ -1,4 +1,4 @@
-import { loadPublicCatalog, loadPrimaryMedia, categoryPath } from './public-catalog-data.js';
+import { loadPublicCatalog, loadPublicCatalogMeta, loadPrimaryMedia, categoryPath } from './public-catalog-data.js';
 
 const DEFAULT_HOME_LIMIT=8;
 const asMeta=row=>row&&row.metadata&&typeof row.metadata==='object'?row.metadata:{};
@@ -39,7 +39,7 @@ async function mappedItems(scope,options){
 export async function carregarVitrineHome(limit=DEFAULT_HOME_LIMIT){
   const [productsResult,servicesResult]=await Promise.allSettled([
     mappedItems('produto',{requirePublished:true}),
-    loadPublicCatalog('servico')
+    loadPublicCatalogMeta('servico')
   ]);
   const produtos=productsResult.status==='fulfilled'?sortHome(productsResult.value.items).slice(0,limit):[];
   const servicos=servicesResult.status==='fulfilled'?servicesResult.value.families.filter(f=>servicesResult.value.categories.some(c=>c.family_id===f.id)).map(mapFamily).slice(0,limit):[];
