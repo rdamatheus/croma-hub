@@ -31,20 +31,23 @@ const ICONS={
   bling:'<path d="M20 7h-9M14 17H5M17 4l3 3-3 3M8 14l-3 3 3 3"/>'
 };
 
+const MANAGEMENT_ROLES=['owner','manager'];
+const OWNER_ROLE=['owner'];
+
 export const INTERNAL_GROUPS=[
   {id:'vendas',label:'Atendimento e vendas',description:'Clientes, pedidos, propostas, faturamento e relacionamento.',tag:'Comercial',items:[
     {key:'contatos',label:'Contatos',href:'/interno/contatos/',description:'Clientes, fornecedores, transportadores e demais contatos.',icon:ICONS.contatos},
     {key:'pedidos',label:'Pedidos',href:'/interno/pedidos/',description:'Pedidos, clientes, status, pagamentos, prazos e valores.',icon:ICONS.pedidos},
     {key:'comercial',label:'Comercial',href:'/interno/comercial/',description:'Oportunidades, retornos, prospecção e acompanhamento comercial.',icon:ICONS.comercial},
     {key:'propostas',label:'Propostas',href:'/interno/propostas/',description:'Cotações e propostas comerciais vinculadas à operação.',icon:ICONS.propostas},
-    {key:'nfse',label:'NFS-e',href:'/interno/nfse/',description:'Faturamento, documentos fiscais e acompanhamento da emissão.',icon:ICONS.nfse},
+    {key:'nfse',label:'NFS-e',href:'/interno/nfse/',description:'Faturamento, documentos fiscais e acompanhamento da emissão.',icon:ICONS.nfse,roles:OWNER_ROLE},
     {key:'whatsapp',label:'Laboratório WhatsApp',href:'/interno/whatsapp-lab/',description:'Conversa, mídia e testes para atendimento assistido.',icon:ICONS.whatsapp}
   ]},
   {id:'produtos',label:'Produtos, compras e produção',description:'Cadastro mestre, custos, fornecedores, materiais e ferramentas de produção.',tag:'Operação',items:[
     {key:'produtos',label:'Produtos',href:'/interno/produtos/',description:'Cadastro mestre único de produtos e serviços.',icon:ICONS.produtos},
     {key:'insumos',label:'Insumos',href:'/interno/insumos/',description:'Produtos habilitados para uso em composições.',icon:ICONS.insumos},
-    {key:'fornecedores',label:'Fornecedores',href:'/interno/fornecedores/',description:'Cadastro e relacionamento com fornecedores.',icon:ICONS.fornecedores},
-    {key:'catalogos-fornecedores',label:'Catálogos de fornecedores',href:'/interno/fornecedores/catalogo/',description:'Importação, conferência e vínculo de catálogos de fornecedores.',icon:ICONS.catalogoFornecedor},
+    {key:'fornecedores',label:'Fornecedores',href:'/interno/fornecedores/',description:'Cadastro e relacionamento com fornecedores.',icon:ICONS.fornecedores,roles:MANAGEMENT_ROLES},
+    {key:'catalogos-fornecedores',label:'Catálogos de fornecedores',href:'/interno/fornecedores/catalogo/',description:'Importação, conferência e vínculo de catálogos de fornecedores.',icon:ICONS.catalogoFornecedor,roles:MANAGEMENT_ROLES},
     {key:'categorias',label:'Categorias',href:'/interno/categorias/',description:'Famílias, categorias e classificação do catálogo.',icon:ICONS.categorias},
     {key:'segmentos',label:'Segmentos',href:'/interno/segmentos/',description:'Segmentação comercial e organização por público.',icon:ICONS.segmentos},
     {key:'organizacao',label:'Organização do catálogo',href:'/interno/catalogo/',description:'Visão estrutural e organização do catálogo interno.',icon:ICONS.organizacao},
@@ -68,7 +71,7 @@ export const INTERNAL_GROUPS=[
     {key:'copiloto',label:'Copiloto Croma',href:'/interno/copiloto/',description:'Insights, decisões, roadmap, tarefas e memória operacional.',icon:ICONS.copiloto},
     {key:'pesquisa',label:'P&D e conhecimento',href:'/interno/pesquisa-desenvolvimento/',description:'Fichas técnicas, testes, materiais, problemas e soluções.',icon:ICONS.pesquisa},
     {key:'evolucao',label:'Evolução Croma Hub',href:'/interno/evolucao-croma-hub/',description:'Roadmap vivo, prioridades, entregas e melhorias do sistema.',icon:ICONS.evolucao},
-    {key:'bling',label:'Integração Bling',href:'/interno/bling/',description:'Conexão, sincronização, diagnóstico e controles do ERP.',icon:ICONS.bling,ownerOnly:true}
+    {key:'bling',label:'Integração Bling',href:'/interno/bling/',description:'Conexão, sincronização, diagnóstico e controles do ERP.',icon:ICONS.bling,roles:OWNER_ROLE}
   ]}
 ];
 
@@ -76,8 +79,10 @@ export function iconSvg(body,className=''){
   return `<svg${className?` class="${className}"`:''} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
 
+function canAccess(item,role){return !item.roles||item.roles.includes(role)}
+
 export function visibleGroups(role){
-  return INTERNAL_GROUPS.map(group=>({...group,items:group.items.filter(item=>!item.ownerOnly||role==='owner')})).filter(group=>group.items.length);
+  return INTERNAL_GROUPS.map(group=>({...group,items:group.items.filter(item=>canAccess(item,role))})).filter(group=>group.items.length);
 }
 
 export function activeModuleKey(pathname=location.pathname){
