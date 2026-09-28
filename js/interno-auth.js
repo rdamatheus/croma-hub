@@ -27,9 +27,14 @@ if (location.pathname.startsWith('/interno/produtos')) {
 
 export const INTERNAL_ROLES = ['owner','manager','equipe'];
 
+function announceRole(role){
+  document.body.dataset.staffRole=role||'';
+  window.dispatchEvent(new CustomEvent('croma:staff-role',{detail:{role:role||null}}));
+}
+
 export async function getStaffSession(){
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if(userError || !userData.user) return { user:null, profile:null };
+  if(userError || !userData.user){announceRole(null);return { user:null, profile:null }};
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -38,7 +43,11 @@ export async function getStaffSession(){
     .maybeSingle();
 
   if(profileError) throw profileError;
-  if(!profile?.ativo || !INTERNAL_ROLES.includes(profile.role)) return { user:userData.user, profile:null };
+  if(!profile?.ativo || !INTERNAL_ROLES.includes(profile.role)){
+    announceRole(null);
+    return { user:userData.user, profile:null };
+  }
+  announceRole(profile.role);
   return { user:userData.user, profile };
 }
 
@@ -66,6 +75,7 @@ export async function signInStaff(email,password){
   const session = await getStaffSession();
   if(!session.profile){
     await supabase.auth.signOut();
+    announceRole(null);
     throw new Error('Conta sem acesso à área interna.');
   }
   return session;
@@ -73,6 +83,7 @@ export async function signInStaff(email,password){
 
 export async function signOutStaff(){
   await supabase.auth.signOut();
+  announceRole(null);
 }
 
 export function roleLabel(role){
