@@ -1,4 +1,4 @@
-import { INTERNAL_GROUPS, activeModuleKey, iconSvg } from './interno-navigation.js?v=20260928-3';
+import { INTERNAL_GROUPS, activeModuleKey, iconSvg } from './interno-navigation.js?v=20260928-4';
 
 const STORAGE_COLLAPSED='croma_internal_sidebar_collapsed';
 const STORAGE_GROUPS='croma_internal_sidebar_groups';
