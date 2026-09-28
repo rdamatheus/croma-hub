@@ -66,7 +66,7 @@ function buildSidebar(){
 }
 
 function addMobileButton(){
-  const header=document.querySelector('.internal-header,.top');
+  const header=document.querySelector('.internal-header,.top,body > header,header');
   if(!header||header.querySelector('.croma-mobile-menu'))return;
   const button=document.createElement('button');
   button.type='button';button.className='croma-mobile-menu';button.setAttribute('aria-label','Abrir menu');button.textContent='☰';
