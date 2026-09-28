@@ -2,12 +2,6 @@ import './croma-brand.js';
 import './interno-polish.js';
 import { supabase } from './croma-supabase.js';
 
-if (/^\/interno\/?$/.test(location.pathname)) {
-  import('./interno-supplier-nav.js?v=20260912-1').catch(console.error);
-  import('./interno-nfse-nav.js?v=20260914-1').catch(console.error);
-  import('./interno-proposals-nav.js?v=20260916-1').catch(console.error);
-}
-
 if (location.pathname.startsWith('/interno/produtos')) {
   const p = new URLSearchParams(location.search);
   const detailMode = p.get('modo') === 'ficha' && !!p.get('produto');
