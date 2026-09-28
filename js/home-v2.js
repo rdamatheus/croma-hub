@@ -6,6 +6,7 @@ const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'B
 const quoteBase='https://wa.me/553230253588?text=';
 let areaData=[];
 let activeAreaSlug='grafica-papelaria';
+let activeBanner=null;
 
 function actionLabel(action){return action==='configure'?'Configurar e comprar':action==='quote'?'Solicitar orçamento':'Comprar'}
 function actionClass(action){return action==='configure'?'configure':action==='quote'?'quote':''}
@@ -28,6 +29,40 @@ function productScore(item,area){
   return score;
 }
 function highlights(area){return [...area.items].sort((a,b)=>productScore(b,area)-productScore(a,area)||String(a.nome).localeCompare(String(b.nome),'pt-BR')).slice(0,4)}
+
+function applyBannerBackground(){
+  if(!activeBanner)return;
+  const hero=document.querySelector('.home2-hero');
+  if(!hero)return;
+  const mobile=matchMedia('(max-width: 620px)').matches;
+  const image=(mobile&&activeBanner.image_mobile_url)||activeBanner.image_desktop_url;
+  if(!image){hero.style.backgroundImage='';hero.style.backgroundSize='';hero.style.backgroundPosition='';return}
+  hero.style.backgroundImage=`linear-gradient(90deg,rgba(8,18,34,.9) 0%,rgba(15,23,47,.72) 48%,rgba(24,18,68,.35) 100%),url("${String(image).replaceAll('"','%22')}")`;
+  hero.style.backgroundSize='cover';hero.style.backgroundPosition='center';
+}
+async function renderActiveBanner(){
+  const {data,error}=await supabase.from('site_banners').select('id,name,eyebrow,title,subtitle,image_desktop_url,image_mobile_url,cta_label,target_type,target_ref,target_url,display_order').eq('placement','home_hero').order('display_order').limit(1).maybeSingle();
+  if(error){console.warn('home_banner_error',error);return}
+  if(!data)return;
+  activeBanner=data;
+  const hero=document.querySelector('.home2-hero');
+  if(!hero)return;
+  const eyebrow=hero.querySelector('.home2-hero-copy .home2-eyebrow');
+  const title=hero.querySelector('.home2-hero-copy h1');
+  const subtitle=hero.querySelector('.home2-hero-copy>p');
+  const card=hero.querySelector('.home2-campaign-card');
+  if(eyebrow)eyebrow.textContent=data.eyebrow||'Croma';
+  if(title)title.textContent=data.title;
+  if(subtitle&&data.subtitle)subtitle.textContent=data.subtitle;
+  if(card){
+    const small=card.querySelector('small'),strong=card.querySelector('strong'),copy=card.querySelector('p'),link=card.querySelector('a');
+    if(small)small.textContent='CAMPANHA ATIVA';
+    if(strong)strong.textContent=data.name;
+    if(copy)copy.textContent=data.subtitle||'Confira a seleção preparada pela Croma.';
+    if(link){link.textContent=data.cta_label||'Ver campanha';link.href=data.target_url||'#destaques';if(/^https?:\/\//i.test(link.href)){link.target='_blank';link.rel='noopener noreferrer'}}
+  }
+  applyBannerBackground();
+}
 
 function renderAreas(areas){
   const root=document.querySelector('#home2Areas');
@@ -77,6 +112,7 @@ async function renderPortfolio(){
 }
 
 async function init(){
+  await renderActiveBanner();
   const areas=await loadCommercialAreas();
   renderAreas(areas);
   areaData=(await Promise.all(areas.map(area=>loadCommercialArea(area.slug,{itemLimit:60})))).filter(Boolean);
@@ -85,4 +121,5 @@ async function init(){
   await renderPortfolio();
 }
 
+addEventListener('resize',()=>{if(activeBanner)applyBannerBackground()});
 init().catch(error=>{console.error('home_v2_error',error);document.querySelector('#home2ProductGrid')?.replaceChildren(Object.assign(document.createElement('div'),{className:'home2-empty',textContent:'Não foi possível carregar os destaques agora.'}))});
