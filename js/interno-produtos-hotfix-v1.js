@@ -58,12 +58,14 @@ let inputControlsMounting = null;
 let detailObserver = null;
 
 async function loadTypeTotals() {
-  const [productsResult, servicesResult] = await Promise.all([
-    supabase.from('products').select('id', { count: 'exact', head: true }).eq('product_type', 'produto'),
-    supabase.from('products').select('id', { count: 'exact', head: true }).eq('product_type', 'servico')
-  ]);
-  if (!productsResult.error) productTotal = productsResult.count ?? null;
-  if (!servicesResult.error) serviceTotal = servicesResult.count ?? null;
+  const { data, error } = await supabase.rpc('internal_product_type_counts');
+  if (error) {
+    console.error('Falha ao carregar totais de produtos e serviços', error);
+    return;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  productTotal = row?.product_count ?? null;
+  serviceTotal = row?.service_count ?? null;
 }
 
 function normalizeCountLabel() {
@@ -84,28 +86,6 @@ function normalizeCountLabel() {
 function refreshPresentation() {
   translateChips();
   normalizeCountLabel();
-}
-
-async function checkOperationalReads() {
-  const checks = [
-    ['estoque', supabase.from('product_stock_snapshots').select('product_id').eq('source', 'bling').limit(1)],
-    ['detalhes', supabase.from('product_details').select('product_id').limit(1)],
-    ['fornecedores', supabase.from('product_suppliers').select('product_id').limit(1)]
-  ];
-  const results = await Promise.all(checks.map(async ([name, query]) => {
-    const { error } = await query;
-    return error ? { name, error } : null;
-  }));
-  const failures = results.filter(Boolean);
-  if (!failures.length) return;
-  console.error('Falha ao carregar dados auxiliares de produtos', failures);
-  if ($('#productDataWarning')) return;
-  const warning = document.createElement('div');
-  warning.id = 'productDataWarning';
-  warning.className = 'notice bad';
-  warning.textContent = `Alguns dados do cadastro não puderam ser carregados (${failures.map(x => x.name).join(', ')}). Atualize a página ou verifique a integração antes de confiar nos valores exibidos.`;
-  const workspace = $('#productsWorkspace');
-  workspace?.parentElement?.insertBefore(warning, workspace);
 }
 
 async function applyDefaultProductFilter() {
@@ -210,9 +190,10 @@ async function mountInputControls() {
   }
 }
 
-await loadTypeTotals();
-await applyDefaultProductFilter();
-await checkOperationalReads();
+if (!isProductDetail) {
+  await loadTypeTotals();
+  await applyDefaultProductFilter();
+}
 
 const chips = $('#filterChips');
 if (chips) new MutationObserver(refreshPresentation).observe(chips, { childList: true, subtree: true, characterData: true });
