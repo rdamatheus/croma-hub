@@ -59,7 +59,13 @@ async function renderActiveBanner(){
     if(small)small.textContent='CAMPANHA ATIVA';
     if(strong)strong.textContent=data.name;
     if(copy)copy.textContent=data.subtitle||'Confira a seleção preparada pela Croma.';
-    if(link){link.textContent=data.cta_label||'Ver campanha';link.href=data.target_url||'#destaques';if(/^https?:\/\//i.test(link.href)){link.target='_blank';link.rel='noopener noreferrer'}}
+    if(link){
+      const rawTarget=data.target_url||'#destaques';
+      link.textContent=data.cta_label||'Ver campanha';
+      link.href=rawTarget;
+      if(/^https?:\/\//i.test(rawTarget)){link.target='_blank';link.rel='noopener noreferrer'}
+      else{link.removeAttribute('target');link.removeAttribute('rel')}
+    }
   }
   applyBannerBackground();
 }
