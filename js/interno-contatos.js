@@ -9,6 +9,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const labels={nao_sincronizado:'Não sincronizado',pendente:'Pendente',sincronizando:'Sincronizando',sincronizado:'Sincronizado',erro:'Erro',conflito:'Conflito'};
 const PAGE_SIZE=50;
+const CONTACT_SELECT_BASE='id,nome,cpf,telefone,email,data_nascimento,ativo,bling_contact_id,nome_fantasia,tipo_pessoa,tipos_contato,rg,inscricao_estadual,indicador_ie,orgao_emissor,celular,email_nota_fiscal,sexo,situacao,observacoes,bling_sync_status,bling_sync_error';
 let page=1,total=0,currentRows=[],editing=null,searchTimer=null,loadSeq=0;
 
 $('#logout').onclick=async()=>{await signOutStaff();location.href='/interno/'};
@@ -33,12 +34,20 @@ function render(list){
   renderPager();
 }
 function renderPager(){const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));const box=$('#pager');const start=Math.max(1,page-2),end=Math.min(pages,page+2);let html=`<button ${page<=1?'disabled':''} data-page="${page-1}">← Anterior</button>`;if(start>1)html+=`<button data-page="1">1</button>${start>2?'<span>…</span>':''}`;for(let p=start;p<=end;p++)html+=`<button class="${p===page?'active':''}" data-page="${p}">${p}</button>`;if(end<pages)html+=`${end<pages-1?'<span>…</span>':''}<button data-page="${pages}">${pages}</button>`;html+=`<button ${page>=pages?'disabled':''} data-page="${page+1}">Próxima →</button>`;box.innerHTML=html;box.querySelectorAll('button[data-page]').forEach(b=>b.onclick=()=>{const p=Number(b.dataset.page);if(p>=1&&p<=pages&&p!==page){page=p;load();scrollTo({top:0,behavior:'smooth'})}})}
-async function loadKpis(){const [t,a,c,s]=await Promise.all([supabase.from('customer_profiles').select('id',{count:'exact',head:true}),supabase.from('customer_profiles').select('id',{count:'exact',head:true}).eq('ativo',true),supabase.from('contact_roles').select('id',{count:'exact',head:true}).ilike('role_label','%cliente%'),supabase.from('contact_roles').select('id',{count:'exact',head:true}).ilike('role_label','%fornecedor%')]);$('#kTotal').textContent=(t.count||0).toLocaleString('pt-BR');$('#kActive').textContent=(a.count||0).toLocaleString('pt-BR');$('#kClients').textContent=(c.count||0).toLocaleString('pt-BR');$('#kSuppliers').textContent=(s.count||0).toLocaleString('pt-BR')}
+async function loadKpis(){
+  const {data,error}=await supabase.rpc('internal_contact_kpis');
+  if(error){console.error('Falha ao carregar indicadores de contatos',error);return}
+  const row=Array.isArray(data)?data[0]:data;
+  $('#kTotal').textContent=Number(row?.total_count||0).toLocaleString('pt-BR');
+  $('#kActive').textContent=Number(row?.active_count||0).toLocaleString('pt-BR');
+  $('#kClients').textContent=Number(row?.client_role_count||0).toLocaleString('pt-BR');
+  $('#kSuppliers').textContent=Number(row?.supplier_role_count||0).toLocaleString('pt-BR');
+}
 async function load(){
   const seq=++loadSeq;
   $('#summary').textContent='Carregando…';
   const role=$('#role').value,person=$('#person').value,sync=$('#sync').value,q=$('#q').value.trim();
-  const select=role?'*,contact_roles!inner(role_label,role_code)':'*,contact_roles(role_label,role_code)';
+  const select=role?`${CONTACT_SELECT_BASE},contact_roles!inner(role_label,role_code)`:`${CONTACT_SELECT_BASE},contact_roles(role_label,role_code)`;
   let req=supabase.from('customer_profiles').select(select,{count:'exact'}).order('nome',{ascending:true});
   if(role) req=req.or(`role_label.ilike.%${role}%,role_code.ilike.%${role}%`,{referencedTable:'contact_roles'});
   if(person) req=req.eq('tipo_pessoa',person);
