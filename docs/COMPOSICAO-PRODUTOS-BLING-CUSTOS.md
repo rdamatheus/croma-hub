@@ -78,9 +78,27 @@ Composição conhecida:
 
 O preço de venda de R$ 62,90 não foi alterado porque ainda não há custo de mão de obra nem regra de markup definida para este item.
 
+## Produto, fornecedor, canal e insumo
+
+A partir de 28/09/2026, a regra operacional é:
+
+- `products` é o **cadastro mestre único**. Papel, BOPP, Polaseal, vinil e demais materiais continuam sendo produtos normais; não existe cópia separada em uma tabela de insumos.
+- `products.is_input=true` significa que o mesmo produto pode ser usado como componente de outro produto ou serviço. A tela **Insumos** é apenas uma visão filtrada desses produtos.
+- Um produto pode ter vários fornecedores em `product_suppliers`.
+- `product_suppliers.active=true` significa que o vínculo continua disponível como opção de compra.
+- `product_suppliers.preferred=true` identifica o fornecedor atualmente preferido para a referência principal de compra/custo. As restrições de banco mantêm no máximo um preferencial ativo por produto/variação.
+- `purchase_channel` registra o canal de aquisição, por exemplo `mercado_livre`, `shopee` ou `direto`.
+- `purchase_url` registra a oferta/cotação daquele fornecedor para aquele produto.
+- Marketplace não substitui a identidade do fornecedor: quando o vendedor real é conhecido, ele é cadastrado em `suppliers` e o marketplace permanece somente em `purchase_channel`.
+- Ao usar em composição um produto ainda não marcado como insumo, o editor solicita confirmação para habilitar `is_input` no próprio cadastro mestre.
+- Ao salvar componentes em um item simples, o item final passa a `product_format='composition'`.
+
+Essa separação permite espelhar o conceito do Bling: **produto único → vários fornecedores → um preferencial**, enquanto a classificação de insumo apenas controla quais produtos podem ser reutilizados como matéria-prima em composições.
+
 ## Riscos e controles
 
 - Componente marcado para Bling precisa ter `bling_product_id`; caso contrário o worker bloqueia o envio com erro explícito.
 - Alterações concorrentes Croma/Bling continuam gerando conflito pela comparação do baseline.
 - Componentes locais de custo nunca são enviados para o Bling.
 - Preços suspeitos continuam sujeitos à fila de validação de catálogo.
+- URLs de marketplace são referências de compra e podem expirar ou mudar de preço sem alterar o cadastro mestre do produto.
