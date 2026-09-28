@@ -44,18 +44,18 @@ export const INTERNAL_GROUPS=[
     {key:'whatsapp',label:'Laboratório WhatsApp',href:'/interno/whatsapp-lab/',description:'Conversa, mídia e testes para atendimento assistido.',icon:ICONS.whatsapp}
   ]},
   {id:'produtos',label:'Produtos, compras e produção',description:'Cadastro mestre, custos, fornecedores, materiais e ferramentas de produção.',tag:'Operação',items:[
-    {key:'produtos',label:'Produtos',href:'/interno/produtos/',description:'Cadastro mestre único de produtos e serviços.',icon:ICONS.produtos},
-    {key:'insumos',label:'Insumos',href:'/interno/insumos/',description:'Produtos habilitados para uso em composições.',icon:ICONS.insumos},
+    {key:'produtos',label:'Produtos',href:'/interno/produtos/',description:'Cadastro mestre único de produtos e serviços.',icon:ICONS.produtos,roles:MANAGEMENT_ROLES},
+    {key:'insumos',label:'Insumos',href:'/interno/insumos/',description:'Produtos habilitados para uso em composições.',icon:ICONS.insumos,roles:MANAGEMENT_ROLES},
     {key:'fornecedores',label:'Fornecedores',href:'/interno/fornecedores/',description:'Cadastro e relacionamento com fornecedores.',icon:ICONS.fornecedores,roles:MANAGEMENT_ROLES},
     {key:'catalogos-fornecedores',label:'Catálogos de fornecedores',href:'/interno/fornecedores/catalogo/',description:'Importação, conferência e vínculo de catálogos de fornecedores.',icon:ICONS.catalogoFornecedor,roles:MANAGEMENT_ROLES},
-    {key:'categorias',label:'Categorias',href:'/interno/categorias/',description:'Famílias, categorias e classificação do catálogo.',icon:ICONS.categorias},
-    {key:'segmentos',label:'Segmentos',href:'/interno/segmentos/',description:'Segmentação comercial e organização por público.',icon:ICONS.segmentos},
-    {key:'organizacao',label:'Organização do catálogo',href:'/interno/catalogo/',description:'Visão estrutural e organização do catálogo interno.',icon:ICONS.organizacao},
-    {key:'composicao-custos',label:'Composição e custos',href:'/interno/composicao-custos/',description:'Componentes, insumos, custos e composição dos itens.',icon:ICONS.custos},
-    {key:'precificacao-impressoes',label:'Precificação de impressões',href:'/interno/precificacao-impressoes/',description:'Referências e cálculo comercial para impressões.',icon:ICONS.precificacao},
-    {key:'configuracoes-producao',label:'Configurações de produção',href:'/interno/configuracoes-producao/',description:'Parâmetros técnicos e regras usadas na produção.',icon:ICONS.producao},
-    {key:'midias-produtos',label:'Mídias de produtos',href:'/interno/midias-produtos/',description:'Fotos e mídias associadas aos produtos e serviços.',icon:ICONS.midias},
-    {key:'portfolio',label:'Portfólio',href:'/interno/portfolio/',description:'Biblioteca de trabalhos reais e materiais do portfólio.',icon:ICONS.portfolio},
+    {key:'categorias',label:'Categorias',href:'/interno/categorias/',description:'Famílias, categorias e classificação do catálogo.',icon:ICONS.categorias,roles:MANAGEMENT_ROLES},
+    {key:'segmentos',label:'Segmentos',href:'/interno/segmentos/',description:'Segmentação comercial e organização por público.',icon:ICONS.segmentos,roles:MANAGEMENT_ROLES},
+    {key:'organizacao',label:'Organização do catálogo',href:'/interno/catalogo/',description:'Visão estrutural e organização do catálogo interno.',icon:ICONS.organizacao,roles:MANAGEMENT_ROLES},
+    {key:'composicao-custos',label:'Composição e custos',href:'/interno/composicao-custos/',description:'Componentes, insumos, custos e composição dos itens.',icon:ICONS.custos,roles:MANAGEMENT_ROLES},
+    {key:'precificacao-impressoes',label:'Precificação de impressões',href:'/interno/precificacao-impressoes/',description:'Referências e cálculo comercial para impressões.',icon:ICONS.precificacao,roles:MANAGEMENT_ROLES},
+    {key:'configuracoes-producao',label:'Configurações de produção',href:'/interno/configuracoes-producao/',description:'Parâmetros técnicos e regras usadas na produção.',icon:ICONS.producao,roles:MANAGEMENT_ROLES},
+    {key:'midias-produtos',label:'Mídias de produtos',href:'/interno/midias-produtos/',description:'Fotos e mídias associadas aos produtos e serviços.',icon:ICONS.midias,roles:MANAGEMENT_ROLES},
+    {key:'portfolio',label:'Portfólio',href:'/interno/portfolio/',description:'Biblioteca de trabalhos reais e materiais do portfólio.',icon:ICONS.portfolio,roles:MANAGEMENT_ROLES},
     {key:'simulador-bobina',label:'Simulador de Bobina',href:'/interno/simulador-bobina/',description:'Encaixe, metragem, área, custo e revenda de materiais em bobina.',icon:ICONS.simulador}
   ]},
   {id:'operacao',label:'Operação e equipe',description:'Rotinas, gestão, treinamento e execução diária da loja.',tag:'Equipe',items:[
