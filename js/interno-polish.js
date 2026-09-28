@@ -1,1 +1,79 @@
-(()=>{const icon=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;const addHomeCard=()=>{if(location.pathname.replace(/\/+$/,'/')!=='/interno/'||document.querySelector('[href="evolucao-croma-hub/"]'))return;const grids=document.querySelectorAll('.internal-grid'),target=grids[1]||grids[0];if(!target)return;const a=document.createElement('a');a.className='module';a.href='evolucao-croma-hub/';a.innerHTML=`<span class="visual">${icon('<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="m4 8 6-4 6 7 6-5"/>')}</span><h3>Evolução Croma Hub</h3><p>Roadmap vivo, prioridades, entregas e ideias futuras do site e do sistema.</p><span class="go">Abrir evolução →</span>`;target.appendChild(a)};const add=()=>{addHomeCard();const normalized=location.pathname.replace(/\/+$/,'/')||'/';if(normalized==='/interno/')return;document.body.classList.add('croma-modern');if(!document.querySelector('link[data-croma-modern]')){const l=document.createElement('link');l.rel='stylesheet';l.href='/css/interno-modern.css?v=20260831-5';l.dataset.cromaModern='1';document.head.appendChild(l)}if(!document.querySelector('.croma-sidebar')){const path=location.pathname,items=[['/interno/contatos/','Contatos','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'],['/interno/pedidos/','Pedidos','<path d="M6 2h9l3 3v17H6z"/><path d="M14 2v4h4M9 11h6M9 15h6"/>'],['/interno/produtos/','Produtos','<path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="m3 8 9 5 9-5M3 8v8l9 5 9-5V8"/>'],['/interno/categorias/','Categorias','<path d="M20 13V7a2 2 0 0 0-2-2h-6l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/>'],['/interno/segmentos/','Segmentos','<circle cx="8" cy="8" r="3"/><circle cx="17" cy="7" r="2"/><path d="M2 20a6 6 0 0 1 12 0M14 20a4 4 0 0 1 8 0"/>'],['/interno/catalogo/','Organização','<path d="M4 4h6v6H4zM14 4h6v6h-6zM9 14h6v6H9zM7 10v2a2 2 0 0 0 2 2h3"/>'],['/interno/gestao/','Gestão','<path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/>'],['/interno/bling/','Bling','<path d="M20 7h-9M14 17H5M17 4l3 3-3 3M8 14l-3 3 3 3"/>'],['/interno/copiloto/','Copiloto','<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'],['/interno/evolucao-croma-hub/','Evolução','<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="m4 8 6-4 6 7 6-5"/>']];const nav=items.map(([href,label,d])=>`<a href="${href}" class="${path.startsWith(href)?'active':''}">${icon(d)}<span>${label}</span></a>`).join(''),side=document.createElement('aside');side.className='croma-sidebar';side.innerHTML=`<a class="brand" href="/interno/"><img src="/favicon.svg?v=20260831-3" alt=""><span><strong>Croma Hub</strong><small>Administração</small></span></a><div class="croma-nav-group">Painel</div>${nav}<div class="croma-sidebar-spacer"></div><a href="/">${icon('<path d="M3 12h18M3 12l7-7M3 12l7 7"/>')}<span>Ver site</span></a>`;document.body.appendChild(side);const header=document.querySelector('.internal-header');if(header&&!header.querySelector('.croma-mobile-menu')){const b=document.createElement('button');b.type='button';b.className='croma-mobile-menu';b.textContent='☰';b.onclick=()=>document.body.classList.toggle('nav-open');header.prepend(b)}}};document.readyState==='loading'?document.addEventListener('DOMContentLoaded',add):add();})();
+import { INTERNAL_GROUPS, activeModuleKey, iconSvg } from './interno-navigation.js';
+
+const STORAGE_COLLAPSED='croma_internal_sidebar_collapsed';
+const STORAGE_GROUPS='croma_internal_sidebar_groups';
+
+function readGroupState(){
+  try{return JSON.parse(localStorage.getItem(STORAGE_GROUPS)||'{}')}catch{return {}}
+}
+
+function saveGroupState(sidebar){
+  const state={};
+  sidebar.querySelectorAll('.croma-nav-section').forEach(section=>{state[section.dataset.group]=section.open});
+  localStorage.setItem(STORAGE_GROUPS,JSON.stringify(state));
+}
+
+function applyRole(sidebar,role){
+  sidebar.dataset.role=role||'';
+  sidebar.querySelectorAll('[data-owner-only="true"]').forEach(el=>{el.hidden=role!=='owner'});
+}
+
+function buildSidebar(){
+  if(document.querySelector('.croma-sidebar'))return;
+  const normalized=(location.pathname.replace(/\/+$/,'')||'/')+'/';
+  const activeKey=activeModuleKey(location.pathname);
+  const groupState=readGroupState();
+  const side=document.createElement('aside');
+  side.className='croma-sidebar';
+  side.setAttribute('aria-label','Navegação administrativa');
+  const groups=INTERNAL_GROUPS.map(group=>{
+    const open=groupState[group.id]!==false;
+    const links=group.items.map(item=>`<a href="${item.href}" data-module-key="${item.key}" data-owner-only="${item.ownerOnly?'true':'false'}" class="${item.key===activeKey?'active':''}"${item.ownerOnly?' hidden':''} title="${item.label}">${iconSvg(item.icon)}<span>${item.label}</span></a>`).join('');
+    return `<details class="croma-nav-section" data-group="${group.id}"${open?' open':''}><summary><span>${group.label}</span><i aria-hidden="true">⌄</i></summary><div class="croma-nav-links">${links}</div></details>`;
+  }).join('');
+  side.innerHTML=`<div class="croma-sidebar-top"><a class="brand" href="/interno/" title="Painel interno"><img src="/favicon.svg?v=20260831-3" alt=""><span><strong>Croma Hub</strong><small>Administração</small></span></a><button class="croma-sidebar-collapse" type="button" aria-label="Recolher menu" title="Recolher menu">‹</button></div><nav class="croma-sidebar-nav">${groups}</nav><div class="croma-sidebar-spacer"></div><div class="croma-sidebar-footer"><a href="/" title="Ver site">${iconSvg('<path d="M3 12h18M3 12l7-7M3 12l7 7"/>')}<span>Ver site</span></a></div>`;
+  const target=normalized==='/interno/'?(document.querySelector('#app')||document.body):document.body;
+  target.appendChild(side);
+  const overlay=document.createElement('button');
+  overlay.type='button';overlay.className='croma-nav-overlay';overlay.setAttribute('aria-label','Fechar menu');
+  target.appendChild(overlay);
+  side.querySelectorAll('.croma-nav-section').forEach(section=>section.addEventListener('toggle',()=>saveGroupState(side)));
+  const collapse=side.querySelector('.croma-sidebar-collapse');
+  const storedCollapsed=localStorage.getItem(STORAGE_COLLAPSED)==='1';
+  document.body.classList.toggle('nav-collapsed',storedCollapsed);
+  collapse.textContent=storedCollapsed?'›':'‹';
+  collapse.setAttribute('aria-label',storedCollapsed?'Expandir menu':'Recolher menu');
+  collapse.title=storedCollapsed?'Expandir menu':'Recolher menu';
+  collapse.addEventListener('click',()=>{
+    const collapsed=document.body.classList.toggle('nav-collapsed');
+    localStorage.setItem(STORAGE_COLLAPSED,collapsed?'1':'0');
+    collapse.textContent=collapsed?'›':'‹';
+    collapse.setAttribute('aria-label',collapsed?'Expandir menu':'Recolher menu');
+    collapse.title=collapsed?'Expandir menu':'Recolher menu';
+  });
+  const closeMobile=()=>document.body.classList.remove('nav-open');
+  overlay.addEventListener('click',closeMobile);
+  side.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobile));
+  window.addEventListener('keydown',event=>{if(event.key==='Escape')closeMobile()});
+  window.addEventListener('croma:staff-role',event=>applyRole(side,event.detail?.role||null));
+}
+
+function addMobileButton(){
+  const header=document.querySelector('.internal-header,.top');
+  if(!header||header.querySelector('.croma-mobile-menu'))return;
+  const button=document.createElement('button');
+  button.type='button';button.className='croma-mobile-menu';button.setAttribute('aria-label','Abrir menu');button.textContent='☰';
+  button.addEventListener('click',()=>document.body.classList.toggle('nav-open'));
+  header.prepend(button);
+}
+
+function add(){
+  document.body.classList.add('croma-modern');
+  if(!document.querySelector('link[data-croma-modern]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='/css/interno-modern.css?v=20260928-1';link.dataset.cromaModern='1';document.head.appendChild(link);
+  }
+  buildSidebar();
+  addMobileButton();
+}
+
+document.readyState==='loading'?document.addEventListener('DOMContentLoaded',add):add();
