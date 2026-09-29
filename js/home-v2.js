@@ -1,4 +1,4 @@
-import { loadCommercialAreas, loadCommercialArea } from './commercial-areas-data.js';
+import { loadCommercialAreas, loadCommercialArea } from './commercial-areas-data.js?v=20260929-1';
 import { supabase } from './croma-supabase.js';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));

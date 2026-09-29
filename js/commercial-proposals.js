@@ -42,19 +42,22 @@ function renderProposalCard(proposal) {
   </article>`;
 }
 
-async function loadProducts(select) {
+function cleanProductSearch(value) {
+  return String(value || '').trim().replace(/[,%()]/g, ' ').replace(/\s+/g, ' ').slice(0, 80);
+}
+
+async function searchProducts(term) {
+  const q = cleanProductSearch(term);
+  if (q.length < 2) return [];
   const { data, error } = await supabase
     .from('products')
     .select('id,nome,sku,preco,default_markup')
     .eq('ativo', true)
     .eq('is_sellable', true)
+    .or(`nome.ilike.%${q}%,sku.ilike.%${q}%`)
     .order('nome', { ascending: true })
-    .limit(1000);
-
+    .limit(40);
   if (error) throw error;
-  select.innerHTML = '<option value="">Selecione um produto</option>' + (data || []).map((product) =>
-    `<option value="${esc(product.id)}" data-markup="${esc(product.default_markup || '')}">${esc(product.nome)}${product.sku ? ` · ${esc(product.sku)}` : ''}</option>`
-  ).join('');
   return data || [];
 }
 
@@ -157,6 +160,7 @@ export async function initCommercialProposals(session) {
 
   const nameInput = document.getElementById('proposalCustomerName');
   const phoneInput = document.getElementById('proposalCustomerPhone');
+  const productSearch = document.getElementById('proposalProductSearch');
   const productSelect = document.getElementById('proposalProduct');
   const quantityInput = document.getElementById('proposalQuantity');
   const valueInput = document.getElementById('proposalValue');
@@ -165,13 +169,42 @@ export async function initCommercialProposals(session) {
   const feedback = document.getElementById('proposalFeedback');
   const list = document.getElementById('proposalsList');
 
-  let products = [];
-  try {
-    products = await loadProducts(productSelect);
-  } catch (error) {
-    productSelect.innerHTML = '<option value="">Falha ao carregar produtos</option>';
-    setFeedback(feedback, error.message || 'Não foi possível carregar produtos.', 'error');
-  }
+  const products = new Map();
+  let productSearchTimer = null;
+  let productSearchSeq = 0;
+
+  const renderProductOptions = (rows, message = 'Selecione um produto') => {
+    products.clear();
+    for (const row of rows || []) products.set(row.id, row);
+    productSelect.innerHTML = `<option value="">${esc(message)}</option>` + (rows || []).map((product) =>
+      `<option value="${esc(product.id)}">${esc(product.nome)}${product.sku ? ` · ${esc(product.sku)}` : ''}</option>`
+    ).join('');
+  };
+
+  const runProductSearch = async () => {
+    const seq = ++productSearchSeq;
+    const term = cleanProductSearch(productSearch?.value || '');
+    productSelect.value = '';
+    if (term.length < 2) {
+      renderProductOptions([], 'Digite ao menos 2 caracteres');
+      return;
+    }
+    productSelect.innerHTML = '<option value="">Buscando…</option>';
+    try {
+      const rows = await searchProducts(term);
+      if (seq !== productSearchSeq) return;
+      renderProductOptions(rows, rows.length ? 'Selecione um produto' : 'Nenhum produto encontrado');
+    } catch (error) {
+      if (seq !== productSearchSeq) return;
+      renderProductOptions([], 'Falha na busca');
+      console.error('Falha ao buscar produtos da proposta', error);
+    }
+  };
+
+  productSearch?.addEventListener('input', () => {
+    clearTimeout(productSearchTimer);
+    productSearchTimer = setTimeout(runProductSearch, 300);
+  });
 
   await loadProposals(list, feedback);
 
@@ -199,7 +232,7 @@ export async function initCommercialProposals(session) {
     const productId = productSelect.value;
     const quantity = Math.max(1, Number(quantityInput?.value || 1));
     const value = Number(String(valueInput.value || '').replace(',', '.'));
-    const product = products.find((item) => item.id === productId);
+    const product = products.get(productId);
 
     if (!name) return setFeedback(feedback, 'Informe o nome da pessoa ou empresa.', 'error');
     if (!product) return setFeedback(feedback, 'Selecione um produto.', 'error');
@@ -213,7 +246,8 @@ export async function initCommercialProposals(session) {
       const proposal = await createProposal({ session, name, phone, product, value, quantity, resolvedPrice });
       nameInput.value = '';
       phoneInput.value = '';
-      productSelect.value = '';
+      if(productSearch)productSearch.value='';
+      renderProductOptions([], 'Digite ao menos 2 caracteres');
       if(quantityInput)quantityInput.value='1';
       valueInput.value = '';
       setFeedback(feedback, `Proposta #${proposal.proposal_no} salva.`, 'success');

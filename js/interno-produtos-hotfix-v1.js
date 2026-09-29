@@ -115,7 +115,7 @@ function loadStructureEnhancement() {
 }
 
 function loadSupplierEnhancement() {
-  import('/js/interno-produtos-supplier-enhancer.js?v=20260928-2').catch(error => console.error('Falha ao carregar fornecedores do produto', error));
+  import('/js/interno-produtos-supplier-enhancer.js?v=20260929-1').catch(error => console.error('Falha ao carregar fornecedores do produto', error));
 }
 
 function mountInputsShortcut() {
