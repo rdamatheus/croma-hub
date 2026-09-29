@@ -11,19 +11,7 @@ async function resolveProduct(){const key=currentKey();if(!key)return null;let q
 function supplierCard(){return [...document.querySelectorAll('#cadastro .card')].find(c=>c.querySelector('h2')?.textContent.trim().startsWith('Fornecedor'))||null}
 function ensureStyles(){if(document.querySelector('#supplierEnhancerStyles'))return;const s=document.createElement('style');s.id='supplierEnhancerStyles';s.textContent=`.supplier-multi-box{grid-column:1/-1;border-top:1px solid #ece9f3;margin-top:8px;padding-top:14px}.supplier-linked-list{display:grid;gap:8px;margin:10px 0 14px}.supplier-linked-card{border:1px solid #e4e0ee;border-radius:12px;padding:11px 12px;background:#fff;display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:10px;align-items:center}.supplier-linked-card.preferred{border-color:#a8c686;background:#fbfff8}.supplier-linked-actions{display:flex;gap:6px;flex-wrap:wrap}.supplier-link-builder{background:#f8f7fb;border:1px solid #e8e5f0;border-radius:12px;padding:12px}.supplier-builder-grid{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(260px,1.2fr);gap:10px}.supplier-results{display:grid;gap:6px;margin-top:8px;max-height:320px;overflow:auto}.supplier-result{border:1px solid #e1ddec;background:#fff;border-radius:10px;padding:10px;text-align:left;cursor:pointer}.supplier-result:hover{border-color:#8f89c2}.supplier-result-title{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}.supplier-result-meta{margin-top:4px}.supplier-preview{margin-top:10px;padding:11px 12px;border-radius:10px;background:#fff;border:1px solid #e8e5f0}.site-publish-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.site-state{font-size:.8rem;font-weight:900}.site-state.on{color:#426920}.site-state.off{color:#777}.supplier-channel{display:inline-flex;margin-left:5px;padding:2px 6px;border-radius:999px;background:#f0eef8;color:#403a75;font-size:.7rem;font-weight:900}.supplier-offer{display:inline-block;margin-top:4px}.supplier-note{margin-top:4px}@media(max-width:760px){.supplier-linked-card,.supplier-builder-grid{grid-template-columns:1fr}}`;document.head.appendChild(s)}
 
-async function loadDirectory(){
-  const [baseResult,standaloneResult]=await Promise.allSettled([
-    listSupplierDirectory(),
-    supabase.from('suppliers').select('id,contact_id,name,active,default_order_freight').eq('active',true).order('name')
-  ]);
-  const base=baseResult.status==='fulfilled'?baseResult.value:[];
-  if(baseResult.status==='rejected')console.warn(baseResult.reason);
-  if(standaloneResult.status==='rejected')throw standaloneResult.reason;
-  const suppliers=standaloneResult.value.data||[];
-  const bySupplier=new Set(base.map(x=>x.supplierId).filter(Boolean));
-  const extra=suppliers.filter(s=>!bySupplier.has(s.id)).map(s=>({contactId:null,supplierId:s.id,name:s.name,legalName:s.name,document:null,email:null,phone:null,blingContactId:null,defaultOrderFreight:Number(s.default_order_freight||0),standalone:true}));
-  return [...base,...extra].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
-}
+async function loadDirectory(refresh=false){return await listSupplierDirectory({includeStandalone:true,refresh})}
 
 async function mount(){
   const key=currentKey();if(!key)return;
@@ -77,7 +65,7 @@ function previewHtml(item){const a=item?.attributes||{};const bits=[item?.catego
 async function linkSelectedCatalog(p){if(!selectedCatalogItem)return;const btn=document.querySelector('#multiLinkCatalog');btn.disabled=true;btn.textContent='Vinculando…';try{await linkCatalogItem(p.id,selectedCatalogItem.id,false);selectedCatalogItem=null;await reloadBaseProduct();await refreshDirectory();await loadLinks(p)}catch(e){alert(e.message||'Não foi possível vincular.')}finally{btn.textContent='Vincular item do catálogo';btn.disabled=true}}
 async function directLinkSupplier(productId,supplierId){const{data:existing,error:ee}=await supabase.from('product_suppliers').select('id,active').eq('product_id',productId).eq('supplier_id',supplierId).is('variant_id',null).maybeSingle();if(ee)throw ee;if(existing){const{error}=await supabase.from('product_suppliers').update({active:true,updated_at:new Date().toISOString()}).eq('id',existing.id);if(error)throw error;return existing.id}const makePreferred=!currentLinks.some(x=>x.preferred);const{data,error}=await supabase.from('product_suppliers').insert({product_id:productId,supplier_id:supplierId,preferred:makePreferred,active:true}).select('id').single();if(error)throw error;if(makePreferred){try{await setPreferredSupplier(data.id)}catch(e){console.warn('Vínculo criado; não foi possível recalcular preferencial pela função.',e)}}return data.id}
 async function linkSupplierOnly(p){const d=selectedDirectory();if(!d)return;const btn=document.querySelector('#multiLinkSupplierOnly');btn.disabled=true;try{if(d.contactId)await linkSupplier(p.id,d.contactId);else if(d.supplierId)await directLinkSupplier(p.id,d.supplierId);else throw new Error('Fornecedor sem cadastro operacional.');await reloadBaseProduct();await refreshDirectory();await loadLinks(p)}catch(e){alert(e.message||'Não foi possível vincular.')}finally{btn.disabled=false}}
-async function refreshDirectory(){const keep=document.querySelector('#multiSupplierContact')?.value||'';directory=await loadDirectory();populateDirectory(keep)}
+async function refreshDirectory(){const keep=document.querySelector('#multiSupplierContact')?.value||'';directory=await loadDirectory(true);populateDirectory(keep)}
 async function makePreferred(p,id){try{await setPreferredSupplier(id);await reloadBaseProduct();await loadLinks(p)}catch(e){alert(e.message||'Não foi possível alterar o fornecedor preferencial.')}}
 async function deactivateLink(p,id){if(!confirm('Desvincular este fornecedor do produto? O histórico será preservado e o vínculo ficará inativo.'))return;try{await deactivateSupplierLink(id);await reloadBaseProduct();await loadLinks(p)}catch(e){alert(e.message||'Não foi possível desvincular.')}}
 
