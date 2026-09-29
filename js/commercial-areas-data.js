@@ -2,17 +2,19 @@ import { supabase } from './croma-supabase.js';
 import { loadPrimaryMedia } from './public-catalog-data.js';
 
 const publicItemFields='id,nome,sku,slug,descricao,short_description,preco,catalog_category_id,product_type,ativo,published_on_site,is_sellable,is_input,metadata,child_count,commercial_min_price';
-let commercialAreasPromise=null;
-const commercialAreaPromises=new Map();
+const commercialCache=globalThis.__CROMA_COMMERCIAL_AREAS_CACHE__ ||= {
+  areasPromise:null,
+  areaPromises:new Map()
+};
 
 function cleanSearch(value){
   return String(value||'').trim().replace(/[,%()]/g,' ').replace(/\s+/g,' ').slice(0,80);
 }
 
 export async function loadCommercialAreas({refresh=false}={}){
-  if(refresh){commercialAreasPromise=null;commercialAreaPromises.clear()}
-  if(commercialAreasPromise)return commercialAreasPromise;
-  commercialAreasPromise=(async()=>{
+  if(refresh){commercialCache.areasPromise=null;commercialCache.areaPromises.clear()}
+  if(commercialCache.areasPromise)return commercialCache.areasPromise;
+  const promise=(async()=>{
     const [areasResult,mappingResult,familiesResult]=await Promise.all([
       supabase.from('site_commercial_areas').select('id,slug,name,menu_label,description,public_path,sort_order,featured_home').eq('active',true).order('sort_order'),
       supabase.from('site_area_families').select('area_id,family_id,display_order,is_primary').order('display_order'),
@@ -32,7 +34,8 @@ export async function loadCommercialAreas({refresh=false}={}){
       })).filter(Boolean)
     }));
   })();
-  try{return await commercialAreasPromise}catch(error){commercialAreasPromise=null;throw error}
+  commercialCache.areasPromise=promise;
+  try{return await promise}catch(error){if(commercialCache.areasPromise===promise)commercialCache.areasPromise=null;throw error}
 }
 
 export async function loadCommercialActions(productIds=[]){
@@ -51,8 +54,8 @@ export async function loadCommercialActions(productIds=[]){
 export async function loadCommercialArea(slug,{itemLimit=32,refresh=false}={}){
   const limit=Math.max(1,Math.min(80,Number(itemLimit)||32));
   const key=`${slug}:${limit}`;
-  if(refresh)commercialAreaPromises.delete(key);
-  if(commercialAreaPromises.has(key))return commercialAreaPromises.get(key);
+  if(refresh)commercialCache.areaPromises.delete(key);
+  if(commercialCache.areaPromises.has(key))return commercialCache.areaPromises.get(key);
   const promise=(async()=>{
     const areas=await loadCommercialAreas();
     const area=areas.find(x=>x.slug===slug);
@@ -73,8 +76,8 @@ export async function loadCommercialArea(slug,{itemLimit=32,refresh=false}={}){
     const [media,actions]=await Promise.all([loadPrimaryMedia(items.map(x=>x.id)),loadCommercialActions(items.map(x=>x.id))]);
     return {...area,categories:categories||[],items,media,actions};
   })();
-  commercialAreaPromises.set(key,promise);
-  try{return await promise}catch(error){commercialAreaPromises.delete(key);throw error}
+  commercialCache.areaPromises.set(key,promise);
+  try{return await promise}catch(error){if(commercialCache.areaPromises.get(key)===promise)commercialCache.areaPromises.delete(key);throw error}
 }
 
 export async function searchCommercialCatalog(term,{limit=60}={}){
