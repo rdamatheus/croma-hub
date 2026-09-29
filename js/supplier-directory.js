@@ -1,5 +1,8 @@
 import { supabase } from './croma-supabase.js';
 
+const directoryPromises=new Map();
+function invalidateSupplierDirectory(){directoryPromises.clear()}
+
 async function invokeOnce(body){
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -44,20 +47,34 @@ async function invoke(body){
   return data;
 }
 
-export async function listSupplierDirectory(){
-  const {data:roles,error:re}=await supabase.from('contact_roles').select('contact_id,role_code').in('role_code',['Fornecedor','Fornecedor verificado']);if(re)throw re;
-  const ids=[...new Set((roles||[]).map(r=>r.contact_id))];if(!ids.length)return[];
-  const [{data:contacts,error:ce},{data:ext,error:se}]=await Promise.all([
-    supabase.from('customer_profiles').select('id,nome,nome_fantasia,cpf,email,telefone,celular,bling_contact_id,ativo').in('id',ids).eq('ativo',true).order('nome'),
-    supabase.from('suppliers').select('id,contact_id,name,active,default_order_freight').eq('active',true)
-  ]);if(ce||se)throw(ce||se);
-  const byContact=new Map((ext||[]).filter(x=>x.contact_id).map(x=>[x.contact_id,x]));
-  return (contacts||[]).map(c=>{const s=byContact.get(c.id)||null;return{contactId:c.id,supplierId:s?.id||null,name:c.nome_fantasia||c.nome,legalName:c.nome,document:c.cpf||null,email:c.email||null,phone:c.telefone||c.celular||null,blingContactId:c.bling_contact_id||null,defaultOrderFreight:s?.default_order_freight??0};}).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+export async function listSupplierDirectory({includeStandalone=false,refresh=false}={}){
+  const key=includeStandalone?'with-standalone':'contacts-only';
+  if(refresh)directoryPromises.delete(key);
+  if(directoryPromises.has(key))return directoryPromises.get(key);
+  const promise=(async()=>{
+    const {data:roles,error:re}=await supabase.from('contact_roles').select('contact_id,role_code').in('role_code',['Fornecedor','Fornecedor verificado']);if(re)throw re;
+    const ids=[...new Set((roles||[]).map(r=>r.contact_id).filter(Boolean))];
+    const contactsPromise=ids.length
+      ? supabase.from('customer_profiles').select('id,nome,nome_fantasia,cpf,email,telefone,celular,bling_contact_id,ativo').in('id',ids).eq('ativo',true).order('nome')
+      : Promise.resolve({data:[],error:null});
+    const [{data:contacts,error:ce},{data:ext,error:se}]=await Promise.all([
+      contactsPromise,
+      supabase.from('suppliers').select('id,contact_id,name,active,default_order_freight').eq('active',true).order('name')
+    ]);if(ce||se)throw(ce||se);
+    const byContact=new Map((ext||[]).filter(x=>x.contact_id).map(x=>[x.contact_id,x]));
+    const base=(contacts||[]).map(c=>{const s=byContact.get(c.id)||null;return{contactId:c.id,supplierId:s?.id||null,name:c.nome_fantasia||c.nome,legalName:c.nome,document:c.cpf||null,email:c.email||null,phone:c.telefone||c.celular||null,blingContactId:c.bling_contact_id||null,defaultOrderFreight:s?.default_order_freight??0};});
+    if(!includeStandalone)return base.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+    const linkedSupplierIds=new Set(base.map(x=>x.supplierId).filter(Boolean));
+    const standalone=(ext||[]).filter(s=>!linkedSupplierIds.has(s.id)).map(s=>({contactId:null,supplierId:s.id,name:s.name,legalName:s.name,document:null,email:null,phone:null,blingContactId:null,defaultOrderFreight:Number(s.default_order_freight||0),standalone:true}));
+    return [...base,...standalone].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  })();
+  directoryPromises.set(key,promise);
+  try{return await promise}catch(error){directoryPromises.delete(key);throw error}
 }
 
-export async function ensureSupplierExtension(contactId){return (await invoke({action:'ensure_supplier',contact_id:contactId})).supplier}
-export async function createSupplier(input){return await invoke({action:'create_supplier',...input})}
+export async function ensureSupplierExtension(contactId){const result=(await invoke({action:'ensure_supplier',contact_id:contactId})).supplier;invalidateSupplierDirectory();return result}
+export async function createSupplier(input){const result=await invoke({action:'create_supplier',...input});invalidateSupplierDirectory();return result}
 export async function linkCatalogItem(productId,catalogItemId,makePreferred=false){return await invoke({action:'link_catalog_item',product_id:productId,catalog_item_id:catalogItemId,make_preferred:makePreferred})}
-export async function linkSupplier(productId,contactId){return await invoke({action:'link_supplier',product_id:productId,contact_id:contactId})}
+export async function linkSupplier(productId,contactId){const result=await invoke({action:'link_supplier',product_id:productId,contact_id:contactId});invalidateSupplierDirectory();return result}
 export async function setPreferredSupplier(linkId){return await invoke({action:'set_preferred',link_id:linkId})}
 export async function deactivateSupplierLink(linkId){return await invoke({action:'deactivate_link',link_id:linkId})}
