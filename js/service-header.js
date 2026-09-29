@@ -19,15 +19,13 @@
   const nextPath=`${location.pathname}${location.search}${location.hash}`||'/';
   const loginHref=`/conta/?next=${encodeURIComponent(nextPath)}`;
   const path=(location.pathname.replace(/\/+$/,'/')||'/');
-  const current=path.startsWith('/grafica-papelaria/')?'grafica'
-    :path.startsWith('/comunicacao-marketing/')?'comunicacao'
-    :path.startsWith('/presentes-eletronicos/')?'presentes'
+  const current=path.startsWith('/comunicacao-marketing/')?'comunicacao'
+    :path.startsWith('/papelaria-presentes-eletronicos/')?'varejo'
     :location.hash==='#promocoes'?'promocoes'
     :null;
   const items=[
-    ['grafica','Gráfica & Papelaria','/grafica-papelaria/'],
     ['comunicacao','Comunicação & Marketing','/comunicacao-marketing/'],
-    ['presentes','Presentes & Eletrônicos','/presentes-eletronicos/'],
+    ['varejo','Papelaria, Presentes & Eletrônicos','/papelaria-presentes-eletronicos/'],
     ['promocoes','Promoções','/#promocoes']
   ];
   const links=items.map(([id,label,href])=>`<a class="${id===current?'active':''}" href="${href}">${label}</a>`).join('');
