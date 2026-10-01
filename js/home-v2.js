@@ -31,7 +31,7 @@ function productScore(item,area){
 function highlights(area){return [...area.items].sort((a,b)=>productScore(b,area)-productScore(a,area)||String(a.nome).localeCompare(String(b.nome),'pt-BR')).slice(0,4)}
 
 function applyBannerBackground(){
-  if(!activeBanner)return;
+  if(!activeBanner || document.querySelector('.home2-hero.approved-art'))return;
   const hero=document.querySelector('.home2-hero');
   if(!hero)return;
   const mobile=matchMedia('(max-width: 620px)').matches;
@@ -47,6 +47,45 @@ async function renderActiveBanner(){
   activeBanner=data;
   const hero=document.querySelector('.home2-hero');
   if(!hero)return;
+  if(data.image_desktop_url){
+    const safeUrl = value => {
+      try { const url = new URL(value, location.origin); return ['http:', 'https:'].includes(url.protocol) ? url.href : null; } catch { return null; }
+    };
+    const desktop = safeUrl(data.image_desktop_url);
+    const mobile = safeUrl(data.image_mobile_url);
+    if(desktop){
+      const search = hero.querySelector('.home2-search');
+      const heading = document.createElement('h1');
+      heading.className = 'campaign-accessible-title';
+      heading.textContent = data.title;
+      const link = document.createElement('a');
+      link.className = 'approved-art-link';
+      link.href = safeUrl(data.target_url) || '/comunicacao-marketing/';
+      link.setAttribute('aria-label', data.title + ' — ' + (data.cta_label || 'Conhecer soluções'));
+      const picture = document.createElement('picture');
+      if(mobile){
+        const source = document.createElement('source');
+        source.media = '(max-width: 620px)';
+        source.srcset = mobile;
+        picture.append(source);
+      }
+      const img = document.createElement('img');
+      img.src = desktop;
+      img.alt = [data.title, data.subtitle].filter(Boolean).join('. ');
+      img.fetchPriority = 'high';
+      picture.append(img);
+      link.append(picture);
+      hero.classList.add('approved-art');
+      hero.replaceChildren(heading, link);
+      if(search){
+        const wrapper = document.createElement('div');
+        wrapper.className = 'home2-shell approved-art-search';
+        wrapper.append(search);
+        hero.append(wrapper);
+      }
+      return;
+    }
+  }
   const eyebrow=hero.querySelector('.home2-hero-copy .home2-eyebrow');
   const title=hero.querySelector('.home2-hero-copy h1');
   const subtitle=hero.querySelector('.home2-hero-copy>p');
