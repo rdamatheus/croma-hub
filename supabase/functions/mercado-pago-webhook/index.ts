@@ -21,8 +21,8 @@ async function validSignature(req: Request, dataId: string) {
   const requestId = req.headers.get("x-request-id") || "";
   const ts = /(?:^|,)\s*ts=([^,]+)/i.exec(signature)?.[1]?.trim() || "";
   const v1 = /(?:^|,)\s*v1=([^,]+)/i.exec(signature)?.[1]?.trim().toLowerCase() || "";
-  if (!ts || !v1 || !requestId || !dataId || !webhookSecret()) return false;
-  const manifest = `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`;
+  if (!ts || !v1 || !dataId || !webhookSecret()) return false;
+  const manifest = `id:${dataId.toLowerCase()};${requestId ? `request-id:${requestId};` : ""}ts:${ts};`;
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(webhookSecret()), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(manifest));
   return timingSafeEqual(hex(digest), v1);
