@@ -70,6 +70,7 @@ async function renderServiceDetail(){
   const family=category?families.find(item=>item.id===category.family_id)||null:null;
   const backHref=category&&family?`/servicos/?familia=${encodeURIComponent(family.slug)}&categoria=${encodeURIComponent(category.slug)}`:'/servicos/';
   const price=commercialPrice(service);
+  const configurable=Number(service.child_count||0)>0;
   const description=plain(service.short_description||service.descricao||'Escolha a configuração ideal ou solicite orientação da Croma.');
   const categoryNames=path.slice(1).map(item=>item.nome).join(' › ');
 
@@ -80,7 +81,7 @@ async function renderServiceDetail(){
       <div class="public-item-profile-copy">
         <span class="public-eyebrow">${esc(categoryNames||family?.nome||'Serviço Croma')}</span>
         <h1 style="color:var(--pc-deep);font-size:clamp(2rem,4vw,3.8rem);line-height:1.02;margin:10px 0 14px">${esc(service.nome)}</h1>
-        <p class="public-item-profile-price">${esc(price.label)}</p>
+        <p class="public-item-profile-price" id="publicItemProfilePrice">${esc(configurable?'Configure para ver o valor':price.label)}</p>
         <p class="public-lead">${esc(description)}</p>
       </div>
     </section>
@@ -92,11 +93,15 @@ async function renderServiceDetail(){
   document.title=`${service.nome} | Croma Gráfica`;
   const configurator=root.querySelector('#publicItemConfigurator');
   const fallback=root.querySelector('#publicItemFallback');
+  const profilePrice=root.querySelector('#publicItemProfilePrice');
   let mounted=false;
-  if(configurator&&Number(service.child_count||0)>0){
+  if(configurator&&configurable){
     mounted=await mountPublicItemConfigurator({productId:service.id,productName:service.nome,mount:configurator,quoteBase});
   }
-  if(!mounted&&fallback)fallback.innerHTML=consultMarkup(service,price);
+  if(!mounted){
+    if(profilePrice)profilePrice.textContent=price.label;
+    if(fallback)fallback.innerHTML=consultMarkup(service,price);
+  }
 }
 
 async function renderCategory(){
@@ -107,7 +112,7 @@ async function renderCategory(){
   const media=await loadPrimaryMedia(rows.map(r=>r.id));
   const path=categoryPath(categories,families,cat.id),children=childrenFor(cat.id);
   const genericQuote=`${quoteBase}${encodeURIComponent(`Olá! Vim pelo site da Croma e gostaria de solicitar orçamento para ${cat.nome}.`)}`;
-  root.innerHTML=`<div class="service-catalog"><div class="sc-breadcrumb"><a href="/">Início</a><span>›</span><a href="/servicos/">Serviços</a>${path.map((x,i)=>i===path.length-1?`<span>›</span><strong>${esc(x.nome)}</strong>`:`<span>›</span><a href="${i===0?`/servicos/?familia=${encodeURIComponent(fam.slug)}`:`/servicos/?familia=${encodeURIComponent(fam.slug)}&categoria=${encodeURIComponent(x.slug||'')}`}">${esc(x.nome)}</a>`).join('')}</div><section class="sc-family-hero">${familyMedia(fam)?`<img src="${esc(familyMedia(fam))}" alt="${esc(fam.image_alt||fam.nome)}">`:''}<div class="sc-family-hero-copy"><p class="sc-eyebrow">${esc(fam.nome)}</p><h1>${esc(cat.nome)}</h1><p>${esc(cat.descricao||'Consulte opções, formatos e possibilidades para esta categoria.')}</p></div></section>${children.length?`<div class="sc-sibling-grid">${children.map(c=>`<a class="sc-sibling-card" href="/servicos/?familia=${encodeURIComponent(fam.slug)}&categoria=${encodeURIComponent(c.slug)}"><div class="sc-sibling-copy"><strong>${esc(c.nome)}</strong><span>Explorar opções</span><i class="sc-sibling-arrow">→</i></div></a>`).join('')}</div>`:''}<div class="sc-category-heading"><h2>${rows.length?'Opções disponíveis':'Precisa desta solução?'}</h2><p>${rows.length?'Abra uma opção para ver detalhes, configurações e valor.':'Fale com a Croma para consultar materiais, medidas, quantidades e acabamentos disponíveis.'}</p></div>${rows.length?`<section class="sc-service-results"><div class="sc-services-grid">${rows.map(p=>{const m=media.get(p.id),desc=plain(p.short_description||p.descricao||'Solicite um orçamento para este serviço.'),price=commercialPrice(p),optionInfo=Number(p.child_count||0)>0?`<div class="sc-service-options">Configurações disponíveis</div>`:'';return `<article class="sc-service-card"><div class="sc-service-media">${m?.url?`<img src="${esc(m.url)}" alt="${esc(m.alt_text||p.nome)}" loading="lazy">`:''}</div><div class="sc-service-copy"><h4>${esc(p.nome)}</h4><p>${esc(desc)}</p>${optionInfo}<div class="sc-service-price ${price.consult?'is-consult':''}">${esc(price.label)}</div><a class="sc-cta" href="${serviceHref(p)}">${Number(p.child_count||0)>0?'Configurar':'Ver detalhes'} →</a></div></article>`}).join('')}</div></section>`:`<div class="sc-empty"><p>Podemos orientar a melhor configuração para o seu projeto.</p><a class="sc-cta" href="${genericQuote}" target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp →</a></div>`}</div>`;
+  root.innerHTML=`<div class="service-catalog"><div class="sc-breadcrumb"><a href="/">Início</a><span>›</span><a href="/servicos/">Serviços</a>${path.map((x,i)=>i===path.length-1?`<span>›</span><strong>${esc(x.nome)}</strong>`:`<span>›</span><a href="${i===0?`/servicos/?familia=${encodeURIComponent(fam.slug)}`:`/servicos/?familia=${encodeURIComponent(fam.slug)}&categoria=${encodeURIComponent(x.slug||'')}`}">${esc(x.nome)}</a>`).join('')}</div><section class="sc-family-hero">${familyMedia(fam)?`<img src="${esc(familyMedia(fam))}" alt="${esc(fam.image_alt||fam.nome)}">`:''}<div class="sc-family-hero-copy"><p class="sc-eyebrow">${esc(fam.nome)}</p><h1>${esc(cat.nome)}</h1><p>${esc(cat.descricao||'Consulte opções, formatos e possibilidades para esta categoria.')}</p></div></section>${children.length?`<div class="sc-sibling-grid">${children.map(c=>`<a class="sc-sibling-card" href="/servicos/?familia=${encodeURIComponent(fam.slug)}&categoria=${encodeURIComponent(c.slug)}"><div class="sc-sibling-copy"><strong>${esc(c.nome)}</strong><span>Explorar opções</span><i class="sc-sibling-arrow">→</i></div></a>`).join('')}</div>`:''}<div class="sc-category-heading"><h2>${rows.length?'Opções disponíveis':'Precisa desta solução?'}</h2><p>${rows.length?'Abra uma opção para ver detalhes, configurações e valor.':'Fale com a Croma para consultar materiais, medidas, quantidades e acabamentos disponíveis.'}</p></div>${rows.length?`<section class="sc-service-results"><div class="sc-services-grid">${rows.map(p=>{const m=media.get(p.id),desc=plain(p.short_description||p.descricao||'Solicite um orçamento para este serviço.'),price=commercialPrice(p),configurable=Number(p.child_count||0)>0,optionInfo=configurable?`<div class="sc-service-options">Configurações disponíveis</div>`:'';return `<article class="sc-service-card"><div class="sc-service-media">${m?.url?`<img src="${esc(m.url)}" alt="${esc(m.alt_text||p.nome)}" loading="lazy">`:''}</div><div class="sc-service-copy"><h4>${esc(p.nome)}</h4><p>${esc(desc)}</p>${optionInfo}<div class="sc-service-price ${price.consult?'is-consult':''}">${esc(configurable?'Configure para ver o valor':price.label)}</div><a class="sc-cta" href="${serviceHref(p)}">${configurable?'Configurar':'Ver detalhes'} →</a></div></article>`}).join('')}</div></section>`:`<div class="sc-empty"><p>Podemos orientar a melhor configuração para o seu projeto.</p><a class="sc-cta" href="${genericQuote}" target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp →</a></div>`}</div>`;
 }
 
 try{
