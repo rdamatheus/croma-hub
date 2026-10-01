@@ -18,6 +18,12 @@ const currentPath=location.pathname.replace(/\/+$/,'/');
 if(currentPath==='/interno/segmentos/'){
   queueMicrotask(()=>import('/js/catalog-admin-list-filters.js?v=20260831-1'));
 }
+if(currentPath==='/interno/produtos/'){
+  const productParams=new URLSearchParams(location.search);
+  if(productParams.get('modo')==='ficha'&&productParams.get('produto')==='e63f590f-df39-4450-bcfd-8beaf781e119'){
+    queueMicrotask(()=>import('/js/interno-produtos-panfletos-configurator-v1.js?v=20260930-1').catch(error=>console.error('Falha ao carregar configurador de panfletos',error)));
+  }
+}
 
 export async function getSessionUser(){
   const { data, error } = await supabase.auth.getSession();
