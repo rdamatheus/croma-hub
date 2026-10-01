@@ -9,6 +9,37 @@ function cleanSearch(value){
   return String(value||'').trim().replace(/[,%()]/g,' ').replace(/\s+/g,' ').slice(0,80);
 }
 
+export function isOutdatedSeasonalItem(item,date=new Date()){
+  const name=String(item?.nome||'');
+  const years=name.match(/\b20\d{2}\b/g)||[];
+  if(!years.some(year=>Number(year)<date.getFullYear()))return false;
+  return /\b(?:ag|agenda|planner)s?\b|calend[aá]rio/i.test(name);
+}
+
+function withoutOutdatedSeasonalItems(items){
+  return (items||[]).filter(item=>!isOutdatedSeasonalItem(item));
+}
+
+function stripTotalCount(row){
+  if(!row || !Object.prototype.hasOwnProperty.call(row,'total_count'))return row;
+  const {total_count,...item}=row;
+  return item;
+}
+
+async function loadFastCatalogProducts({scope=null,categoryIds=[],search='',requirePublished=null,limit=60,offset=0}={}){
+  const {data,error}=await supabase.rpc('public_catalog_products_fast',{
+    p_scope:scope,
+    p_category_ids:Array.isArray(categoryIds)&&categoryIds.length?categoryIds:null,
+    p_search:search||null,
+    p_require_published:requirePublished,
+    p_limit:limit,
+    p_offset:offset
+  });
+  if(error)throw error;
+  const rows=data||[];
+  return {items:rows.map(stripTotalCount),total:Number(rows[0]?.total_count||0)};
+}
+
 export async function loadCommercialAreas({refresh=false}={}){
   if(refresh){commercialAreasPromise=null;commercialAreaPromises.clear()}
   if(commercialAreasPromise)return commercialAreasPromise;
@@ -41,8 +72,13 @@ export async function loadCommercialActions(productIds=[]){
   for(let i=0;i<ids.length;i+=180){
     const chunk=ids.slice(i,i+180);
     if(!chunk.length)continue;
-    const {data,error}=await supabase.from('public_product_commercial_actions').select('product_id,commercial_action').in('product_id',chunk);
-    if(error)throw error;
+    const {data,error}=await supabase.rpc('public_product_commercial_actions_fast',{p_product_ids:chunk});
+    if(error){
+      const fallback=await supabase.from('public_product_commercial_actions').select('product_id,commercial_action').in('product_id',chunk);
+      if(fallback.error)throw fallback.error;
+      for(const row of fallback.data||[])map.set(row.product_id,row.commercial_action);
+      continue;
+    }
     for(const row of data||[])map.set(row.product_id,row.commercial_action);
   }
   return map;
@@ -66,9 +102,16 @@ export async function loadCommercialArea(slug,{itemLimit=32,refresh=false}={}){
     const categoryIds=(categories||[]).map(c=>c.id);
     let items=[];
     if(categoryIds.length){
-      const {data,error}=await supabase.from('public_catalog_products').select(publicItemFields).in('catalog_category_id',categoryIds).order('nome').limit(limit);
-      if(error)throw error;
-      items=data||[];
+      try{
+        const result=await loadFastCatalogProducts({categoryIds,limit});
+        items=result.items;
+      }catch(error){
+        console.warn('commercial_area_fast_catalog_error',error);
+        const fallback=await supabase.from('public_catalog_products').select(publicItemFields).in('catalog_category_id',categoryIds).order('nome').limit(limit);
+        if(fallback.error)throw fallback.error;
+        items=fallback.data||[];
+      }
+      items=withoutOutdatedSeasonalItems(items);
     }
     const [media,actions]=await Promise.all([loadPrimaryMedia(items.map(x=>x.id)),loadCommercialActions(items.map(x=>x.id))]);
     return {...area,categories:categories||[],items,media,actions};
@@ -80,12 +123,19 @@ export async function loadCommercialArea(slug,{itemLimit=32,refresh=false}={}){
 export async function searchCommercialCatalog(term,{limit=60}={}){
   const q=cleanSearch(term);
   if(!q)return {query:'',items:[],categories:[],families:[],media:new Map(),actions:new Map()};
-  const {data:items,error}=await supabase.from('public_catalog_products')
-    .select(publicItemFields)
-    .or(`nome.ilike.%${q}%,sku.ilike.%${q}%,short_description.ilike.%${q}%`)
-    .order('nome').limit(Math.max(1,Math.min(100,Number(limit)||60)));
-  if(error)throw error;
-  const rows=items||[];
+  let rows=[];
+  try{
+    const result=await loadFastCatalogProducts({search:q,limit:Math.max(1,Math.min(100,Number(limit)||60))});
+    rows=result.items;
+  }catch(error){
+    console.warn('commercial_search_fast_catalog_error',error);
+    const fallback=await supabase.from('public_catalog_products')
+      .select(publicItemFields)
+      .or(`nome.ilike.%${q}%,sku.ilike.%${q}%,short_description.ilike.%${q}%`)
+      .order('nome').limit(Math.max(1,Math.min(100,Number(limit)||60)));
+    if(fallback.error)throw fallback.error;
+    rows=fallback.data||[];
+  }
   const categoryIds=[...new Set(rows.map(x=>x.catalog_category_id).filter(Boolean))];
   let categories=[];
   if(categoryIds.length){
