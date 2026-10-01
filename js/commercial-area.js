@@ -1,5 +1,5 @@
 import { loadCommercialArea } from './commercial-areas-data.js?v=20261001-journey';
-import { renderCampaignSelection } from './campaign-selection.js?v=20261001-journey';
+import { renderCampaignSelection } from './campaign-selection.js?v=20261001-lot1';
 
 const root=document.querySelector('#commercialAreaRoot');
 const areaSlug=document.body.dataset.commercialArea||'';

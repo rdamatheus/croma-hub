@@ -40,11 +40,17 @@ function applyBannerBackground(){
   hero.style.backgroundImage=`linear-gradient(90deg,rgba(8,18,34,.9) 0%,rgba(15,23,47,.72) 48%,rgba(24,18,68,.35) 100%),url("${String(image).replaceAll('"','%22')}")`;
   hero.style.backgroundSize='cover';hero.style.backgroundPosition='center';
 }
+function bannerIsCurrent(row,now=Date.now()){
+  if(!row?.active)return false;
+  const starts=row.starts_at?Date.parse(row.starts_at):null;
+  const ends=row.ends_at?Date.parse(row.ends_at):null;
+  return (!starts||starts<=now)&&(!ends||ends>now);
+}
 async function renderActiveBanner(){
-  const {data,error}=await supabase.from('site_banners').select('id,name,eyebrow,title,subtitle,image_desktop_url,image_mobile_url,cta_label,target_type,target_ref,target_url,display_order').eq('placement','home_hero').order('display_order').limit(1).maybeSingle();
+  const {data:rows,error}=await supabase.from('site_banners').select('id,eyebrow,title,subtitle,image_desktop_url,image_mobile_url,cta_label,target_type,target_ref,target_url,display_order,active,starts_at,ends_at').eq('placement','home_hero').eq('active',true).order('display_order').limit(12);
   if(error){console.warn('home_banner_error',error);return}
+  const data=(rows||[]).find(row=>bannerIsCurrent(row));
   if(!data)return;
-  if(data.id==='4fd15cb1-9149-464c-b534-23f52d5451da')data.target_url='/comunicacao-marketing/#campanha-empresa';
   activeBanner=data;
   const hero=document.querySelector('.home2-hero');
   if(!hero)return;

@@ -20,3 +20,24 @@ Não foi feita transação real. O download do navegador local falhou. O fluxo d
 
 ## Manutenção
 A seleção desta campanha fica em js/campaign-selection.js e reutiliza os IDs da proposta aprovada. Campanhas novas precisam de seleção própria aprovada. Preferências comerciais permanentes não foram inferidas desta correção.
+
+## Lote 1 — endurecimento da campanha
+
+Implementado após aprovação explícita do lote:
+
+- `site_banners.target_url` da campanha "Sua empresa precisa aparecer" passa a apontar diretamente para `/comunicacao-marketing/#campanha-empresa`;
+- removida a exceção por UUID do banner no frontend: o destino publicado volta a ser a única fonte de verdade;
+- a Home filtra explicitamente `active = true` e revalida `starts_at`/`ends_at` no cliente, inclusive para sessões internas que possam ler mais registros pelo RLS;
+- a consulta pública do banner deixa de carregar o campo interno `name`;
+- os quatro produtos da campanha foram movidos para uma configuração pública separada (`js/campaigns-public-data.js`), mantendo somente referências aos IDs reais do catálogo;
+- o renderizador (`js/campaign-selection.js`) passou a ser reutilizável e continua consultando catálogo, mídia e ação comercial reais;
+- regra preservada: sem preço válido ou sem ação pública de compra/configuração, o CTA permanece em orçamento;
+- títulos comerciais não expõem o nome técnico do cadastro no card da campanha;
+- orçamento da campanha coleta quantidade, material, medidas/acabamento, prazo desejado e situação da arte antes de abrir o WhatsApp;
+- nenhum preço, estoque, produto, RLS, integração financeira ou dado do histórico de aprovação foi alterado.
+
+### Validação específica do Lote 1
+
+Foram adicionados testes para confirmar que o banner exige estado ativo/vigência, não contém exceção por UUID e não consulta o nome interno; a configuração mantém os quatro IDs aprovados; e o formulário coleta material e preserva a decisão comercial baseada em preço válido + ação pública.
+
+A publicação só deve ser considerada validada após conferir o workflow do GitHub Pages e o conteúdo efetivamente servido pelo domínio público.
