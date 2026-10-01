@@ -1,4 +1,4 @@
-import { loadCommercialAreas, loadCommercialArea } from './commercial-areas-data.js?v=20260929-1';
+import { loadCommercialAreas, loadCommercialArea } from './commercial-areas-data.js?v=20261001-perf';
 import { supabase } from './croma-supabase.js';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -28,7 +28,7 @@ function productScore(item,area){
   if(item.product_type==='produto')score+=2;
   return score;
 }
-function highlights(area){return area.items.filter(item=>{const years=String(item.nome).match(/\b20\d{2}\b/g)||[];return !/agenda|calend[aá]rio/i.test(item.nome)||!years.some(year=>Number(year)<new Date().getFullYear())}).sort((a,b)=>productScore(b,area)-productScore(a,area)||String(a.nome).localeCompare(String(b.nome),'pt-BR')).slice(0,4)}
+function highlights(area){return area.items.sort((a,b)=>productScore(b,area)-productScore(a,area)||String(a.nome).localeCompare(String(b.nome),'pt-BR')).slice(0,4)}
 
 function applyBannerBackground(){
   if(!activeBanner || document.querySelector('.home2-hero.approved-art'))return;
@@ -167,7 +167,9 @@ async function init(){
   await renderActiveBanner();
   const areas=await loadCommercialAreas();
   renderAreas(areas);
-  areaData=(await Promise.all(areas.map(area=>loadCommercialArea(area.slug,{itemLimit:60})))).filter(Boolean);
+  const loaded=await Promise.allSettled(areas.map(area=>loadCommercialArea(area.slug,{itemLimit:60})));
+  areaData=loaded.map(result=>result.status==='fulfilled'?result.value:null).filter(Boolean);
+  loaded.filter(result=>result.status==='rejected').forEach(result=>console.warn('home_area_error',result.reason));
   activeAreaSlug=areaData[0]?.slug||activeAreaSlug;
   renderTabs();renderHighlights();renderFamilies();
   await renderPortfolio();
