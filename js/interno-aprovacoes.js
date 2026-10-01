@@ -104,6 +104,15 @@ function renderMetadata(metadata) {
   }).join('') + '</div>';
 }
 
+function previewLinks(preview, mobile) {
+  return [[preview, 'Abrir arte desktop'], [mobile, 'Abrir arte para celular']]
+    .filter(([url]) => {
+      try { return ['https:', 'http:'].includes(new URL(url).protocol); } catch { return false; }
+    })
+    .map(([url, label]) => '<a class="btn light" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + label + '</a>')
+    .join(' ');
+}
+
 function renderDetail() {
   const row = proposals.find(item => item.id === selectedId);
   if (!row) {
@@ -117,6 +126,7 @@ function renderDetail() {
   const versionHtml = versions.length
     ? versions.map(version => '<div class="version"><strong>Versão ' + esc(version.version_number) + '</strong>'
       + (version.change_summary ? '<div>' + esc(version.change_summary) + '</div>' : '')
+      + previewLinks(version.preview_url, version.content?.mobile_preview_url)
       + '<small>' + esc(formatDate(version.created_at)) + '</small></div>').join('')
     : '<div class="muted">Nenhuma versão detalhada registrada ainda.</div>';
   const commentHtml = comments.length
@@ -126,6 +136,7 @@ function renderDetail() {
   const canDecide = ['pending', 'changes_requested'].includes(row.status);
   $('detail').innerHTML = '<div class="detail-head"><div><strong>' + esc(row.title) + '</strong><div class="detail-sub">' + esc(TYPE_LABELS[row.proposal_type] || row.proposal_type) + (row.area ? ' · ' + esc(row.area) : '') + '</div></div><div class="detail-badges">' + statusPill(row.status) + '<span class="pill">v' + esc(row.current_version || 1) + '</span></div></div>'
     + '<div class="preview">' + preview + '</div>'
+    + '<div class="top-actions" style="margin-top:10px">' + previewLinks(row.preview_url, row.metadata?.mobile_preview_url) + '</div>'
     + '<div class="detail-grid">'
     + '<div class="detail-block"><small>Resumo</small><p>' + esc(row.summary || 'Sem resumo informado.') + '</p></div>'
     + '<div class="detail-block"><small>Produto relacionado</small><p>' + esc(product ? product.nome + (product.sku ? ' · SKU ' + product.sku : '') : 'Nenhum produto vinculado.') + '</p></div>'
@@ -193,6 +204,7 @@ async function decide(status) {
   const label = STATUS_LABELS[status] || status;
   const { error: commentError } = await supabase.from('site_approval_comments').insert({
     proposal_id: selectedId,
+    version_id: versions.find(version => version.version_number === proposals.find(row => row.id === selectedId)?.current_version)?.id || null,
     author_id: session.user.id,
     comment_type: 'decision',
     body: '[' + label + '] ' + comment
@@ -224,6 +236,7 @@ async function addComment() {
   }
   const { error } = await supabase.from('site_approval_comments').insert({
     proposal_id: selectedId,
+    version_id: versions.find(version => version.version_number === proposals.find(row => row.id === selectedId)?.current_version)?.id || null,
     author_id: session.user.id,
     comment_type: 'feedback',
     body: comment

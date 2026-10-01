@@ -43,3 +43,13 @@ A automação Revisar vitrine Croma roda semanalmente nas manhãs de segunda-fei
 - painel interno criado em /interno/vitrine-aprovacoes/;
 - acesso adicionado ao diretório interno e ao módulo Vitrine & Campanhas;
 - sintaxe do JavaScript validada após a criação dos arquivos.
+
+
+## Revisão diária e arte v2 — 2026-10-01
+
+- Mantida a curadoria semanal; adicionada revisão diária pela manhã, aproximadamente às 8h (America/Sao_Paulo), para tratar comentários e revisões sem duplicações.
+- Aprovação de briefing permite preparar a arte; a nova arte volta a pending e exige avaliação própria. A publicação continua separada e manual.
+- Previews desktop e celular podem ser abertos em tamanho integral; o histórico mantém links de cada versão. Novos comentários e decisões registram version_id.
+- Imagens da campanha “Sua empresa precisa aparecer” são mockups ilustrativos gerados, não fotografias reais dos produtos. Arquivos em assets/approval-previews/empresa-v2; não ativam banner na Home.
+- Ao criar versão, preservar decisão anterior no snapshot, limpar decided_at/decided_by do estado corrente e associar os comentários usados como fonte. Não converter um “Gostei” isolado em regra visual permanente.
+- A execução agendada depende das conexões disponíveis; agendamento ativo não garante conclusão de cada execução. Registrar bloqueios e verificar gravações.
