@@ -39,3 +39,22 @@ test('Busca ignora resultados atrasados e oferece nova tentativa após erro',asy
  const latest=context.runSearch('nova');pending[1].resolve(result('nova'));await latest;pending[0].resolve(result('antiga'));await new Promise(r=>setImmediate(r));assert.match(el('#searchResults').innerHTML,/nova/);assert.doesNotMatch(el('#searchResults').innerHTML,/antiga/);
  const fail=context.runSearch('falha');pending[2].reject(Error('offline'));await fail;assert.match(el('#searchResults').innerHTML,/retrySearch/);
 });
+test('Banner público exige ativo e vigência sem exceção por UUID',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../js/home-v2.js'),'utf8');
+ assert.match(source,/\.eq\('active',true\)/);
+ assert.match(source,/function bannerIsCurrent/);
+ assert.match(source,/starts_at/);
+ assert.match(source,/ends_at/);
+ assert.doesNotMatch(source,/4fd15cb1-9149-464c-b534-23f52d5451da/);
+ assert.doesNotMatch(source,/select\('id,name,/);
+});
+test('Campanha mantém quatro referências reais e coleta material antes do WhatsApp',()=>{
+ const config=fs.readFileSync(path.join(__dirname,'../js/campaigns-public-data.js'),'utf8');
+ const selection=fs.readFileSync(path.join(__dirname,'../js/campaign-selection.js'),'utf8');
+ for(const id of ['b7cb09f8-1949-4d91-a3bc-dcf584580c0e','c89ab487-a081-4733-bbd4-2c6f3a5fab28','bc444bb7-e0df-4d34-b364-6e117ef56f2f','c086cd87-507a-4d00-b7c5-df21656a2802'])assert.match(config,new RegExp(id));
+ assert.match(selection,/name="material" required/);
+ assert.match(selection,/effectiveAction/);
+ assert.match(selection,/validPrice/);
+ assert.doesNotMatch(selection,/proposta 6207cf2a/i);
+ assert.doesNotMatch(selection,/<h3>\$\{esc\(product\.nome\)\}<\/h3>/);
+});
