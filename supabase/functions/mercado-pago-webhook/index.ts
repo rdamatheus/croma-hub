@@ -52,7 +52,6 @@ Deno.serve(async (req: Request) => {
     if (environment() !== "test" || !accessToken() || !webhookSecret()) return new Response("ok", { status: 200 });
     const url = new URL(req.url);
     const body = await req.json().catch(() => ({}));
-    if (body?.live_mode === true) return new Response("ok", { status: 200 });
     const dataId = clean(url.searchParams.get("data.id") || body?.data?.id || body?.id, 140);
     if (!dataId) return new Response("ok", { status: 200 });
     if (!(await validSignature(req, dataId))) return new Response("invalid signature", { status: 401 });
