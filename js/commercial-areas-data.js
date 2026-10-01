@@ -100,6 +100,6 @@ export async function searchCommercialCatalog(term,{limit=60}={}){
     if(result.error)throw result.error;
     families=result.data||[];
   }
-  const [media,actions]=await Promise.all([loadPrimaryMedia(rows.map(x=>x.id)),loadCommercialActions(rows.map(x=>x.id))]);
+  const [media,actions]=await Promise.all([loadPrimaryMedia(rows.map(x=>x.id)).catch(error=>{console.warn('search_media_error',error);return new Map()}),loadCommercialActions(rows.map(x=>x.id))]);
   return {query:q,items:rows,categories,families,media,actions};
 }

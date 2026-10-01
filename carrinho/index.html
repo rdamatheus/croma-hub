@@ -26,7 +26,8 @@
       <div class="card">
         <h2>Resumo do pedido</h2>
         <div id="items"></div>
-        <div class="total"><span>Total estimado</span><span id="total">R$ 0,00</span></div>
+        <p class="muted">Confira quantidades antes de continuar. Disponibilidade e preços serão validados ao registrar o pedido. Retirada sem frete; entrega e prazo a confirmar com a Croma.</p>
+        <div class="total"><span>Subtotal dos produtos</span><span id="total">R$ 0,00</span></div>
       </div>
       <div class="actions"><span></span><button class="btn primary" id="to2">Próximo</button></div>
     </section>
@@ -36,7 +37,7 @@
         <h2>Como você quer receber?</h2>
         <div class="choice">
           <label><input type="radio" name="fulfillment" value="retirada" checked> Retirar na Croma</label>
-          <label><input type="radio" name="fulfillment" value="entrega"> Receber por entrega</label>
+          <label><input type="radio" name="fulfillment" value="entrega"> Receber por entrega — frete a confirmar</label>
         </div>
         <div id="deliveryBox" class="hidden">
           <h3>Endereço de entrega</h3>
@@ -62,6 +63,7 @@
     <section class="panel" data-panel="3">
       <div class="card">
         <h2>Forma de pagamento</h2>
+        <p id="deliveryQuoteInfo" class="hidden">O frete não está incluído no subtotal. A entrega será cotada no WhatsApp antes de registrar ou pagar o pedido.</p>
         <div class="choice">
           <label><input type="radio" name="payment" value="pix" checked> Pix</label>
           <label><input type="radio" name="payment" value="credito"> Cartão de crédito</label>
@@ -85,7 +87,7 @@
 
         <div class="field" style="margin-top:16px"><label>Observações</label><textarea id="notes" rows="3" placeholder="Informações importantes sobre o pedido"></textarea></div>
         <p class="muted">O pedido é salvo na Croma antes de qualquer cobrança online. Em caso de recusa ou análise, ele permanece registrado para nova tentativa ou acompanhamento.</p>
-        <div class="total"><span>Total estimado</span><span id="total2">R$ 0,00</span></div>
+        <div class="total"><span>Subtotal dos produtos</span><span id="total2">R$ 0,00</span></div>
         <div id="msg" class="msg"></div>
       </div>
       <div class="actions">
@@ -96,6 +98,6 @@
   </main>
   <script src="/js/cart.js?v=20260912-3"></script>
   <script type="module" src="/js/checkout-stock-guard.js?v=20260928-1"></script>
-  <script type="module" src="/js/checkout.js?v=20260914-3"></script>
+  <script type="module" src="/js/checkout.js?v=20261001-journey"></script>
 </body>
 </html>

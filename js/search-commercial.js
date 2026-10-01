@@ -1,4 +1,4 @@
-import { searchCommercialCatalog } from './commercial-areas-data.js';
+import { searchCommercialCatalog } from './commercial-areas-data.js?v=20261001-journey';
 
 const root=document.querySelector('#searchResults');
 const form=document.querySelector('#commercialSearchForm');
@@ -22,12 +22,15 @@ function hrefFor(item,action){
   return `/produtos/?produto=${encodeURIComponent(item.slug||item.id)}`;
 }
 
+let runId=0;
 async function run(term){
+  const requestId=++runId;
   const q=String(term||'').trim();
   if(!q){status.textContent='Digite o que você procura.';root.innerHTML='<div class="search-empty">Exemplos: cartão, adesivo, caderno, placa, cabo, presente, site.</div>';return}
   status.textContent='Buscando no catálogo...';root.innerHTML='';
   try{
     const data=await searchCommercialCatalog(q,{limit:80});
+    if(requestId!==runId)return;
     const categoryById=new Map(data.categories.map(c=>[c.id,c]));
     const familyById=new Map(data.families.map(f=>[f.id,f]));
     const count=data.items.length;
@@ -37,7 +40,7 @@ async function run(term){
       const category=categoryById.get(item.catalog_category_id),family=category?familyById.get(category.family_id):null,action=data.actions.get(item.id)||'quote',media=data.media.get(item.id),href=hrefFor(item,action),external=action==='quote'?' target="_blank" rel="noopener noreferrer"':'';
       return `<article class="search-card"><div class="search-media">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</div><div class="search-copy"><small>${esc(category?.nome||family?.nome||'Croma')}</small><h2>${esc(item.nome)}</h2><div class="search-price">${esc(price(item,action))}</div><a class="search-action ${cls(action)}" href="${esc(href)}"${external}>${esc(label(action))}</a></div></article>`
     }).join('')}</div>`;
-  }catch(error){console.error('commercial_search_error',error);status.textContent='Não foi possível concluir a busca agora.';root.innerHTML='<div class="search-empty">Tente novamente em instantes.</div>'}
+  }catch(error){if(requestId!==runId)return;console.error('commercial_search_error',error);status.textContent='Não foi possível concluir a busca agora.';root.innerHTML='<div class="search-empty"><button type="button" id="retrySearch">Tentar novamente</button> <a href="/comunicacao-marketing/">Explorar produtos e serviços</a></div>';root.querySelector('#retrySearch').onclick=()=>run(q)}
 }
 
 form?.addEventListener('submit',event=>{event.preventDefault();const q=input.value.trim();const url=new URL(location.href);if(q)url.searchParams.set('q',q);else url.searchParams.delete('q');history.replaceState({},'',url.pathname+url.search);run(q)});
