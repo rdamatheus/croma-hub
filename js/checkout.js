@@ -1,4 +1,4 @@
-import { supabase, requireUser, onlyDigits } from '/js/croma-supabase.js?v=20260821-2';
+import { supabase, getSessionUser, requireUser, onlyDigits } from '/js/croma-supabase.js?v=20260821-2';
 
 const PENDING_KEY='croma_pending_card_checkout_v1';
 const brl=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -10,10 +10,9 @@ const savePending=value=>sessionStorage.setItem(PENDING_KEY,JSON.stringify(value
 const clearPending=()=>sessionStorage.removeItem(PENDING_KEY);
 const makeUuid=()=>globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}-4000-8000-${Math.random().toString(16).slice(2,14).padEnd(12,'0')}`;
 
-const user=await requireUser(location.href);
-if(!user)throw new Error('auth');
+const user=await getSessionUser().catch(()=>null);
 
-let pending=readPending();
+let pending=user?readPending():null;
 let activeCart=window.CromaCart?.read?.()||[];
 let cart=Array.isArray(pending?.cart)?pending.cart:activeCart;
 let primary=null;
@@ -25,16 +24,25 @@ let pollToken=0;
 const items=byId('items'),total=byId('total'),total2=byId('total2'),to2=byId('to2'),to3=byId('to3'),finish=byId('finish');
 const deliveryBox=byId('deliveryBox'),otherAddress=byId('otherAddress'),principalAddress=byId('principalAddress'),msg=byId('msg');
 const cardArea=byId('cardPaymentArea'),manualInfo=byId('manualPaymentInfo'),mpStatus=byId('mpStatus'),mpChallenge=byId('mpChallenge'),challengeFrame=byId('mpChallengeFrame'),paymentLocked=byId('paymentLocked');
-const sum=cart.reduce((acc,item)=>acc+Number(item.qty||1)*Number(item.unitPrice||0),0);
+let sum=cart.reduce((acc,item)=>acc+Number(item.qty||1)*Number(item.unitPrice||0),0);
 
-total.textContent=total2.textContent=brl(pending?.order?.total??sum);
-items.innerHTML=cart.length?cart.map(item=>`<div class="item"><div><strong>${esc(item.name)}</strong><div class="muted">${esc(Object.entries(item.options||{}).map(([key,value])=>`${key}: ${value}`).join(' · '))}</div>${item.files?.length?`<div class="muted">Arquivos: ${item.files.map(file=>esc(file.name)).join(', ')}</div>`:''}</div><div class="price">${item.qty||1} × ${brl(item.unitPrice)}<br>${brl(Number(item.qty||1)*Number(item.unitPrice||0))}</div></div>`).join(''):'<div><p>Seu carrinho está vazio.</p><div class="empty-actions"><a href="/produtos/">Escolher produtos</a><a href="/servicos/">Ver serviços</a></div></div>';
-if(!cart.length&&!pending)to2.disabled=true;
+function renderReview(){
+  if(!pending){activeCart=window.CromaCart?.read?.()||[];cart=activeCart}
+  sum=cart.reduce((acc,item)=>acc+Number(item.qty||1)*Number(item.unitPrice||0),0);
+  total.textContent=total2.textContent=brl(pending?.order?.total??sum);
+  items.innerHTML=cart.length?cart.map(item=>`<div class="item"><div><strong>${esc(item.name)}</strong><div class="muted">${esc(Object.entries(item.options||{}).map(([key,value])=>`${key}: ${value}`).join(' · '))}</div>${item.files?.length?`<div class="muted">Arquivos: ${item.files.map(file=>esc(file.name)).join(', ')}</div>`:''}</div><div class="price">${brl(item.unitPrice)} cada · ${brl(Number(item.qty||1)*Number(item.unitPrice||0))}${!pending?`<label style="display:block">Quantidade <input data-quantity="${esc(item.id)}" aria-label="Quantidade de ${esc(item.name)}" type="number" min="1" step="1" value="${Number(item.qty)||1}" style="width:70px;padding:8px"></label><button type="button" data-remove-item="${esc(item.id)}">Remover</button>`:`<div>${Number(item.qty)||1} unidades</div>`}</div></div>`).join(''):'<p>Seu carrinho está vazio. <a href="/produtos/">Escolher produtos</a></p>';
+  to2.disabled=!cart.length&&!pending;
+  to2.textContent=user?'Continuar para recebimento':'Entrar e continuar';
+}
+items.addEventListener('change',event=>{if(event.target.dataset.quantity&&!pending)window.CromaCart.update(event.target.dataset.quantity,event.target.value)});
+items.addEventListener('click',event=>{const button=event.target.closest('[data-remove-item]');if(button&&!pending)window.CromaCart.remove(button.dataset.removeItem)});
+document.addEventListener('croma:cart-updated',()=>{renderReview();if(brickController&&!pending)destroyBrick().then(renderPaymentMode)});
+renderReview();
 
-const [{data:addr},{data:customer}]=await Promise.all([
+const [{data:addr},{data:customer}]=user?await Promise.all([
   supabase.from('customer_addresses').select('*').eq('customer_id',user.id).eq('principal',true).maybeSingle(),
   supabase.from('customer_profiles').select('nome,email,cpf').eq('id',user.id).maybeSingle()
-]);
+]):[{data:null},{data:null}];
 primary=addr||null;profile=customer||null;
 if(primary)principalAddress.textContent=`${primary.logradouro}, ${primary.numero}${primary.complemento?' - '+primary.complemento:''} · ${primary.bairro} · ${primary.cidade}/${primary.estado} · CEP ${primary.cep}`;
 else principalAddress.innerHTML='Nenhum endereço principal encontrado. <a href="/minha-conta/" style="color:#30297F;font-weight:900">Cadastrar endereço na minha conta</a>.';
@@ -64,6 +72,7 @@ function validateDelivery(){
 }
 function checkoutPayload(payment){
   const {fulfillment,address}=selectedDelivery();
+  if(fulfillment==='entrega')throw new Error('Confirme o frete com a Croma antes de registrar o pedido.');
   return {p_checkout_reference:window.CromaCart.cartRef(),p_fulfillment:fulfillment,p_payment_method:payment,p_delivery_fee:0,p_notes:byId('notes').value.trim()||null,p_delivery_street:address?.street||null,p_delivery_number:address?.number||null,p_delivery_complement:address?.complement||null,p_delivery_neighborhood:address?.neighborhood||null,p_delivery_city:address?.city||null,p_delivery_state:address?.state||null,p_delivery_zip:address?.zip||null};
 }
 async function invokeMp(body){
@@ -134,17 +143,23 @@ async function mountBrick(){
 }
 async function renderPaymentMode(){
   const credit=selectedPayment()==='credito';
-  const online=credit&&Boolean(mpConfig?.enabled)&&Boolean(window.MercadoPago);
+  const delivery=selectedDelivery().fulfillment==='entrega';
+  const online=!delivery&&credit&&Boolean(mpConfig?.enabled)&&Boolean(window.MercadoPago);
+  finish.textContent=delivery?'Solicitar cotação de entrega no WhatsApp':'Registrar pedido e continuar no WhatsApp';
+  byId('deliveryQuoteInfo').classList.toggle('hidden',!delivery);
   cardArea.classList.toggle('hidden',!online);
   manualInfo.classList.toggle('hidden',online);
   finish.classList.toggle('hidden',online);
-  if(credit&&!online){manualInfo.innerHTML='<p class="muted mp-manual-note">O cartão online está em validação. Enquanto não estiver ativo para esta sessão, o pedido é registrado e a cobrança é confirmada pela Croma no atendimento.</p>'}
+  if(delivery){manualInfo.innerHTML='<p class="muted mp-manual-note">Frete, prazo e pagamento serão combinados no atendimento. Esta solicitação não registra um pedido.</p>'}
+  else if(credit&&!online){manualInfo.innerHTML='<p class="muted mp-manual-note">O cartão online está em validação. Enquanto não estiver ativo para esta sessão, o pedido é registrado e a cobrança é confirmada pela Croma no atendimento.</p>'}
   else if(!credit){manualInfo.innerHTML='<p class="muted mp-manual-note">A forma escolhida fica registrada no pedido e a confirmação é feita pela Croma no atendimento pelo WhatsApp.</p>'}
   if(online)await mountBrick();
   else await destroyBrick();
 }
 async function createCreditOrder(){
+  if(!user)throw new Error('Entre na sua conta para continuar.');
   if(pending?.order)return pending.order;
+  if(!validateDelivery()||selectedDelivery().fulfillment==='entrega')throw new Error('Confirme o recebimento antes de pagar.');
   if(!activeCart.length)throw new Error('Carrinho vazio.');
   setStatus('Registrando seu pedido antes do pagamento...','wait');
   await window.CromaCart.syncNow();
@@ -197,7 +212,13 @@ async function handleCardSubmit(formData,paymentTypeId){
   }catch(error){console.error(error);setStatus(error?.message||'Não foi possível processar o cartão. Tente novamente.','error');throw error}
 }
 async function manualFinish(){
-  if(!activeCart.length)return;
+  if(!user||!activeCart.length||!validateDelivery())return;
+  if(selectedDelivery().fulfillment==='entrega'){
+    const {address}=selectedDelivery();
+    const lines=['Olá! Quero confirmar frete e prazo antes de comprar.',...activeCart.map(item=>`${item.qty}x ${item.name}`),`Subtotal estimado: ${brl(sum)} (frete não incluído)`,`Endereço: ${address.street}, ${address.number} ${address.complement||''} — ${address.neighborhood}, ${address.city}/${address.state}, CEP ${address.zip}`,byId('notes').value.trim()];
+    window.open(`https://wa.me/553230253588?text=${encodeURIComponent(lines.join('\n'))}`,'_blank','noopener,noreferrer');
+    msg.textContent='Seu carrinho foi mantido. Nenhum pedido ou pagamento foi criado; confirme frete e prazo no atendimento.';return;
+  }
   finish.disabled=true;msg.className='msg ok';msg.textContent='Salvando carrinho e registrando o pedido...';
   const wa=window.open('about:blank','_blank');
   try{
@@ -215,14 +236,14 @@ async function manualFinish(){
   }catch(error){console.error(error);if(wa)wa.close();msg.className='msg';msg.textContent='Não foi possível concluir o pedido. Seu carrinho foi mantido; tente novamente.';finish.disabled=false}
 }
 
-to2.onclick=()=>cart.length&&go(2);
+to2.onclick=async()=>{if(!cart.length)return;if(!user){await requireUser(location.href);return}go(2)};
 document.querySelectorAll('[data-back]').forEach(button=>button.onclick=()=>go(button.dataset.back));
-document.querySelectorAll('[name="fulfillment"]').forEach(radio=>radio.onchange=()=>deliveryBox.classList.toggle('hidden',document.querySelector('[name="fulfillment"]:checked').value!=='entrega'));
+document.querySelectorAll('[name="fulfillment"]').forEach(radio=>radio.onchange=()=>{deliveryBox.classList.toggle('hidden',selectedDelivery().fulfillment!=='entrega');renderPaymentMode()});
 document.querySelectorAll('[name="addressMode"]').forEach(radio=>radio.onchange=()=>otherAddress.classList.toggle('hidden',document.querySelector('[name="addressMode"]:checked').value!=='outro'));
 document.querySelectorAll('[name="payment"]').forEach(radio=>radio.addEventListener('change',renderPaymentMode));
 to3.onclick=()=>{if(validateDelivery())go(3)};
 finish.onclick=manualFinish;
 
 if(pending?.order){lockPendingOrder();go(3)}
-await loadMpConfig();
+if(user)await loadMpConfig();
 if(pending?.order&&mpConfig?.enabled){try{const status=await invokeMp({action:'status',order_id:pending.order.order_id});if(status.payment_status==='approved')await finalizeApproved(status);else if(status.challenge_url){showChallenge(status.challenge_url);pollPayment(pending.order.order_id)}}catch{}}

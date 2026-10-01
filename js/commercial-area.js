@@ -1,4 +1,5 @@
-import { loadCommercialArea } from './commercial-areas-data.js';
+import { loadCommercialArea } from './commercial-areas-data.js?v=20261001-journey';
+import { renderCampaignSelection } from './campaign-selection.js?v=20261001-journey';
 
 const root=document.querySelector('#commercialAreaRoot');
 const areaSlug=document.body.dataset.commercialArea||'';
@@ -58,9 +59,10 @@ function render(data){
       </div>
     </section>
 
+    ${areaSlug==='comunicacao-marketing'?'<section class="ca-section soft" id="campanha-empresa" aria-label="Produtos da campanha"></section>':''}
     <section class="ca-section">
       <div class="ca-shell">
-        <div class="ca-section-head"><div><span class="ca-eyebrow">Famílias e categorias</span><h2>Encontre pelo tipo de necessidade.</h2></div><p>As categorias atuais foram preservadas. Esta página apenas organiza o acesso a elas por uma camada comercial mais simples.</p></div>
+        <div class="ca-section-head"><div><span class="ca-eyebrow">Famílias e categorias</span><h2>Encontre pelo tipo de necessidade.</h2></div><p>Encontre materiais para sua empresa, seu evento ou seu dia a dia.</p></div>
         <div class="ca-family-grid">
           ${primaryFamilies.map(f=>{
             const cats=(categoriesByFamily.get(f.id)||[]).filter(c=>!c.parent_id&&c.show_in_navigation!==false).slice(0,8);
@@ -72,7 +74,7 @@ function render(data){
 
     <section class="ca-section soft">
       <div class="ca-shell">
-        <div class="ca-section-head"><div><span class="ca-eyebrow">Destaques</span><h2>Produtos e soluções desta área.</h2></div><p>Esta seleção será controlada pela futura Vitrine & Campanhas. Por enquanto, usamos itens reais do catálogo.</p></div>
+        <div class="ca-section-head"><div><span class="ca-eyebrow">Destaques</span><h2>Produtos e soluções desta área.</h2></div><p>Veja as opções e consulte as condições de cada produto ou serviço.</p></div>
         <div class="ca-product-grid">
           ${sortedItems.map(item=>{
             const media=data.media.get(item.id),action=data.actions.get(item.id)||'quote',category=categoryById.get(item.catalog_category_id),family=category?familyById.get(category.family_id):null;
@@ -92,6 +94,11 @@ try{
   const data=await loadCommercialArea(areaSlug,{itemLimit:48});
   if(!data)throw new Error('Área comercial não encontrada.');
   render(data);
+  const campaign=root.querySelector('#campanha-empresa');
+  if(campaign){
+    try{await renderCampaignSelection(campaign)}catch(error){console.warn('campaign_selection_error',error);campaign.innerHTML='<div class="ca-shell"><p>Não foi possível carregar a seleção. <button type="button" id="retryCampaign">Tentar novamente</button></p></div>';campaign.querySelector('button').onclick=()=>location.reload()}
+    if(location.hash==='#campanha-empresa')campaign.scrollIntoView();
+  }
 }catch(error){
   console.error('commercial_area_error',error);
   root.innerHTML='<div class="ca-shell" style="padding:80px 0"><div class="ca-empty">Não foi possível carregar esta área agora.</div></div>';

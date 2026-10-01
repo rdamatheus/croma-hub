@@ -1,5 +1,7 @@
 import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20260923-1';
 
+import { loadCommercialActions } from './commercial-areas-data.js?v=20261001-journey';
+
 const root=document.querySelector('#productCatalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const PAGE_SIZE=48;
@@ -47,7 +49,8 @@ async function renderProductDetail(product){
   await ensureMedia([product.id]);
   const media=mediaCache.get(product.id),path=categoryPath(categories,families,product.catalog_category_id),backHref='/produtos/';
   const priced=Number(product.preco)>0;
-  const canBuy=priced&&product.is_sellable!==false&&!product.is_input;
+  const actions=await loadCommercialActions([product.id]).catch(()=>new Map());
+  const canBuy=actions.get(product.id)==='buy'&&priced&&product.is_sellable!==false&&!product.is_input;
   const consultUrl=`https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Gostaria de consultar disponibilidade e condições do produto ${product.nome}${product.sku?` (SKU ${product.sku})`:''}.`)}`;
   const purchase=canBuy?`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:10px">Comprar este produto</strong><div style="display:flex;align-items:end;gap:10px;flex-wrap:wrap"><label style="display:grid;gap:6px;font-weight:800;color:var(--pc-deep)">Quantidade<input id="productQty" type="number" min="1" step="1" value="1" inputmode="numeric" style="width:94px;min-height:46px;border:1px solid #d9d6e5;border-radius:11px;padding:0 12px;font:inherit"></label><button class="public-cta" type="button" id="addProductToCart" style="border:0;cursor:pointer;min-height:46px">Adicionar ao carrinho</button><a class="public-close" href="/carrinho/" style="display:inline-flex;align-items:center;min-height:46px;text-decoration:none">Ir para o carrinho</a></div><p id="cartFeedback" class="tx-meta" role="status" aria-live="polite" style="margin:10px 0 0"></p></div>`:`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:6px">Consulte disponibilidade</strong><p class="tx-meta" style="margin:0 0 12px">Este item não possui compra direta disponível no site neste momento.</p><a class="public-cta" href="${consultUrl}" target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp</a></div>`;
   root.innerHTML=`
@@ -60,6 +63,7 @@ async function renderProductDetail(product){
         ${product.sku?`<p class="tx-meta">SKU ${esc(product.sku)}</p>`:''}
         ${priced?`<p class="public-price" style="font-size:1.55rem!important;margin:16px 0!important">${esc(money(product.preco))}</p>`:''}
         <p class="public-lead">${esc(product.short_description||product.descricao||'Consulte disponibilidade e condições deste produto com a Croma.')}</p>
+        <div class="tx-meta"><p><strong>Disponibilidade:</strong> o saldo será conferido antes de registrar o pedido.</p><p><strong>Recebimento:</strong> retirada na Croma ou entrega com frete a confirmar. Aguarde a confirmação de disponibilidade e prazo antes de se deslocar.</p></div>
         ${purchase}
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px"><a class="public-close" href="${backHref}" style="text-decoration:none">← Voltar aos produtos</a></div>
       </div>

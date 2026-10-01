@@ -28,7 +28,7 @@ function productScore(item,area){
   if(item.product_type==='produto')score+=2;
   return score;
 }
-function highlights(area){return [...area.items].sort((a,b)=>productScore(b,area)-productScore(a,area)||String(a.nome).localeCompare(String(b.nome),'pt-BR')).slice(0,4)}
+function highlights(area){return area.items.filter(item=>{const years=String(item.nome).match(/\b20\d{2}\b/g)||[];return !/agenda|calend[aá]rio/i.test(item.nome)||!years.some(year=>Number(year)<new Date().getFullYear())}).sort((a,b)=>productScore(b,area)-productScore(a,area)||String(a.nome).localeCompare(String(b.nome),'pt-BR')).slice(0,4)}
 
 function applyBannerBackground(){
   if(!activeBanner || document.querySelector('.home2-hero.approved-art'))return;
@@ -44,6 +44,7 @@ async function renderActiveBanner(){
   const {data,error}=await supabase.from('site_banners').select('id,name,eyebrow,title,subtitle,image_desktop_url,image_mobile_url,cta_label,target_type,target_ref,target_url,display_order').eq('placement','home_hero').order('display_order').limit(1).maybeSingle();
   if(error){console.warn('home_banner_error',error);return}
   if(!data)return;
+  if(data.id==='4fd15cb1-9149-464c-b534-23f52d5451da')data.target_url='/comunicacao-marketing/#campanha-empresa';
   activeBanner=data;
   const hero=document.querySelector('.home2-hero');
   if(!hero)return;
@@ -96,7 +97,7 @@ async function renderActiveBanner(){
   if(card){
     const small=card.querySelector('small'),strong=card.querySelector('strong'),copy=card.querySelector('p'),link=card.querySelector('a');
     if(small)small.textContent='CAMPANHA ATIVA';
-    if(strong)strong.textContent=data.name;
+    if(strong)strong.textContent=data.title;
     if(copy)copy.textContent=data.subtitle||'Confira a seleção preparada pela Croma.';
     if(link){
       const rawTarget=data.target_url||'#destaques';
