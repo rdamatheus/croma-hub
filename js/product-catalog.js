@@ -1,4 +1,4 @@
-import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20261001-perf';
+import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20261001-perf2';
 
 import { loadCommercialActions } from './commercial-areas-data.js?v=20261001-perf';
 
