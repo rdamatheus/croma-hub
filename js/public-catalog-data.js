@@ -19,6 +19,28 @@ function sanitizeCatalogSearch(value){
   return String(value||'').trim().replace(/[,%()]/g,' ').replace(/\s+/g,' ').slice(0,80);
 }
 
+function stripTotalCount(row){
+  if(!row || !Object.prototype.hasOwnProperty.call(row,'total_count'))return row;
+  const {total_count,...item}=row;
+  return item;
+}
+
+async function loadFastCatalogPage(scope,{requirePublished,categoryIds,search,page,pageSize}){
+  const size=Math.max(1,Math.min(100,Number(pageSize)||48));
+  const current=Math.max(1,Number(page)||1);
+  const {data,error}=await supabase.rpc('public_catalog_products_fast',{
+    p_scope:scope,
+    p_category_ids:Array.isArray(categoryIds)&&categoryIds.length?categoryIds:null,
+    p_search:sanitizeCatalogSearch(search)||null,
+    p_require_published:!!requirePublished,
+    p_limit:size,
+    p_offset:(current-1)*size
+  });
+  if(error)throw error;
+  const rows=data||[];
+  return {items:rows.map(stripTotalCount),total:Number(rows[0]?.total_count||0),page:current,pageSize:size};
+}
+
 export async function loadPublicCatalogMeta(scope,{requirePublished=scope==='servico'}={}){
   const [familiesResult,categoriesResult,statsResult]=await Promise.all([
     supabase.from('catalog_families')
@@ -46,16 +68,21 @@ export async function loadPublicCatalogPage(scope,{
   const size=Math.max(1,Math.min(100,Number(pageSize)||48));
   const current=Math.max(1,Number(page)||1);
   const from=(current-1)*size;
-  let query=supabase.from('public_catalog_products')
-    .select('id,nome,sku,slug,descricao,short_description,preco,catalog_category_id,product_type,ativo,published_on_site,is_sellable,is_input,metadata,child_count,commercial_min_price',{count:'exact'})
-    .eq('product_type',scope);
-  if(requirePublished)query=query.eq('published_on_site',true);
-  if(Array.isArray(categoryIds)&&categoryIds.length)query=query.in('catalog_category_id',categoryIds);
-  const clean=sanitizeCatalogSearch(search);
-  if(clean)query=query.or(`nome.ilike.%${clean}%,sku.ilike.%${clean}%`);
-  const {data,error,count}=await query.order('nome').range(from,from+size-1);
-  if(error)throw error;
-  return {items:data||[],total:Number(count||0),page:current,pageSize:size};
+  try{
+    return await loadFastCatalogPage(scope,{requirePublished,categoryIds,search,page:current,pageSize:size});
+  }catch(error){
+    console.warn('public_catalog_fast_page_error',error);
+    let query=supabase.from('public_catalog_products')
+      .select('id,nome,sku,slug,descricao,short_description,preco,catalog_category_id,product_type,ativo,published_on_site,is_sellable,is_input,metadata,child_count,commercial_min_price',{count:'exact'})
+      .eq('product_type',scope);
+    if(requirePublished)query=query.eq('published_on_site',true);
+    if(Array.isArray(categoryIds)&&categoryIds.length)query=query.in('catalog_category_id',categoryIds);
+    const clean=sanitizeCatalogSearch(search);
+    if(clean)query=query.or(`nome.ilike.%${clean}%,sku.ilike.%${clean}%`);
+    const {data,error,count}=await query.order('nome').range(from,from+size-1);
+    if(error)throw error;
+    return {items:data||[],total:Number(count||0),page:current,pageSize:size};
+  }
 }
 
 export async function loadPublicCatalogItems(scope,{

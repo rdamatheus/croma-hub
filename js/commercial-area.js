@@ -1,4 +1,4 @@
-import { loadCommercialArea } from './commercial-areas-data.js?v=20261001-journey';
+import { loadCommercialArea } from './commercial-areas-data.js?v=20261001-perf';
 import { renderCampaignSelection } from './campaign-selection.js?v=20261001-lot1';
 
 const root=document.querySelector('#commercialAreaRoot');

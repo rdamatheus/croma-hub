@@ -1,4 +1,4 @@
-import { searchCommercialCatalog } from './commercial-areas-data.js?v=20261001-journey';
+import { searchCommercialCatalog } from './commercial-areas-data.js?v=20261001-perf';
 
 const root=document.querySelector('#searchResults');
 const form=document.querySelector('#commercialSearchForm');
