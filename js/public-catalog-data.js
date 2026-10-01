@@ -79,8 +79,8 @@ export async function loadPublicCatalogPage(scope,{
     if(Array.isArray(categoryIds)&&categoryIds.length)query=query.in('catalog_category_id',categoryIds);
     const clean=sanitizeCatalogSearch(search);
     if(clean)query=query.or(`nome.ilike.%${clean}%,sku.ilike.%${clean}%`);
-    const {data,error,count}=await query.order('nome').range(from,from+size-1);
-    if(error)throw error;
+    const {data,error:fallbackError,count}=await query.order('nome').range(from,from+size-1);
+    if(fallbackError)throw fallbackError;
     return {items:data||[],total:Number(count||0),page:current,pageSize:size};
   }
 }
