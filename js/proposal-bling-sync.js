@@ -114,6 +114,11 @@ async function openSync(proposalId){
 
 export async function initProposalBlingSync(){
   injectStyles();
+  const list=document.getElementById('proposalsList');
+  if(list&&!list.dataset.blingSyncObserved){
+    list.dataset.blingSyncObserved='1';
+    new MutationObserver(()=>decorate()).observe(list,{childList:true});
+  }
   try{await loadSyncRows();decorate()}
   catch(error){feedback(`Propostas carregadas, mas o status do Bling não pôde ser consultado: ${error.message}`,'error')}
 }
