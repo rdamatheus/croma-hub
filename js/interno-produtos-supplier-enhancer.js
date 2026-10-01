@@ -3,7 +3,8 @@ import { listSupplierDirectory, linkCatalogItem, linkSupplier, setPreferredSuppl
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:4});
-let mountedFor=null,selectedCatalogItem=null,searchTimer=null,directory=[],currentLinks=[],mounting=null,editorObserver=null;
+const sharedState=globalThis.__CROMA_PRODUCT_SUPPLIER_ENHANCER__ ||= {mountedFor:null,mounting:null,linkLoads:new Map()};
+let selectedCatalogItem=null,searchTimer=null,directory=[],currentLinks=[],editorObserver=null;
 function currentKey(){return new URLSearchParams(location.search).get('produto')||''}
 function dirKey(x){return x?.contactId||(`supplier:${x?.supplierId||''}`)}
 function selectedDirectory(){const key=document.querySelector('#multiSupplierContact')?.value;return directory.find(x=>dirKey(x)===key)||null}
@@ -15,14 +16,15 @@ async function loadDirectory(refresh=false){return await listSupplierDirectory({
 
 async function mount(){
   const key=currentKey();if(!key)return;
-  if(mountedFor===key&&document.querySelector('#supplierMultiEnhancer'))return;
-  if(mounting)return mounting;
-  mounting=(async()=>{
+  if(sharedState.mountedFor===key&&document.querySelector('#supplierMultiEnhancer'))return;
+  if(sharedState.mounting)return sharedState.mounting;
+  const promise=(async()=>{
     const p=await resolveProduct();if(!p)return;
-    if(mountedFor===p.id&&document.querySelector('#supplierMultiEnhancer'))return;
-    mountedFor=p.id;selectedCatalogItem=null;ensureStyles();mountPublication(p);await mountSupplier(p);
+    if(sharedState.mountedFor===p.id&&document.querySelector('#supplierMultiEnhancer'))return;
+    sharedState.mountedFor=p.id;selectedCatalogItem=null;ensureStyles();mountPublication(p);await mountSupplier(p);
   })();
-  try{return await mounting}finally{mounting=null}
+  sharedState.mounting=promise;
+  try{return await promise}finally{if(sharedState.mounting===promise)sharedState.mounting=null}
 }
 function mountPublication(p){const actions=document.querySelector('.editor-actions');if(!actions)return;document.querySelector('#sitePublishEnhancer')?.remove();const box=document.createElement('div');box.id='sitePublishEnhancer';box.className='site-publish-box';box.innerHTML=`<span class="site-state ${p.published_on_site?'on':'off'}" id="sitePublishState">${p.published_on_site?'Publicado no site':'Fora do site'}</span><button class="btn light" id="sitePublishToggle" type="button">${p.published_on_site?'Retirar do site':'Publicar no site'}</button>`;actions.prepend(box);box.querySelector('#sitePublishToggle').onclick=()=>togglePublication(p)}
 async function refreshPublication(p){const{data}=await supabase.from('products').select('id,ativo,published_on_site').eq('id',p.id).single();if(!data)return;const st=document.querySelector('#sitePublishState'),bt=document.querySelector('#sitePublishToggle');if(!st||!bt)return;st.textContent=data.published_on_site?'Publicado no site':'Fora do site';st.className=`site-state ${data.published_on_site?'on':'off'}`;bt.textContent=data.published_on_site?'Retirar do site':'Publicar no site'}
@@ -42,11 +44,19 @@ async function mountSupplier(p){
 function populateDirectory(keep=''){const sel=document.querySelector('#multiSupplierContact');if(!sel)return;sel.innerHTML='<option value="">Selecione</option>'+directory.map(x=>`<option value="${esc(dirKey(x))}">${esc(x.name)}${x.standalone?' · cadastro direto':''}</option>`).join('');if(keep)sel.value=keep;sel.onchange=()=>supplierChanged()}
 function supplierChanged(){selectedCatalogItem=null;const d=selectedDirectory();const search=document.querySelector('#multiSupplierSearch');if(search)search.value='';document.querySelector('#multiSupplierResults').innerHTML='';document.querySelector('#multiLinkCatalog').disabled=true;document.querySelector('#multiLinkSupplierOnly').disabled=!d;document.querySelector('#multiSupplierPreview').innerHTML=d?`<strong>${esc(d.name)}</strong><div class="muted">${d.supplierId?'Fornecedor operacional disponível.':'Extensão operacional será criada ao vincular.'}${d.standalone?' Sem contato Bling vinculado.':''}</div>`:'<span class="muted">Escolha um fornecedor.</span>'}
 
+async function fetchLinks(productId){
+  if(sharedState.linkLoads.has(productId))return sharedState.linkLoads.get(productId);
+  const promise=(async()=>{
+    const{data,error}=await supabase.from('product_suppliers').select('id,supplier_id,supplier_sku,purchase_unit,conversion_factor,purchase_price,freight_cost,tax_cost,other_cost,effective_unit_cost,lead_time_days,preferred,active,purchase_channel,purchase_url,supplier_product_description,supplier_catalog_item_id,suppliers(id,name,contact_id),supplier_catalog_items(id,sku,name,category)').eq('product_id',productId).is('variant_id',null).eq('active',true).order('preferred',{ascending:false}).order('purchase_price');
+    if(error)throw error;
+    return data||[];
+  })();
+  sharedState.linkLoads.set(productId,promise);
+  try{return await promise}finally{if(sharedState.linkLoads.get(productId)===promise)sharedState.linkLoads.delete(productId)}
+}
 async function loadLinks(p){
   const box=document.querySelector('#supplierLinkedList');if(!box)return;
-  const{data,error}=await supabase.from('product_suppliers').select('id,supplier_id,supplier_sku,purchase_unit,conversion_factor,purchase_price,freight_cost,tax_cost,other_cost,effective_unit_cost,lead_time_days,preferred,active,purchase_channel,purchase_url,supplier_product_description,supplier_catalog_item_id,suppliers(id,name,contact_id),supplier_catalog_items(id,sku,name,category)').eq('product_id',p.id).is('variant_id',null).eq('active',true).order('preferred',{ascending:false}).order('purchase_price');
-  if(error){box.innerHTML=`<span class="status bad">${esc(error.message)}</span>`;return}
-  currentLinks=data||[];
+  try{currentLinks=await fetchLinks(p.id)}catch(error){box.innerHTML=`<span class="status bad">${esc(error.message)}</span>`;return}
   box.innerHTML=currentLinks.length?currentLinks.map(l=>{
     const channel=String(l.purchase_channel||'').replaceAll('_',' ');
     return `<div class="supplier-linked-card ${l.preferred?'preferred':''}"><div><div><strong>${esc(l.suppliers?.name||'Fornecedor')}</strong>${l.preferred?' <span class="pill ok">Preferencial</span>':''}${channel?` <span class="supplier-channel">${esc(channel)}</span>`:''}</div><div class="muted">${esc(l.supplier_sku||'Sem SKU')} · Compra ${brl(l.purchase_price)} · Custo efetivo ${brl(l.effective_unit_cost)}${l.freight_cost?` · Frete ${brl(l.freight_cost)}`:''}${l.purchase_unit?` · ${esc(l.purchase_unit)}`:''}${Number(l.conversion_factor||1)!==1?` / ${Number(l.conversion_factor).toLocaleString('pt-BR',{maximumFractionDigits:4})}`:''}</div>${l.purchase_url?`<a class="supplier-offer" href="${esc(l.purchase_url)}" target="_blank" rel="noopener">Abrir oferta de compra ↗</a>`:''}${l.supplier_product_description?`<div class="muted supplier-note">${esc(l.supplier_product_description)}</div>`:''}</div><div class="supplier-linked-actions"><button class="btn light" data-edit="${l.id}">Editar compra</button>${l.preferred?'':`<button class="btn light" data-pref="${l.id}">Tornar preferencial</button>`}<button class="btn bad" data-off="${l.id}">Desvincular</button></div></div>`
@@ -94,5 +104,5 @@ function observeEditor(){
   editorObserver.observe(editor,{attributes:true,attributeFilter:['class']});
   if(editor.classList.contains('open'))mount();
 }
-window.addEventListener('popstate',()=>{mountedFor=null;observeEditor()});
+window.addEventListener('popstate',()=>{sharedState.mountedFor=null;observeEditor()});
 observeEditor();
