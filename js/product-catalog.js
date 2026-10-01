@@ -1,6 +1,6 @@
-import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20260923-1';
+import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20261001-perf';
 
-import { loadCommercialActions } from './commercial-areas-data.js?v=20261001-journey';
+import { loadCommercialActions } from './commercial-areas-data.js?v=20261001-perf';
 
 const root=document.querySelector('#productCatalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
