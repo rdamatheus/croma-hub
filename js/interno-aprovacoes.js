@@ -62,13 +62,20 @@ function updateCounts() {
   $('countAll').textContent = proposals.length;
 }
 
+function relatedProducts(row) {
+  const listed = Array.isArray(row.metadata?.produtos) ? row.metadata.produtos : [];
+  const related = listed.filter(item => item && typeof item === 'object' && item.id);
+  const ids = [...new Set([row.product_id, ...related.map(item => item.id)].filter(Boolean))];
+  return ids.map(id => productMap.get(id) || related.find(item => item.id === id) || { id, nome: 'Produto indisponível no catálogo atual' });
+}
+
 function filteredProposals() {
   const term = $('search').value.trim().toLocaleLowerCase('pt-BR');
   const wantedStatus = $('statusFilter').value;
   const wantedType = $('typeFilter').value;
   return proposals.filter(row => {
     const product = productMap.get(row.product_id);
-    const haystack = [row.title, row.area, row.summary, row.rationale, product?.nome, product?.sku].filter(Boolean).join(' ').toLocaleLowerCase('pt-BR');
+    const haystack = [row.title, row.area, row.summary, row.rationale, ...relatedProducts(row).flatMap(item => [item.nome, item.sku])].filter(Boolean).join(' ').toLocaleLowerCase('pt-BR');
     return (!term || haystack.includes(term))
       && (wantedStatus === 'all' || row.status === wantedStatus)
       && (wantedType === 'all' || row.proposal_type === wantedType);
@@ -139,7 +146,7 @@ function renderDetail() {
     + '<div class="top-actions" style="margin-top:10px">' + previewLinks(row.preview_url, row.metadata?.mobile_preview_url) + '</div>'
     + '<div class="detail-grid">'
     + '<div class="detail-block"><small>Resumo</small><p>' + esc(row.summary || 'Sem resumo informado.') + '</p></div>'
-    + '<div class="detail-block"><small>Produto relacionado</small><p>' + esc(product ? product.nome + (product.sku ? ' · SKU ' + product.sku : '') : 'Nenhum produto vinculado.') + '</p></div>'
+    + '<div class="detail-block"><small>Produtos relacionados</small><p>' + (relatedProducts(row).map(item => esc(item.nome + (item.sku ? ' · SKU ' + item.sku : ''))).join('<br>') || 'Nenhum produto vinculado.') + '</p></div>'
     + '<div class="detail-block full"><small>Por que a proposta foi sugerida</small><p>' + esc(row.rationale || 'O agente ainda não registrou o motivo.') + '</p></div>'
     + '<div class="detail-block"><small>Destino</small><p>' + esc([row.target_type, row.target_ref].filter(Boolean).join(' · ') || 'Sem destino definido') + '</p></div>'
     + '<div class="detail-block"><small>Período / data</small><p>' + esc(row.proposed_for ? formatShortDate(row.proposed_for) : [row.starts_at && formatDate(row.starts_at), row.ends_at && formatDate(row.ends_at)].filter(Boolean).join(' → ') || 'Sem período') + '</p></div>'
