@@ -6,6 +6,20 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&
 const labels={not_synced:'Não sincronizada',syncing:'Sincronizando',synced:'Sincronizada',conflict:'Conflito',error:'Erro'};
 let syncRows=new Map();
 
+function readableMessage(value,fallback='Não foi possível acessar a sincronização com o Bling.'){
+  const clean=v=>typeof v==='string'&&v.trim()&&v.trim()!=='[object Object]'?v.trim():null;
+  const direct=clean(value);if(direct)return direct;
+  if(value&&typeof value==='object'){
+    for(const key of ['detail','error','message','description','error_description']){
+      const candidate=value[key],text=clean(candidate);if(text)return text;
+      if(candidate&&typeof candidate==='object'){
+        const nested=clean(candidate.message)||clean(candidate.description);if(nested)return nested;
+      }
+    }
+  }
+  return fallback;
+}
+
 function injectStyles(){
   if(document.getElementById('proposalBlingSyncStyles'))return;
   const style=document.createElement('style');style.id='proposalBlingSyncStyles';style.textContent=`
@@ -20,19 +34,17 @@ function injectStyles(){
 
 function modalRoot(){return document.getElementById('proposalModalRoot')}
 function closeModal(){modalRoot().innerHTML=''}
-function feedback(message,type=''){const el=document.getElementById('proposalFeedback');if(!el)return;el.textContent=message||'';el.dataset.type=type}
+function feedback(message,type=''){const el=document.getElementById('proposalFeedback');if(!el)return;el.textContent=readableMessage(message,'');el.dataset.type=type}
 
 async function invoke(body){
   const {data,error}=await supabase.functions.invoke('bling-proposal-sync',{body});
   if(!error)return data;
-  let detail=error.message||'Não foi possível acessar a sincronização com o Bling.';
   let payload=null;
   try{
     if(error.context&&typeof error.context.clone==='function')payload=await error.context.clone().json();
     else if(error.context&&typeof error.context.json==='function')payload=await error.context.json();
   }catch{}
-  if(payload?.detail)detail=payload.detail;
-  else if(payload?.error)detail=payload.error;
+  const detail=readableMessage(payload,readableMessage(error));
   const wrapped=new Error(detail);wrapped.payload=payload;throw wrapped;
 }
 
@@ -102,14 +114,14 @@ function renderModal(preview){
       const result=await invoke({action:'sync',proposal_id:current.id,item_ids:ids,force_local:Boolean(conflict&&force?.checked)});
       fb.textContent=result?.action==='created'?'Proposta criada e relida no Bling.':result?.action==='updated'?'Proposta atualizada e relida no Bling.':result?.action==='recovered_existing'?'Proposta existente recuperada sem duplicação.':'Sincronização confirmada.';fb.dataset.type='success';
       await loadSyncRows();decorate();setTimeout(closeModal,900);
-    }catch(error){fb.textContent=error.message;fb.dataset.type='error';await loadSyncRows().catch(()=>{});decorate();submit.disabled=false}
+    }catch(error){fb.textContent=readableMessage(error);fb.dataset.type='error';await loadSyncRows().catch(()=>{});decorate();submit.disabled=false}
   });
 }
 
 async function openSync(proposalId){
   feedback('Preparando sincronização com o Bling…');
   try{const preview=await invoke({action:'preview',proposal_id:proposalId});feedback('');renderModal(preview)}
-  catch(error){feedback(error.message,'error')}
+  catch(error){feedback(readableMessage(error),'error')}
 }
 
 export async function initProposalBlingSync(){
@@ -120,5 +132,5 @@ export async function initProposalBlingSync(){
     new MutationObserver(()=>decorate()).observe(list,{childList:true});
   }
   try{await loadSyncRows();decorate()}
-  catch(error){feedback(`Propostas carregadas, mas o status do Bling não pôde ser consultado: ${error.message}`,'error')}
+  catch(error){feedback(`Propostas carregadas, mas o status do Bling não pôde ser consultado: ${readableMessage(error,'erro desconhecido')}`,'error')}
 }
