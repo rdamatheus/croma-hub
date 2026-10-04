@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Projetos | Croma Hub</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <style>
+    .page{max-width:1320px;margin:auto;padding:24px}
+    .hero{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:22px}
+    .hero h1{margin:.25rem 0 .45rem}.hero p{margin:0;color:var(--croma-muted);max-width:760px}
+    .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 24px}
+    .metric,.project{background:#fff;border:1px solid var(--croma-line);border-radius:18px;box-shadow:0 10px 30px #30297f08}
+    .metric{padding:16px}.metric span{display:block;color:var(--croma-muted);font-size:.78rem}.metric strong{display:block;margin-top:5px;font-size:1.55rem;color:var(--croma-deep)}
+    .projects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .project{padding:20px;display:flex;flex-direction:column;gap:14px}
+    .project-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.project h2{margin:0;color:var(--croma-deep);font-size:1.1rem}.project p{margin:5px 0 0;color:var(--croma-muted);line-height:1.45}
+    .badge{display:inline-flex;border-radius:999px;padding:6px 9px;font-size:.68rem;font-weight:900;letter-spacing:.05em;text-transform:uppercase;background:#efeff8;color:var(--croma-purple);white-space:nowrap}
+    .meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.meta div{background:#f8f7fb;border-radius:11px;padding:10px}.meta span{display:block;font-size:.66rem;text-transform:uppercase;font-weight:900;color:var(--croma-muted)}.meta b{display:block;margin-top:4px;font-size:.82rem;color:var(--croma-ink);overflow-wrap:anywhere}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}.actions a{display:inline-flex;align-items:center;text-decoration:none;border-radius:10px;padding:9px 11px;font-size:.8rem;font-weight:850;border:1px solid var(--croma-line);color:var(--croma-purple);background:#fff}.actions a.primary{background:var(--croma-purple);color:#fff;border-color:var(--croma-purple)}
+    .empty{padding:28px;background:#fff;border:1px dashed var(--croma-line);border-radius:18px;color:var(--croma-muted)}
+    @media(max-width:850px){.projects{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}.hero{display:block}.meta{grid-template-columns:1fr}}
+  </style>
+</head>
+<body hidden>
+  <main class="page">
+    <div class="hero">
+      <div>
+        <a href="/interno/">← Painel interno</a>
+        <span class="internal-eyebrow" style="display:block;margin-top:14px">Portfólio técnico</span>
+        <h1>Projetos</h1>
+        <p>Central dos sistemas administrados pela mesma infraestrutura. Os bancos continuam isolados por schema, permissões e domínio de negócio.</p>
+      </div>
+      <button class="internal-btn secondary" id="refresh" type="button">Atualizar</button>
+    </div>
+
+    <section class="metrics" aria-label="Resumo de projetos">
+      <div class="metric"><span>Projetos cadastrados</span><strong id="mTotal">—</strong></div>
+      <div class="metric"><span>Ativos</span><strong id="mActive">—</strong></div>
+      <div class="metric"><span>Mesmo Supabase</span><strong id="mShared">—</strong></div>
+    </section>
+
+    <section class="projects" id="projects"></section>
+    <p id="message" class="internal-muted"></p>
+  </main>
+  <script type="module" src="/js/interno-projetos.js?v=20261004-1"></script>
+</body>
+</html>
