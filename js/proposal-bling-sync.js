@@ -48,6 +48,10 @@ async function invoke(body){
   const wrapped=new Error(detail);wrapped.payload=payload;throw wrapped;
 }
 
+async function pullRecentProposals(){
+  return await invoke({action:'pull',days:60});
+}
+
 async function loadSyncRows(){
   const {data,error}=await supabase.from('sales_proposals').select('id,bling_proposal_id,bling_sync_status,bling_sync_error,bling_last_synced_at').order('created_at',{ascending:false}).limit(200);
   if(error)throw error;
@@ -131,6 +135,13 @@ export async function initProposalBlingSync(){
     list.dataset.blingSyncObserved='1';
     new MutationObserver(()=>decorate()).observe(list,{childList:true});
   }
-  try{await loadSyncRows();decorate()}
-  catch(error){feedback(`Propostas carregadas, mas o status do Bling não pôde ser consultado: ${readableMessage(error,'erro desconhecido')}`,'error')}
+  try{
+    feedback('Conferindo propostas recentes no Bling…');
+    const pull=await pullRecentProposals();
+    await loadSyncRows();decorate();
+    if(Number(pull?.errors||0)>0)feedback(`Bling conferido com ${pull.errors} erro(s). Revise o status das propostas.`,'error');
+    else if(Number(pull?.imported||0)>0||Number(pull?.conflicts||0)>0)feedback(`Bling conferido: ${pull.imported||0} importada(s) e ${pull.conflicts||0} conflito(s) identificado(s).`,'success');
+    else feedback('');
+  }
+  catch(error){feedback(`Não foi possível conferir as propostas do Bling: ${readableMessage(error,'erro desconhecido')}`,'error')}
 }
