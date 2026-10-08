@@ -51,7 +51,10 @@ Deno.serve(async(req:Request)=>{
     const{data:userData,error:userError}=await db.auth.getUser(bearer);
     if(userError||!userData.user)return json(req,{error:"Sessão inválida."},401);
     const uid=userData.user.id;
-    const{data:cart,error:cartError}=await db.from("carts").select("id").eq("customer_id",uid).eq("status","active").maybeSingle();
+    const{data:customer,error:customerError}=await db.from("customer_profiles").select("id").eq("auth_user_id",uid).maybeSingle();
+    if(customerError)throw customerError;
+    if(!customer?.id)return json(req,{error:"Conta sem vínculo com o cadastro comercial da Croma."},409);
+    const{data:cart,error:cartError}=await db.from("carts").select("id").eq("customer_id",customer.id).eq("status","active").maybeSingle();
     if(cartError)throw cartError;
     if(!cart)return json(req,{error:"Carrinho ativo não encontrado."},409);
     const{data:items,error:itemError}=await db.from("cart_items").select("product_id,quantity,product_name").eq("cart_id",cart.id);
