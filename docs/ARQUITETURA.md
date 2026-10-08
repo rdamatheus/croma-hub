@@ -15,6 +15,15 @@ Este documento define as regras para novas funcionalidades e refatorações do C
 - Não criar senhas, hashes ou chaves administrativas dentro do JavaScript público.
 - Toda tabela com dados privados usa RLS.
 
+### 2.1 Identidade de cliente
+
+- `auth.users.id` identifica a conta/login.
+- `customer_profiles.id` identifica o cliente comercial e permanece estável para Bling, carrinho, pedidos, pagamentos, propostas e endereços.
+- O vínculo oficial entre ambos é `customer_profiles.auth_user_id`.
+- Código de cliente nunca deve assumir que `customer_profiles.id = auth.uid()`.
+- Cliente novo pode receber um novo `customer_profiles`; cliente já existente deve ser vinculado ao registro comercial, sem duplicação.
+- Vinculação automática de cadastro existente exige CPF correspondente, e-mail correspondente e confirmação efetiva do e-mail. Conflitos seguem para revisão em vez de fusão automática.
+
 ## 3. Dados públicos e internos
 
 Nunca publicar no site do cliente:
