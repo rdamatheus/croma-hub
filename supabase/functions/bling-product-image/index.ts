@@ -21,6 +21,41 @@ const isProxyUrl = (value: string | null | undefined) => {
   const url = String(value || "");
   return url.includes("/functions/v1/bling-product-image") || url.includes("orgbling.s3.amazonaws.com");
 };
+const PROXY_PROVIDER = "bling_image_proxy";
+const FAILURE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+
+async function isPublicProduct(productId: string) {
+  const { data, error } = await db.from("public_catalog_products").select("id").eq("id", productId).maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.id);
+}
+
+async function recentProxyFailure(product: any) {
+  const { data } = await db.from("product_image_enrichment")
+    .select("status,updated_at")
+    .eq("provider", PROXY_PROVIDER)
+    .eq("external_id", String(product.bling_product_id))
+    .maybeSingle();
+  if (data?.status !== "failed" || !data.updated_at) return false;
+  return Date.now() - new Date(data.updated_at).getTime() < FAILURE_COOLDOWN_MS;
+}
+
+async function markProxyState(product: any, status: "approved" | "failed", storedImageUrl: string | null = null, errorMessage: string | null = null) {
+  const now = new Date().toISOString();
+  const { error } = await db.from("product_image_enrichment").upsert({
+    provider: PROXY_PROVIDER,
+    product_id: product.id,
+    external_id: String(product.bling_product_id),
+    product_name: String(product.nome || "Produto"),
+    source_type: "public_proxy",
+    stored_image_url: storedImageUrl,
+    status,
+    error_message: errorMessage,
+    metadata: { purpose: "public_bling_image_proxy" },
+    updated_at: now,
+  }, { onConflict: "provider,external_id" });
+  if (error) console.warn("bling_product_image_state_error", product?.id, error);
+}
 
 async function secret(name: string) {
   const { data, error } = await db.rpc("erp_read_secret", { p_name: name });
@@ -251,16 +286,19 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "GET") return new Response("Método não permitido", { status: 405, headers: cors });
 
+  let trackedProduct: any = null;
   try {
     const url = new URL(req.url);
     const productId = url.searchParams.get("product_id");
     if (!productId) return new Response("Imagem não encontrada", { status: 404, headers: cors });
+    if (!(await isPublicProduct(productId))) return new Response("Imagem não encontrada", { status: 404, headers: { ...cors, "Cache-Control": "public, max-age=3600" } });
 
     const { data: product, error } = await db.from("products")
       .select("id,nome,bling_product_id,parent_product_id,ativo,metadata")
       .eq("id", productId)
       .maybeSingle();
     if (error || !product?.bling_product_id || !product.ativo) return new Response("Imagem não encontrada", { status: 404, headers: cors });
+    trackedProduct = product;
 
     const path = `bling/${product.bling_product_id}/primary`;
     const stored = await getStored(path);
@@ -274,8 +312,15 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (await recentProxyFailure(product)) {
+      return new Response("Imagem não encontrada", { status: 404, headers: { ...cors, "Cache-Control": "public, max-age=3600" } });
+    }
+
     const image = await findSource(product);
-    if (!image) return new Response("Imagem não encontrada", { status: 404, headers: { ...cors, "Cache-Control": "no-store" } });
+    if (!image) {
+      await markProxyState(product, "failed", null, "Nenhuma fonte de imagem válida encontrada.");
+      return new Response("Imagem não encontrada", { status: 404, headers: { ...cors, "Cache-Control": "public, max-age=3600" } });
+    }
 
     const upload = await db.storage.from("product-media").upload(path, image.buffer, {
       upsert: true,
@@ -289,6 +334,7 @@ Deno.serve(async (req: Request) => {
       updateMedia(product.id, publicUrl, product.nome),
       updateProposalSnapshots(product.id, publicUrl),
     ]);
+    await markProxyState(product, "approved", publicUrl, null);
 
     return new Response(image.buffer, {
       headers: {
@@ -299,6 +345,7 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     console.error("bling_product_image_error", error);
-    return new Response("Imagem indisponível", { status: 404, headers: { ...cors, "Cache-Control": "no-store" } });
+    if (trackedProduct) await markProxyState(trackedProduct, "failed", null, error instanceof Error ? error.message : String(error));
+    return new Response("Imagem indisponível", { status: 404, headers: { ...cors, "Cache-Control": "public, max-age=900" } });
   }
 });
