@@ -8,7 +8,7 @@ class AppError extends Error{status:number;data:any;constructor(message:string,s
 class BlingError extends Error{status:number|null;payload:any;uncertain:boolean;constructor(message:string,status:number|null=null,payload:any=null,uncertain=false){super(message);this.status=status;this.payload=payload;this.uncertain=uncertain}}
 function cors(req:Request){const o=req.headers.get("Origin")||"";return{"Access-Control-Allow-Origin":origins.has(o)?o:"https://www.cromapel.com.br","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS",Vary:"Origin"}}
 function json(req:Request,d:any,s=200){return new Response(JSON.stringify(d),{status:s,headers:{...cors(req),"Content-Type":"application/json"}})}
-const txt=(v:any)=>{const s=String(v??"").trim();return s||null}, day=(v:any)=>txt(v)?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1]||null, round=(v:any,p=6)=>{const n=Number(v),f=10**p;return Number.isFinite(n)?Math.round(n*f)/f:0};
+const txt=(v:any)=>{const s=String(v??"").trim();return s||null}, digits=(v:any)=>{const s=String(v??"").replace(/\D/g,"");return s||null}, day=(v:any)=>txt(v)?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1]||null, round=(v:any,p=6)=>{const n=Number(v),f=10**p;return Number.isFinite(n)?Math.round(n*f)/f:0};
 function stable(v:any):any{if(Array.isArray(v))return v.map(stable);if(v&&typeof v==="object"){const o:any={};for(const k of Object.keys(v).sort())o[k]=stable(v[k]);return o}return v}
 async function digest(v:any){const b=new TextEncoder().encode(JSON.stringify(stable(v??null))),d=await crypto.subtle.digest("SHA-256",b);return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function auth(req:Request){const token=(req.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"").trim();if(!token)throw new AppError("Sessão ausente.",401);const{data,error}=await db.auth.getUser(token);if(error||!data.user)throw new AppError("Sessão inválida.",401);const{data:p}=await db.from("profiles").select("role,ativo").eq("id",data.user.id).maybeSingle();if(!p?.ativo||!["owner","manager"].includes(p.role))throw new AppError("Acesso restrito à gestão.",403);return data.user}
@@ -35,6 +35,87 @@ async function preview(id:string,input:any){const c=await load(id),ids=choose(c.
 async function sync(id:string,input:any,user:string,force=false){let c=await load(id);if(c.p.bling_sync_status==="syncing"&&Date.now()-new Date(c.p.updated_at).getTime()<180000)throw new AppError("Esta proposta já está sendo sincronizada.",409);const claim=await db.from("sales_proposals").update({bling_sync_status:"syncing",bling_sync_error:null}).eq("id",id).eq("updated_at",c.p.updated_at).select("*").maybeSingle();if(claim.error)throw claim.error;if(!claim.data)throw new AppError("A proposta foi alterada por outra operação. Recarregue e tente novamente.",409);c.p=claim.data;const ids=choose(c.items,c.mapping,input);if(!ids.length){await db.from("sales_proposals").update({bling_sync_status:"not_synced",bling_sync_error:"Selecione explicitamente a opção comercial."}).eq("id",id);throw new AppError("Selecione explicitamente a opção comercial.",422)}let j:string|null=null;try{const b=await build(c,ids),localHash=await digest(b.payload);let ext=Number(c.p.bling_proposal_id||c.mapping?.external_id||0);if(ext>0){j=await job(user,id,"update");let remote:any;try{remote=await api(`/propostas-comerciais/${ext}`)}catch(e){if(e instanceof BlingError&&e.status===404)throw new AppError("A proposta vinculada não existe mais no Bling. Nenhuma nova proposta foi criada automaticamente.",409);throw e}const remoteHash=await digest(remote?.data||remote),oldL=txt(c.p.bling_sync_hash)||txt(c.mapping?.metadata?.local_hash),oldR=txt(c.p.bling_remote_hash)||txt(c.mapping?.metadata?.remote_hash);if(!oldL||!oldR){const saved=await confirm(c,ext,b,remote,localHash,remoteHash);await finish(j,true,{external_id:ext,action:"baseline_initialized"});return{ok:true,action:"baseline_initialized",external_id:ext,...saved}}const remoteChanged=remoteHash!==oldR,localChanged=localHash!==oldL;if(remoteChanged&&!force)await conflict(c,c.mapping,b.payload,remote?.data||remote);if(!localChanged&&!force){const saved=await confirm(c,ext,b,remote,localHash,remoteHash);await finish(j,true,{external_id:ext,action:"noop"});return{ok:true,action:"noop",external_id:ext,...saved}}await api(`/propostas-comerciais/${ext}`,"PUT",b.payload);const fresh=await api(`/propostas-comerciais/${ext}`),rh=await digest(fresh?.data||fresh),saved=await confirm(c,ext,b,fresh,localHash,rh);if(force&&saved.mapping?.id)await db.from("erp_sync_conflicts").update({status:"resolved_local",resolved_by:user,resolved_at:new Date().toISOString()}).eq("mapping_id",saved.mapping.id).eq("status","open");await finish(j,true,{external_id:ext,action:force?"conflict_resolved_local":"updated"});return{ok:true,action:force?"conflict_resolved_local":"updated",external_id:ext,...saved}}
  j=await job(user,id,"reconcile");const found=await reconcile(c,b);if(found){ext=found.id;const rh=await digest(found.full?.data||found.full),saved=await confirm(c,ext,b,found.full,localHash,rh);await finish(j,true,{external_id:ext,action:"recovered_existing"});return{ok:true,action:"recovered_existing",external_id:ext,...saved}}await finish(j,true,{action:"no_existing_match"});j=await job(user,id,"create");let created:any;try{created=await api("/propostas-comerciais","POST",b.payload)}catch(e){if(e instanceof BlingError&&e.uncertain){await db.from("sales_proposals").update({bling_sync_status:"error",bling_sync_error:"Resultado incerto no Bling. A próxima tentativa fará reconciliação antes de criar outro registro.",bling_request_snapshot:b.payload}).eq("id",id);throw new AppError("O Bling não confirmou se a proposta foi criada. Nenhuma repetição automática foi feita.",502,{uncertain_create:true})}throw e}ext=Number(created?.data?.id||created?.id||0);if(!(ext>0)){await db.from("sales_proposals").update({bling_sync_status:"error",bling_sync_error:"O Bling não retornou o ID; a próxima tentativa fará reconciliação antes de criar outro registro.",bling_request_snapshot:b.payload,bling_response_snapshot:created||{}}).eq("id",id);throw new AppError("O Bling não retornou o identificador da proposta. Nenhuma repetição automática foi feita.",502,{uncertain_create:true})}await db.from("sales_proposals").update({bling_proposal_id:ext,bling_sync_status:"syncing",bling_request_snapshot:b.payload,bling_response_snapshot:created||{}}).eq("id",id);c.mapping=await mapProposal(id,ext,{origin:"croma",item_ids:b.chosen.map((i:any)=>String(i.id)),marker:b.marker,contact_id:b.cid,proposal_no:c.p.proposal_no,local_hash:localHash},"pending");const fresh=await api(`/propostas-comerciais/${ext}`),rh=await digest(fresh?.data||fresh),saved=await confirm(c,ext,b,fresh,localHash,rh);await finish(j,true,{external_id:ext,action:"created"});return{ok:true,action:"created",external_id:ext,...saved}}
  catch(e){if(j)await finish(j,false,e instanceof Error?e.message:String(e));if(!(e instanceof AppError&&e.data?.conflict)&&!(e instanceof AppError&&e.data?.uncertain_create))await db.from("sales_proposals").update({bling_sync_status:"error",bling_sync_error:(e instanceof Error?e.message:String(e)).slice(0,1000)}).eq("id",id).neq("bling_sync_status","conflict");throw e}}
+async function searchBlingCustomers(term:any){
+  const q=txt(term);
+  if(!q||q.length<2)throw new AppError("Digite pelo menos 2 caracteres para localizar o cliente no Bling.",422);
+  const list=await api("/contatos","GET",undefined,{pagina:"1",limite:"20",pesquisa:q});
+  const rows=Array.isArray(list?.data)?list.data:[];
+  return rows.slice(0,20).map((r:any)=>({
+    id:Number(r?.id||0),
+    nome:txt(r?.nome)||txt(r?.fantasia)||`Contato Bling #${r?.id||""}`,
+    fantasia:txt(r?.fantasia),
+    documento:digits(r?.numeroDocumento),
+    telefone:digits(r?.telefone),
+    celular:digits(r?.celular),
+    email:txt(r?.email)
+  })).filter((r:any)=>r.id>0);
+}
+async function linkExistingBlingCustomer(proposalId:string,externalInput:any){
+  const externalId=Number(externalInput||0);
+  if(!(externalId>0))throw new AppError("Selecione um contato válido do Bling.",422);
+  const ctx=await load(proposalId);
+  if(ctx.customer?.bling_contact_id&&Number(ctx.customer.bling_contact_id)!==externalId)throw new AppError("Esta proposta já está vinculada a outro contato do Bling.",409);
+  const full=await api(`/contatos/${externalId}`),r=full?.data||full;
+  if(!r?.id)throw new AppError("O contato selecionado não foi encontrado no Bling.",404);
+  const now=new Date().toISOString(),doc=digits(r?.numeroDocumento);
+  let{data:local,error:le}=await db.from("customer_profiles").select("*").eq("bling_contact_id",externalId).maybeSingle();
+  if(le)throw le;
+  if(!local&&doc){
+    const q=await db.from("customer_profiles").select("*").eq("cpf",doc).maybeSingle();
+    if(q.error)throw q.error;
+    if(q.data?.bling_contact_id&&Number(q.data.bling_contact_id)!==externalId)throw new AppError("Existe outro cliente local com o mesmo documento vinculado a um contato diferente do Bling.",409);
+    local=q.data||null;
+  }
+  if(!local&&ctx.customer&&!ctx.customer.bling_contact_id){
+    const q=await db.from("customer_profiles").select("*").eq("id",ctx.customer.id).maybeSingle();
+    if(q.error)throw q.error;
+    local=q.data||null;
+  }
+  const situation=txt(r?.situacao)||"A",payload:any={
+    nome:txt(r?.nome)||ctx.p.customer_name||`Contato Bling #${externalId}`,
+    nome_fantasia:txt(r?.fantasia),
+    tipo_pessoa:txt(r?.tipo),
+    cpf:doc,
+    telefone:digits(r?.telefone),
+    celular:digits(r?.celular),
+    email:txt(r?.email)?.toLowerCase()||null,
+    situacao:situation,
+    ativo:!["I","INATIVO"].includes(situation.toUpperCase()),
+    bling_contact_id:externalId,
+    bling_raw:r,
+    bling_last_synced_at:now,
+    bling_sync_status:"sincronizado",
+    bling_sync_error:null,
+    sync_source:"bling",
+    updated_at:now
+  };
+  let saved:any;
+  if(local){
+    const q=await db.from("customer_profiles").update(payload).eq("id",local.id).select("*").single();
+    if(q.error)throw q.error;
+    saved=q.data;
+  }else{
+    const q=await db.from("customer_profiles").insert(payload).select("*").single();
+    if(q.error)throw q.error;
+    saved=q.data;
+  }
+  const{data:m,error:me}=await db.from("erp_entity_mappings").select("*").eq("provider","bling").eq("entity_type","customer").eq("external_id",String(externalId)).maybeSingle();
+  if(me)throw me;
+  if(m&&String(m.local_id)!==String(saved.id))throw new AppError("O contato do Bling já está mapeado para outro cliente local.",409);
+  const mapping={provider:"bling",entity_type:"customer",local_id:saved.id,external_id:String(externalId),sync_status:"synced",last_synced_at:now,metadata:{nome:saved.nome,tipo:saved.tipo_pessoa},updated_at:now};
+  if(m){
+    const q=await db.from("erp_entity_mappings").update(mapping).eq("id",m.id);
+    if(q.error)throw q.error;
+  }else{
+    const q=await db.from("erp_entity_mappings").insert(mapping);
+    if(q.error)throw q.error;
+  }
+  const nextStatus=ctx.p.bling_proposal_id?ctx.p.bling_sync_status:"not_synced";
+  const q=await db.from("sales_proposals").update({customer_id:saved.id,bling_sync_status:nextStatus==="error"?"not_synced":nextStatus,bling_sync_error:null,updated_at:now}).eq("id",proposalId);
+  if(q.error)throw q.error;
+  return{linked:true,customer:{id:saved.id,name:saved.nome,bling_contact_id:externalId},preview:await preview(proposalId,[])};
+}
+
 function pullDate(v:any){const x=txt(v);if(!x)return null;if(x.length>=10&&x[4]==="-"&&x[7]==="-")return x.slice(0,10);if(x.length>=10&&x[2]==="/"&&x[5]==="/")return `${x.slice(6,10)}-${x.slice(3,5)}-${x.slice(0,2)}`;return null}
 function pullItems(r:any){return Array.isArray(r?.itens)?r.itens:[]}
 function pullDesc(i:any){return txt(i?.descricaoDetalhada)||txt(i?.produto?.descricao)||txt(i?.descricao)||"Item Bling"}
@@ -44,4 +125,4 @@ function pullStatus(r:any){const x=String(r?.situacao?.nome??r?.situacao?.valor?
 async function pullFromBling(user:string,daysInput:any){const days=Math.min(365,Math.max(1,Number(daysInput)||60)),end=new Date(),start=new Date(end.getTime()-days*86400000),fmt=(d:Date)=>d.toISOString().slice(0,10),{data:j,error:je}=await db.from("erp_sync_jobs").insert({provider:"bling",entity_type:"proposal",operation:"import",direction:"bling_to_croma",status:"running",requested_by:user,started_at:new Date().toISOString(),request_summary:{days}}).select("id").single();if(je)throw je;const out:any={processed:0,imported:0,confirmed:0,conflicts:0,errors:0};try{const list=await api("/propostas-comerciais","GET",undefined,{pagina:"1",limite:"100",dataInicial:fmt(start),dataFinal:fmt(end)}),rows=Array.isArray(list?.data)?list.data:[];for(const row of rows){const ext=Number(row?.id||0);if(!(ext>0))continue;out.processed++;try{const full=await api(`/propostas-comerciais/${ext}`),r=full?.data||full,rh=await digest(r);let{data:p,error:pe}=await db.from("sales_proposals").select("*").eq("bling_proposal_id",ext).maybeSingle();if(pe)throw pe;if(!p){const marker=String(r?.observacaoInterna||"").match(/CROMA_PROPOSAL_ID=([0-9a-f-]{36})/i)?.[1];if(marker){const q=await db.from("sales_proposals").select("*").eq("id",marker).maybeSingle();if(q.error)throw q.error;p=q.data||null}}if(p){if(p.bling_remote_hash&&p.bling_remote_hash!==rh){await db.from("sales_proposals").update({bling_proposal_id:ext,bling_sync_status:"conflict",bling_sync_error:"A proposta mudou no Bling. Revise antes de sobrescrever qualquer versão.",bling_remote_hash:rh,bling_response_snapshot:r,bling_remote_updated_at:txt(r?.updatedAt)||null}).eq("id",p.id);const{data:m}=await db.from("erp_entity_mappings").select("id").eq("provider","bling").eq("entity_type","proposal").eq("local_id",p.id).maybeSingle();if(m){const{data:open}=await db.from("erp_sync_conflicts").select("id").eq("mapping_id",m.id).eq("status","open").limit(1);if(!open?.length)await db.from("erp_sync_conflicts").insert({mapping_id:m.id,provider:"bling",entity_type:"proposal",local_snapshot:p,external_snapshot:r,conflicting_fields:["commercial_payload"],status:"open"})}out.conflicts++;continue}await db.from("sales_proposals").update({bling_proposal_id:ext,bling_sync_status:"synced",bling_sync_error:null,bling_last_synced_at:new Date().toISOString(),bling_remote_hash:rh,bling_response_snapshot:r,bling_remote_updated_at:txt(r?.updatedAt)||null}).eq("id",p.id);const{data:m}=await db.from("erp_entity_mappings").select("*").eq("provider","bling").eq("entity_type","proposal").eq("local_id",p.id).maybeSingle();if(!m)await db.from("erp_entity_mappings").insert({provider:"bling",entity_type:"proposal",local_id:p.id,external_id:String(ext),sync_status:"synced",last_synced_at:new Date().toISOString(),metadata:{origin:"croma",proposal_no:p.proposal_no,remote_hash:rh}});out.confirmed++;continue}
 const cid=Number(r?.contato?.id||0),{data:c}=cid?await db.from("customer_profiles").select("id,nome,telefone,celular").eq("bling_contact_id",cid).maybeSingle():{data:null},name=c?.nome||txt(r?.contato?.nome)||`Cliente Bling #${cid||ext}`,phone=c?.celular||c?.telefone||txt(r?.contato?.celular)||txt(r?.contato?.telefone),{data:np,error:ne}=await db.from("sales_proposals").insert({customer_id:c?.id||null,customer_name:name,customer_phone:phone||null,status:pullStatus(r),notes:"Importada automaticamente do Bling.",valid_until:pullDate(r?.dataValidade),currency:"BRL",bling_proposal_id:ext,bling_sync_status:"synced",bling_last_synced_at:new Date().toISOString(),bling_remote_hash:rh,bling_response_snapshot:r,bling_remote_updated_at:txt(r?.updatedAt)||null}).select("*").single();if(ne)throw ne;const items=pullItems(r).map((i:any,k:number)=>{const q=pullQty(i),u=pullPrice(i),line=round(q*u,2),d=pullDesc(i);return{proposal_id:np.id,description:d,share_description:d,option_label:d,quantity:q,unit:String(i?.unidade||"un").toLowerCase(),base_cost:0,freight_cost:0,total_cost:0,unit_price:u,line_total:line,sort_order:k+1,is_selected:true,metadata:{sync_origin:"bling",bling_item_id:i?.id??null},suggested_price:line,final_offer_price:line}});let itemIds:string[]=[];if(items.length){const q=await db.from("sales_proposal_items").insert(items).select("id");if(q.error)throw q.error;itemIds=(q.data||[]).map((x:any)=>String(x.id))}await db.from("erp_entity_mappings").insert({provider:"bling",entity_type:"proposal",local_id:np.id,external_id:String(ext),sync_status:"synced",last_synced_at:new Date().toISOString(),metadata:{origin:"bling",proposal_no:np.proposal_no,item_ids:itemIds,contact_id:cid||null,remote_hash:rh}});out.imported++}catch(e){out.errors++;out.last_error=e instanceof Error?e.message:String(e)}await sleep(120)}await db.from("erp_connections").update({last_sync_at:new Date().toISOString(),last_error:out.errors?`${out.errors} proposta(s) com erro na conferência.`:null,updated_at:new Date().toISOString()}).eq("provider","bling");await db.from("erp_sync_jobs").update({status:"completed",processed_count:out.processed,success_count:out.processed-out.errors,error_count:out.errors,result_summary:out,error_message:out.errors?String(out.last_error||"Falha parcial").slice(0,1000):null,finished_at:new Date().toISOString()}).eq("id",j.id);return out}catch(e){await db.from("erp_sync_jobs").update({status:"failed",error_count:1,error_message:(e instanceof Error?e.message:String(e)).slice(0,1000),finished_at:new Date().toISOString()}).eq("id",j.id);throw e}}
 
-Deno.serve(async(req:Request)=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors(req)});if(req.method!=="POST")return json(req,{error:"Método não permitido."},405);try{const user=await auth(req),i=await req.json().catch(()=>({}));if(i.action==="pull")return json(req,{ok:true,...await pullFromBling(user.id,i.days)});const id=String(i.proposal_id||"");if(!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id))throw new AppError("Identificador da proposta inválido.",400);if(i.action==="preview"||!i.action)return json(req,{ok:true,...await preview(id,i.item_ids)});if(i.action==="sync")return json(req,await sync(id,i.item_ids,user.id,Boolean(i.force_local)));return json(req,{error:"Ação inválida."},400)}catch(e){console.error("bling_proposal_sync_error",e);if(e instanceof AppError)return json(req,{error:e.message,...e.data},e.status);if(e instanceof BlingError)return json(req,{error:"Falha na integração com o Bling.",detail:e.message,uncertain:e.uncertain,upstream:e.payload},e.status&&e.status<500?e.status:502);return json(req,{error:"Não foi possível sincronizar a proposta.",detail:e instanceof Error?e.message:String(e)},500)}});
+Deno.serve(async(req:Request)=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors(req)});if(req.method!=="POST")return json(req,{error:"Método não permitido."},405);try{const user=await auth(req),i=await req.json().catch(()=>({}));if(i.action==="pull")return json(req,{ok:true,...await pullFromBling(user.id,i.days)});const id=String(i.proposal_id||"");if(!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id))throw new AppError("Identificador da proposta inválido.",400);if(i.action==="search_customer")return json(req,{ok:true,candidates:await searchBlingCustomers(i.term)});if(i.action==="link_customer")return json(req,{ok:true,...await linkExistingBlingCustomer(id,i.bling_contact_id)});if(i.action==="preview"||!i.action)return json(req,{ok:true,...await preview(id,i.item_ids)});if(i.action==="sync")return json(req,await sync(id,i.item_ids,user.id,Boolean(i.force_local)));return json(req,{error:"Ação inválida."},400)}catch(e){console.error("bling_proposal_sync_error",e);if(e instanceof AppError)return json(req,{error:e.message,...e.data},e.status);if(e instanceof BlingError)return json(req,{error:"Falha na integração com o Bling.",detail:e.message,uncertain:e.uncertain,upstream:e.payload},e.status&&e.status<500?e.status:502);return json(req,{error:"Não foi possível sincronizar a proposta.",detail:e instanceof Error?e.message:String(e)},500)}});
