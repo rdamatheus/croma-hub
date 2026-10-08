@@ -39,6 +39,16 @@ async function testManager(req: Request) {
   return data.user;
 }
 
+async function customerIdForUser(userId: string) {
+  const { data, error } = await admin
+    .from("customer_profiles")
+    .select("id")
+    .eq("auth_user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id || null;
+}
+
 function transaction(providerOrder: any) { return providerOrder?.transactions?.payments?.[0] || null; }
 function challengeUrl(providerOrder: any) { return transaction(providerOrder)?.payment_method?.transaction_security?.url || null; }
 function localStatus(providerStatus: string, detail: string) {
@@ -128,8 +138,8 @@ async function applyProvider(paymentRow: any, order: any, providerOrder: any, re
     challenge_url: challengeUrl(providerOrder),
   };
 }
-async function ownOrder(userId: string, orderId: string) {
-  const { data, error } = await admin.from("orders").select("id,order_code,customer_id,status,payment_method,total,checkout_reference").eq("id", orderId).eq("customer_id", userId).maybeSingle();
+async function ownOrder(customerId: string, orderId: string) {
+  const { data, error } = await admin.from("orders").select("id,order_code,customer_id,status,payment_method,total,checkout_reference").eq("id", orderId).eq("customer_id", customerId).maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -159,12 +169,14 @@ Deno.serve(async (req: Request) => {
     const action = clean(body?.action, 40) || "config";
 
     if (action === "config") return json(req, { enabled: enabled(), environment: env(), public_key: enabled() ? publicKey() : null, production_enabled: false });
+    const customerId = await customerIdForUser(user.id);
+    if (!customerId) return json(req, { error: "Conta sem vínculo com o cadastro comercial da Croma." }, 409);
     if (action === "status") {
       const orderId = clean(body?.order_id, 60);
       if (!uuid(orderId)) return json(req, { error: "Pedido inválido." }, 400);
-      const order = await ownOrder(user.id, orderId);
+      const order = await ownOrder(customerId, orderId);
       if (!order) return json(req, { error: "Pedido não encontrado." }, 404);
-      const { data: payment, error } = await admin.from("payments").select("*").eq("order_id", order.id).eq("customer_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: payment, error } = await admin.from("payments").select("*").eq("order_id", order.id).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw error;
       if (!payment) return json(req, { order_id: order.id, order_code: order.order_code, order_status: order.status, payment_status: null });
       return json(req, await refresh(payment, order));
@@ -182,7 +194,7 @@ Deno.serve(async (req: Request) => {
     if (!cardToken || !paymentMethodId) return json(req, { error: "Dados do cartão incompletos." }, 400);
     if (paymentTypeId && paymentTypeId !== "credit_card") return json(req, { error: "Esta integração aceita somente cartão de crédito." }, 400);
 
-    const order = await ownOrder(user.id, orderId);
+    const order = await ownOrder(customerId, orderId);
     if (!order) return json(req, { error: "Pedido não encontrado." }, 404);
     if (order.payment_method !== "credito") return json(req, { error: "O pedido não está configurado para cartão de crédito." }, 409);
     if (order.status === "pago") return json(req, { order_id: order.id, order_code: order.order_code, order_status: "pago", payment_status: "approved" });
@@ -194,7 +206,7 @@ Deno.serve(async (req: Request) => {
 
     if (!paymentRow) {
       const { data: created, error } = await admin.from("payments").insert({
-        order_id: order.id, customer_id: user.id, provider: "mercado_pago", environment: "test",
+        order_id: order.id, customer_id: customerId, provider: "mercado_pago", environment: "test",
         method: "credit_card", status: "created", amount: Number(order.total || 0), installments,
         card_brand: paymentMethodId, idempotency_key: attemptId,
       }).select("*").single();
@@ -202,7 +214,7 @@ Deno.serve(async (req: Request) => {
       paymentRow = created;
     }
 
-    const { data: profile } = await admin.from("customer_profiles").select("cpf,nome").eq("id", user.id).maybeSingle();
+    const { data: profile } = await admin.from("customer_profiles").select("cpf,nome").eq("id", customerId).maybeSingle();
     const payerEmail = "test@testuser.com";
     const idType = clean(body?.payer?.identification?.type || "CPF", 20).toUpperCase();
     const idNumber = digits(body?.payer?.identification?.number || profile?.cpf);
