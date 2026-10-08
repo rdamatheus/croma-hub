@@ -13,7 +13,7 @@
     <section class="card">
       <a href="/conta/" id="backToLogin" style="text-decoration:none;color:#30297F;font-weight:900">← Entrar</a>
       <h1>Criar conta</h1>
-      <p>Cadastre seus dados para enviar arquivos, finalizar pedidos e acompanhar seu histórico.</p>
+      <p>Cadastre seus dados para enviar arquivos, finalizar pedidos e acompanhar seu histórico.</p><p><small>Se você já é cliente da Croma, use o mesmo CPF e e-mail do cadastro comercial para que a conta possa ser vinculada com segurança.</small></p>
       <form id="form">
         <div class="grid">
           <div class="field wide"><label for="nome">Nome completo</label><input id="nome" required autocomplete="name"></div>
@@ -21,8 +21,8 @@
           <div class="field"><label for="telefone">Celular</label><input id="telefone" required inputmode="tel" autocomplete="tel" placeholder="(32) 99999-9999"></div>
           <div class="field"><label for="email">E-mail</label><input id="email" type="email" required autocomplete="email"></div>
           <div class="field"><label for="nascimento">Data de nascimento <small>(opcional)</small></label><input id="nascimento" type="date"></div>
-          <div class="field"><label for="senha">Senha</label><input id="senha" type="password" required minlength="6" autocomplete="new-password"></div>
-          <div class="field"><label for="senha2">Confirmar senha</label><input id="senha2" type="password" required minlength="6" autocomplete="new-password"></div>
+          <div class="field"><label for="senha">Senha</label><input id="senha" type="password" required minlength="8" autocomplete="new-password"></div>
+          <div class="field"><label for="senha2">Confirmar senha</label><input id="senha2" type="password" required minlength="8" autocomplete="new-password"></div>
         </div>
         <h2>Endereço principal</h2>
         <div class="grid">
@@ -40,7 +40,7 @@
     </section>
   </main>
   <script type="module">
-    import{supabase,onlyDigits}from'/js/croma-supabase.js?v=20260821-2';
+    import{supabase,onlyDigits}from'/js/croma-supabase.js?v=20261008-1';
     const form=document.querySelector('#form'),msg=document.querySelector('#msg'),backToLogin=document.querySelector('#backToLogin');
     const params=new URLSearchParams(location.search);
     function safeNext(value){
@@ -62,6 +62,7 @@
       if(phoneClean.length<10){show('Informe um celular válido.');return}
       if(cepClean.length!==8){show('Informe um CEP válido.');return}
       if(estado.value.trim().length!==2){show('Informe a UF com 2 letras.');return}
+      if(senha.value.length<8){show('Use uma senha com pelo menos 8 caracteres.');return}
       if(senha.value!==senha2.value){show('As senhas não são iguais.');return}
       show('Criando sua conta...',true);
       const metadata={nome:nome.value.trim(),cpf:cpfClean,telefone:phoneClean,data_nascimento:nascimento.value||null,cep:cepClean,logradouro:logradouro.value.trim(),numero:numero.value.trim(),complemento:complemento.value.trim()||null,bairro:bairro.value.trim(),cidade:cidade.value.trim(),estado:estado.value.trim().toUpperCase()};

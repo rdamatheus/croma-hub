@@ -1,4 +1,4 @@
-import { supabase, getSessionUser, requireUser, onlyDigits } from '/js/croma-supabase.js?v=20260821-2';
+import { supabase, getSessionUser, requireUser, getCustomerContext, onlyDigits } from '/js/croma-supabase.js?v=20261008-1';
 
 const PENDING_KEY='croma_pending_card_checkout_v1';
 const brl=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -11,6 +11,8 @@ const clearPending=()=>sessionStorage.removeItem(PENDING_KEY);
 const makeUuid=()=>globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}-4000-8000-${Math.random().toString(16).slice(2,14).padEnd(12,'0')}`;
 
 const user=await getSessionUser().catch(()=>null);
+const customerContext=user?await getCustomerContext().catch(error=>({user,customer:null,customerId:null,status:'error',message:error?.message||'Não foi possível localizar seu cadastro comercial.'})):null;
+const customerId=customerContext?.customerId||null;
 
 let pending=user?readPending():null;
 let activeCart=window.CromaCart?.read?.()||[];
@@ -32,20 +34,27 @@ function renderReview(){
   total.textContent=total2.textContent=brl(pending?.order?.total??sum);
   items.innerHTML=cart.length?cart.map(item=>`<div class="item"><div><strong>${esc(item.name)}</strong><div class="muted">${esc(Object.entries(item.options||{}).map(([key,value])=>`${key}: ${value}`).join(' · '))}</div>${item.files?.length?`<div class="muted">Arquivos: ${item.files.map(file=>esc(file.name)).join(', ')}</div>`:''}</div><div class="price">${brl(item.unitPrice)} cada · ${brl(Number(item.qty||1)*Number(item.unitPrice||0))}${!pending?`<label style="display:block">Quantidade <input data-quantity="${esc(item.id)}" aria-label="Quantidade de ${esc(item.name)}" type="number" min="1" step="1" value="${Number(item.qty)||1}" style="width:70px;padding:8px"></label><button type="button" data-remove-item="${esc(item.id)}">Remover</button>`:`<div>${Number(item.qty)||1} unidades</div>`}</div></div>`).join(''):'<p>Seu carrinho está vazio. <a href="/produtos/">Escolher produtos</a></p>';
   to2.disabled=!cart.length&&!pending;
-  to2.textContent=user?'Continuar para recebimento':'Entrar e continuar';
+  to2.textContent=user?(customerId?'Continuar para recebimento':'Revisar vínculo do cadastro'):'Entrar e continuar';
 }
 items.addEventListener('change',event=>{if(event.target.dataset.quantity&&!pending)window.CromaCart.update(event.target.dataset.quantity,event.target.value)});
 items.addEventListener('click',event=>{const button=event.target.closest('[data-remove-item]');if(button&&!pending)window.CromaCart.remove(button.dataset.removeItem)});
 document.addEventListener('croma:cart-updated',()=>{renderReview();if(brickController&&!pending)destroyBrick().then(renderPaymentMode)});
 renderReview();
 
-const [{data:addr},{data:customer}]=user?await Promise.all([
-  supabase.from('customer_addresses').select('*').eq('customer_id',user.id).eq('principal',true).maybeSingle(),
-  supabase.from('customer_profiles').select('nome,email,cpf').eq('id',user.id).maybeSingle()
-]):[{data:null},{data:null}];
-primary=addr||null;profile=customer||null;
+let addr=null;
+if(user&&customerId){
+  const result=await supabase.from('customer_addresses').select('*').eq('customer_id',customerId).eq('principal',true).maybeSingle();
+  if(result.error)console.warn('customer_address_error',result.error);
+  addr=result.data||null;
+}
+primary=addr||null;profile=customerContext?.customer||null;
 if(primary)principalAddress.textContent=`${primary.logradouro}, ${primary.numero}${primary.complemento?' - '+primary.complemento:''} · ${primary.bairro} · ${primary.cidade}/${primary.estado} · CEP ${primary.cep}`;
+else if(user&&!customerId)principalAddress.textContent='Sua conta ainda precisa ser vinculada ao cadastro comercial da Croma.';
 else principalAddress.innerHTML='Nenhum endereço principal encontrado. <a href="/minha-conta/" style="color:#30297F;font-weight:900">Cadastrar endereço na minha conta</a>.';
+if(user&&!customerId){
+  msg.className='msg';
+  msg.textContent=customerContext?.message||'Sua conta ainda não está vinculada ao cadastro comercial da Croma. Revise seu cadastro antes de continuar.';
+}
 
 function go(step){
   document.querySelectorAll('.panel').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel==step));
@@ -236,7 +245,7 @@ async function manualFinish(){
   }catch(error){console.error(error);if(wa)wa.close();msg.className='msg';msg.textContent='Não foi possível concluir o pedido. Seu carrinho foi mantido; tente novamente.';finish.disabled=false}
 }
 
-to2.onclick=async()=>{if(!cart.length)return;if(!user){await requireUser(location.href);return}go(2)};
+to2.onclick=async()=>{if(!cart.length)return;if(!user){await requireUser(location.href);return}if(!customerId){location.href='/minha-conta/';return}go(2)};
 document.querySelectorAll('[data-back]').forEach(button=>button.onclick=()=>go(button.dataset.back));
 document.querySelectorAll('[name="fulfillment"]').forEach(radio=>radio.onchange=()=>{deliveryBox.classList.toggle('hidden',selectedDelivery().fulfillment!=='entrega');renderPaymentMode()});
 document.querySelectorAll('[name="addressMode"]').forEach(radio=>radio.onchange=()=>otherAddress.classList.toggle('hidden',document.querySelector('[name="addressMode"]:checked').value!=='outro'));
