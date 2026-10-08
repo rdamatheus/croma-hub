@@ -38,6 +38,36 @@ export async function requireUser(next = location.href){
   return null;
 }
 
+export async function getCustomerContext({claim=true}={}){
+  const user=await getSessionUser();
+  if(!user)return{user:null,customer:null,customerId:null,status:'signed_out',message:null};
+
+  const readProfile=async()=>{
+    const {data,error}=await supabase
+      .from('customer_profiles')
+      .select('id,nome,email,cpf,telefone,data_nascimento,auth_user_id')
+      .eq('auth_user_id',user.id)
+      .maybeSingle();
+    if(error)throw error;
+    return data||null;
+  };
+
+  let customer=await readProfile();
+  let status=customer?'linked':'not_linked';
+  let message=null;
+
+  if(!customer&&claim){
+    const {data,error}=await supabase.rpc('claim_customer_profile');
+    if(error)throw error;
+    const result=Array.isArray(data)?data[0]:data;
+    status=result?.status||status;
+    message=result?.message||null;
+    if(result?.customer_id)customer=await readProfile();
+  }
+
+  return{user,customer,customerId:customer?.id||null,status,message};
+}
+
 export function onlyDigits(value=''){
   return String(value).replace(/\D/g,'');
 }
