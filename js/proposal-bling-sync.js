@@ -28,6 +28,7 @@ function injectStyles(){
     .bling-modal-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.bling-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:14px 0}.bling-summary>div{background:#f8f7fc;border-radius:13px;padding:11px}.bling-summary span{display:block;color:var(--croma-muted);font-size:.72rem;margin-bottom:4px}.bling-summary strong{color:var(--croma-deep);font-size:.9rem}
     .bling-alert{border-radius:12px;padding:11px 13px;margin:10px 0;font-size:.86rem;line-height:1.45}.bling-alert.error{background:#fdebed;color:#8b2631}.bling-alert.conflict{background:#fff3dc;color:#805500}.bling-alert ul{margin:6px 0 0 18px;padding:0}
     .bling-item-list{display:grid;gap:8px}.bling-item-option{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--croma-line);border-radius:12px;padding:11px;cursor:pointer}.bling-item-option input{margin-top:3px}.bling-item-option strong,.bling-item-option small{display:block}.bling-item-option small{color:var(--croma-muted);margin-top:3px}.bling-force-confirm{display:flex;gap:10px;align-items:flex-start;background:#fff3dc;border-radius:12px;padding:12px;margin-top:14px;color:#6f4d00;font-size:.86rem}.bling-force-confirm input{margin-top:3px}
+    .bling-customer-link{border:1px solid var(--croma-line);border-radius:14px;padding:14px;background:#fafafe;margin:14px 0}.bling-customer-search{display:grid;grid-template-columns:1fr auto;gap:8px}.bling-customer-search input{width:100%;padding:11px 12px;border:1px solid var(--croma-line);border-radius:11px;font:inherit}.bling-customer-results{display:grid;gap:8px;margin-top:10px}.bling-customer-result{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--croma-line);border-radius:11px;padding:10px;background:#fff}.bling-customer-result strong,.bling-customer-result small{display:block}.bling-customer-result small{color:var(--croma-muted);margin-top:3px}
     @media(max-width:760px){.bling-summary{grid-template-columns:repeat(2,1fr)}.bling-modal-head{display:grid}}@media(max-width:430px){.bling-summary{grid-template-columns:1fr}}
   `;document.head.appendChild(style);
 }
@@ -80,6 +81,16 @@ function decorate(){
 function selectedIds(root){return [...root.querySelectorAll('input[name="blingProposalItem"]:checked')].map(input=>input.value)}
 function selectedTotal(preview,ids){return (preview.items||[]).filter(i=>ids.includes(String(i.id))).reduce((sum,i)=>sum+Number(i.final_total||0),0)}
 
+function customerLinkHtml(current){
+  return `<div class="bling-customer-link">
+    <strong>Vincular ao cliente já existente no Bling</strong>
+    <p class="share-note">A busca consulta os contatos do Bling e não cria um novo cliente. Selecione o cadastro correto antes de enviar a proposta.</p>
+    <div class="bling-customer-search"><input id="blingCustomerSearch" value="${esc(current.customer_name||'')}" placeholder="Nome, documento ou telefone"><button class="mini-btn alt" type="button" id="blingCustomerSearchBtn">Buscar no Bling</button></div>
+    <div id="blingCustomerResults" class="bling-customer-results"></div>
+  </div>`;
+}
+
+
 function renderModal(preview){
   const current=preview.proposal||{},items=preview.items||[],conflict=current.bling_sync_status==='conflict';
   modalRoot().innerHTML=`<div class="modal-backdrop" data-bling-backdrop><section class="modal bling-sync-modal" role="dialog" aria-modal="true" aria-labelledby="blingSyncTitle">
@@ -92,6 +103,7 @@ function renderModal(preview){
     </div>
     ${current.bling_sync_error?`<div class="bling-alert ${conflict?'conflict':'error'}">${esc(current.bling_sync_error)}</div>`:''}
     ${(preview.errors||[]).length?`<div class="bling-alert error"><strong>Antes de sincronizar:</strong><ul>${preview.errors.map(e=>`<li>${esc(e)}</li>`).join('')}</ul></div>`:''}
+    ${!preview.customer?.bling_contact_id?customerLinkHtml(current):''}
     <div class="form-section"><h3>Itens que irão para o Bling</h3><p class="share-note">Quando a cotação tem alternativas, selecione somente as opções que devem compor esta proposta comercial.</p>
       <div class="bling-item-list">${items.map(item=>`<label class="bling-item-option"><input type="checkbox" name="blingProposalItem" value="${esc(item.id)}" ${item.selected?'checked':''}><span><strong>${esc(item.option_label||item.description)}</strong><small>${esc(item.description||'')} · ${esc(item.quantity)} ${esc(item.unit||'un')} · ${item.final_total==null?'Preço final pendente':money.format(Number(item.final_total))}</small></span></label>`).join('')||'<p class="empty">Sem itens.</p>'}</div>
       <div class="analysis-strip"><span>Total comercial selecionado: <b id="blingSelectedTotal">${money.format(selectedTotal(preview,items.filter(i=>i.selected).map(i=>String(i.id))))}</b></span></div>
@@ -101,9 +113,35 @@ function renderModal(preview){
     <div class="modal-actions"><button class="mini-btn alt" type="button" data-bling-close>Cancelar</button><button class="mini-btn" type="button" id="blingSyncSubmit">${conflict?'Usar Croma no Bling':current.bling_proposal_id?'Atualizar proposta no Bling':'Criar proposta no Bling'}</button></div>
   </section></div>`;
   const root=modalRoot(),submit=root.querySelector('#blingSyncSubmit'),total=root.querySelector('#blingSelectedTotal'),force=root.querySelector('#blingForceConfirm');
+  const customerSearch=root.querySelector('#blingCustomerSearch'),customerSearchBtn=root.querySelector('#blingCustomerSearchBtn'),customerResults=root.querySelector('#blingCustomerResults');
+  if(customerSearchBtn&&customerSearch&&customerResults){
+    const searchCustomer=async()=>{
+      const term=customerSearch.value.trim();
+      customerResults.innerHTML='<span class="share-note">Buscando contatos no Bling…</span>';
+      customerSearchBtn.disabled=true;
+      try{
+        const result=await invoke({action:'search_customer',proposal_id:current.id,term});
+        const rows=result?.candidates||[];
+        customerResults.innerHTML=rows.length?rows.map(row=>`<div class="bling-customer-result"><span><strong>${esc(row.nome||('Contato #'+row.id))}</strong><small>ID Bling ${esc(row.id)}${row.documento?' · '+esc(row.documento):''}${row.celular||row.telefone?' · '+esc(row.celular||row.telefone):''}</small></span><button class="mini-btn alt" type="button" data-link-bling-customer="${esc(row.id)}">Vincular</button></div>`).join(''):'<span class="share-note">Nenhum contato encontrado. Revise o termo de busca.</span>';
+      }catch(error){customerResults.innerHTML=`<span class="share-note">${esc(readableMessage(error))}</span>`}
+      finally{customerSearchBtn.disabled=false}
+    };
+    customerSearchBtn.addEventListener('click',searchCustomer);
+    customerSearch.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();searchCustomer()}});
+    customerResults.addEventListener('click',async event=>{
+      const button=event.target.closest('[data-link-bling-customer]');if(!button)return;
+      const contactId=button.dataset.linkBlingCustomer,fb=root.querySelector('#blingModalFeedback');
+      button.disabled=true;fb.textContent='Vinculando ao contato existente do Bling…';fb.dataset.type='';
+      try{
+        await invoke({action:'link_customer',proposal_id:current.id,bling_contact_id:contactId});
+        fb.textContent='Cliente vinculado. Atualizando a proposta…';fb.dataset.type='success';
+        await openSync(current.id);
+      }catch(error){fb.textContent=readableMessage(error);fb.dataset.type='error';button.disabled=false}
+    });
+  }
   const recalc=()=>{
     const ids=selectedIds(root);total.textContent=money.format(selectedTotal(preview,ids));
-    submit.disabled=!ids.length||(conflict&&!force?.checked);
+    submit.disabled=!preview.customer?.bling_contact_id||!ids.length||(conflict&&!force?.checked);
   };
   root.querySelectorAll('input[name="blingProposalItem"]').forEach(input=>input.addEventListener('change',recalc));
   force?.addEventListener('change',recalc);recalc();
