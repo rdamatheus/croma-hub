@@ -1,1 +1,134 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Precificação migrada | Croma</title><link rel="stylesheet" href="/css/interno-base.css?v=20260822-1"><style>.center{max-width:720px;margin:80px auto;padding:22px}.box{background:#fff;border:1px solid var(--croma-line);border-radius:22px;padding:26px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}</style></head><body hidden><main class="center"><section class="box"><span class="internal-eyebrow">Estrutura migrada</span><h1 class="internal-title">Impressões agora usam a precificação padrão do catálogo</h1><p class="internal-lead">A tabela exclusiva de impressões foi descontinuada. Impressões e Cópias são produtos independentes e usam o mesmo mecanismo de variações e faixas de quantidade de qualquer outro produto ou serviço.</p><p class="internal-lead">A regra é simples: cadastre apenas <strong>“a partir de”</strong>. Se existirem faixas em 1, 10 e 51 unidades, uma compra de 70 unidades usa a faixa 51.</p><div class="actions"><a class="internal-btn" href="../precificacao/?produto=impressoes">Editar Impressões</a><a class="internal-btn secondary" href="../precificacao/?produto=copias">Editar Cópias</a><a class="internal-btn secondary" href="../composicao-custos/">Composição de custos</a><a class="internal-btn secondary" href="../">Voltar ao painel</a></div></section></main><script type="module">import{protectInternalPage}from'/js/interno-auth.js?v=20260822-2';const s=await protectInternalPage({roles:['owner','manager']});if(!s)throw new Error('auth');</script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Precificação de Impressões | Croma Hub</title>
+<link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+<style>
+.shell{max-width:1180px;margin:auto;padding:28px 18px 80px}.head{display:flex;justify-content:space-between;gap:14px;align-items:end;flex-wrap:wrap}.actions{display:flex;gap:8px;flex-wrap:wrap}
+.card{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:18px;margin-top:16px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.field{display:grid;gap:6px}
+.field label{font-size:.72rem;font-weight:900;text-transform:uppercase;color:var(--croma-purple)}.field input,.field select{padding:10px;border:1px solid #d8d6e4;border-radius:10px;background:#fff;font:inherit}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.kpi{background:#f7f6fb;border-radius:14px;padding:14px}.kpi small{display:block;color:var(--croma-muted);font-weight:800}.kpi strong{display:block;margin-top:4px;font-size:1.4rem;color:var(--croma-deep)}
+.breakdown{width:100%;border-collapse:collapse}.breakdown td{padding:9px;border-bottom:1px solid #efedf4}.breakdown td:last-child{text-align:right;font-weight:850}.note{margin-top:12px;padding:11px 13px;border-radius:12px;background:#fff8d8;color:#625600}.ok{background:#eef7e9;color:#426920}
+.btn{border:0;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer;background:var(--croma-purple);color:#fff;text-decoration:none;display:inline-block}.btn.light{background:#fff;color:var(--croma-purple);border:1px solid var(--croma-line)}
+.status{min-height:22px;font-weight:800}.muted{color:var(--croma-muted);font-size:.82rem}.inline{display:flex;gap:7px;align-items:center}.inline input{width:100%}
+@media(max-width:900px){.grid,.kpis{grid-template-columns:1fr 1fr}}@media(max-width:560px){.grid,.kpis{grid-template-columns:1fr}}
+</style>
+</head>
+<body hidden>
+<header class="internal-header"><a href="../">← Croma Interno</a><div class="internal-header-actions"><a href="../insumos/">Insumos</a><a href="../composicao-custos/">Composição</a><a href="../produtos/">Produtos</a></div></header>
+<main class="shell">
+<div class="head"><div><span class="internal-eyebrow">Custo rápido</span><h1 class="internal-title">Precificação de impressões personalizadas</h1><p class="internal-lead">Escolha o papel, quantidade e acabamento. O sistema usa a base real dos insumos e converte pacotes em custo por folha.</p></div><div class="actions"><a class="btn light" href="../insumos/">Base de materiais</a><a class="btn" href="../composicao-custos/">Ficha técnica completa</a></div></div>
+<p class="status" id="status">Carregando materiais…</p>
+
+<section class="card">
+<h2 style="margin-top:0">1. Produção</h2>
+<div class="grid">
+<div class="field"><label>Papel</label><select id="paper"></select><span class="muted" id="paperCost"></span></div>
+<div class="field"><label>Quantidade final</label><input id="qty" type="number" min="1" step="1" value="10"></div>
+<div class="field"><label>Peças por folha</label><input id="piecesPerSheet" type="number" min="0.01" step="0.01" value="1"><span class="muted">Ex.: A6 em A4 = 4 peças/folha.</span></div>
+<div class="field"><label>Perda / segurança %</label><input id="waste" type="number" min="0" max="100" step="0.5" value="5"></div>
+</div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">2. Impressão e acabamento</h2>
+<div class="grid">
+<div class="field"><label>Tinta por folha (R$)</label><input id="inkPerSheet" type="number" min="0" step="0.001" value="0"><span class="muted">Deixe 0 enquanto o consumo por impressão não estiver calibrado.</span></div>
+<div class="field"><label>Acabamento</label><select id="finish"><option value="">Sem acabamento</option></select><span class="muted" id="finishCost"></span></div>
+<div class="field"><label id="finishUsageLabel">Consumo do acabamento</label><input id="finishUsage" type="number" min="0" step="0.001" value="0"><span class="muted" id="finishHint">Selecione um acabamento.</span></div>
+<div class="field"><label>Mão de obra por peça (R$)</label><input id="laborPerItem" type="number" min="0" step="0.01" value="0"></div>
+</div>
+<div class="grid" style="margin-top:12px">
+<div class="field"><label>Outros custos por peça (R$)</label><input id="otherPerItem" type="number" min="0" step="0.01" value="0"></div>
+<div class="field"><label>Markup</label><input id="markup" type="number" min="1" step="0.1" value="3"></div>
+<div class="field"><label>Ajuste comercial (R$)</label><input id="commercialAdjustment" type="number" step="0.01" value="0"></div>
+<div class="field"><label>Preço manual opcional</label><input id="manualPrice" type="number" min="0" step="0.01" placeholder="Deixe vazio para usar markup"></div>
+</div>
+<div class="note" id="inkWarning">O custo de tinta por folha ainda não está calibrado. O resultado será exato para papel/acabamento e parcial para impressão enquanto este campo estiver em zero.</div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">3. Resultado</h2>
+<div class="kpis">
+<div class="kpi"><small>Folhas necessárias</small><strong id="sheetQty">0</strong></div>
+<div class="kpi"><small>Custo total</small><strong id="totalCost">R$ 0,00</strong></div>
+<div class="kpi"><small>Preço sugerido</small><strong id="suggestedPrice">R$ 0,00</strong></div>
+<div class="kpi"><small>Preço por peça</small><strong id="unitPrice">R$ 0,00</strong></div>
+</div>
+<table class="breakdown" style="margin-top:14px"><tbody>
+<tr><td>Papel</td><td id="paperTotal">R$ 0,00</td></tr>
+<tr><td>Tinta</td><td id="inkTotal">R$ 0,00</td></tr>
+<tr><td>Acabamento</td><td id="finishTotal">R$ 0,00</td></tr>
+<tr><td>Mão de obra</td><td id="laborTotal">R$ 0,00</td></tr>
+<tr><td>Outros custos</td><td id="otherTotal">R$ 0,00</td></tr>
+<tr><td><strong>Margem sobre preço</strong></td><td id="margin">0,0%</td></tr>
+</tbody></table>
+<div class="note ok"><strong>Fluxo:</strong> use este simulador para chegar rápido ao preço. Quando um serviço estiver validado, grave a composição definitiva em <a href="../composicao-custos/">Composição e Custos</a> e depois mantenha as faixas comerciais no cadastro do produto.</div>
+</section>
+</main>
+
+<script type="module">
+import {supabase} from '/js/croma-supabase.js?v=20260821-2';
+import {protectInternalPage} from '/js/interno-auth.js?v=20261013-1';
+const session=await protectInternalPage({roles:['owner','manager']});if(!session)throw new Error('auth');document.body.hidden=false;
+const $=s=>document.querySelector(s),brl=(v,d=4)=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:d});
+let papers=[],finishes=[],costs=new Map();
+const paperProfile=p=>p?.metadata?.printing_material||{},finishProfile=p=>p?.metadata?.printing_finish||{};
+const units=p=>Math.max(1,Number(paperProfile(p).sheets_per_stock_unit||finishProfile(p).units_per_stock_unit||p?.metadata?.input_configuration?.sheets_per_stock_unit||1));
+const techCost=p=>Number(costs.get(p.id)||0)/units(p);
+
+async function fetchAllProducts(){
+ const out=[];for(let from=0;;from+=1000){const{data,error}=await supabase.from('products').select('id,nome,sku,metadata,is_input,product_type').eq('is_input',true).eq('product_type','produto').range(from,from+999);if(error)throw error;out.push(...(data||[]));if(!data||data.length<1000)break}return out;
+}
+async function boot(){
+ const all=await fetchAllProducts();
+ papers=all.filter(p=>paperProfile(p).enabled).sort((a,b)=>Number(paperProfile(a).sort_order||999)-Number(paperProfile(b).sort_order||999));
+ finishes=all.filter(p=>finishProfile(p).enabled);
+ const ids=[...new Set([...papers,...finishes].map(p=>p.id))];
+ if(ids.length){const{data,error}=await supabase.from('product_costs').select('product_id,cost').in('product_id',ids);if(error)throw error;(data||[]).forEach(r=>costs.set(r.product_id,Number(r.cost||0)))}
+ $('#paper').innerHTML=papers.map(p=>{const m=paperProfile(p);return '<option value="'+p.id+'">'+(m.client_label||p.nome)+' — '+brl(techCost(p))+'/folha</option>'}).join('');
+ $('#finish').insertAdjacentHTML('beforeend',finishes.map(p=>{const m=finishProfile(p);return '<option value="'+p.id+'">'+(m.client_label||p.nome)+' — '+brl(techCost(p))+'/'+(m.usage_unit||'un')+'</option>'}).join(''));
+ $('#status').textContent='';
+ refreshFinish();calc();
+}
+function selectedPaper(){return papers.find(p=>p.id===$('#paper').value)}
+function selectedFinish(){return finishes.find(p=>p.id===$('#finish').value)}
+function refreshFinish(){
+ const p=selectedFinish();
+ if(!p){$('#finishUsage').value='0';$('#finishUsageLabel').textContent='Consumo do acabamento';$('#finishHint').textContent='Selecione um acabamento.';$('#finishCost').textContent='';return}
+ const m=finishProfile(p),c=techCost(p);
+ $('#finishUsage').value=String(Number(m.default_consumption||1));
+ $('#finishUsageLabel').textContent='Consumo ('+(m.usage_unit||'un')+')';
+ $('#finishHint').textContent=m.default_consumption_label||'Consumo por unidade de produção.';
+ $('#finishCost').textContent='Custo técnico: '+brl(c)+'/'+(m.usage_unit||'un');
+}
+function calc(){
+ const paper=selectedPaper();if(!paper)return;
+ const qty=Math.max(1,Number($('#qty').value||1)),pps=Math.max(.01,Number($('#piecesPerSheet').value||1)),waste=Math.max(0,Number($('#waste').value||0));
+ const baseSheets=qty/pps, sheetQty=Math.ceil(baseSheets*(1+waste/100));
+ const paperUnit=techCost(paper),paperTotal=sheetQty*paperUnit;
+ const inkPerSheet=Math.max(0,Number($('#inkPerSheet').value||0)),inkTotal=sheetQty*inkPerSheet;
+ const finish=selectedFinish(),fm=finish?finishProfile(finish):null,finishUnit=finish?techCost(finish):0,finishUsage=Math.max(0,Number($('#finishUsage').value||0));
+ const finishBase=fm?.family==='polaseal'?qty:sheetQty;
+ const finishTotal=finish?finishBase*finishUsage*finishUnit:0;
+ const laborTotal=qty*Math.max(0,Number($('#laborPerItem').value||0));
+ const otherTotal=qty*Math.max(0,Number($('#otherPerItem').value||0));
+ const total=paperTotal+inkTotal+finishTotal+laborTotal+otherTotal;
+ const markup=Math.max(1,Number($('#markup').value||1)),adjust=Number($('#commercialAdjustment').value||0);
+ const automatic=Math.max(0,total*markup+adjust);
+ const manual=Number($('#manualPrice').value);
+ const price=Number.isFinite(manual)&&$('#manualPrice').value!==''?manual:automatic;
+ const margin=price>0?(price-total)/price*100:0;
+ $('#sheetQty').textContent=sheetQty.toLocaleString('pt-BR');
+ $('#paperCost').textContent='Custo técnico: '+brl(paperUnit)+'/folha';
+ $('#paperTotal').textContent=brl(paperTotal);$('#inkTotal').textContent=brl(inkTotal);$('#finishTotal').textContent=brl(finishTotal);$('#laborTotal').textContent=brl(laborTotal);$('#otherTotal').textContent=brl(otherTotal);
+ $('#totalCost').textContent=brl(total,2);$('#suggestedPrice').textContent=brl(price,2);$('#unitPrice').textContent=brl(price/qty,2);$('#margin').textContent=margin.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+ $('#inkWarning').style.display=inkPerSheet>0?'none':'block';
+}
+document.addEventListener('input',e=>{if(e.target.matches('input'))calc()});
+$('#paper').addEventListener('change',calc);
+$('#finish').addEventListener('change',()=>{refreshFinish();calc()});
+boot().catch(e=>{$('#status').textContent='Erro ao carregar: '+e.message;console.error(e)});
+</script>
+</body></html>
