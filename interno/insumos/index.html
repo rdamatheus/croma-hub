@@ -18,7 +18,7 @@
 </main>
 <script type="module">
 import {supabase} from '/js/croma-supabase.js?v=20260821-2';
-import {protectInternalPage} from '/js/interno-auth.js?v=20260822-2';
+import {protectInternalPage} from '/js/interno-auth.js?v=20261013-1';
 const session=await protectInternalPage({roles:['owner','manager']});if(!session)throw new Error('auth');document.body.hidden=false;
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const brl=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:4});
