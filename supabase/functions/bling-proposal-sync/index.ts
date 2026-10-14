@@ -10,16 +10,23 @@ function cors(req:Request){const o=req.headers.get("Origin")||"";return{"Access-
 function json(req:Request,d:any,s=200){return new Response(JSON.stringify(d),{status:s,headers:{...cors(req),"Content-Type":"application/json"}})}
 const txt=(v:any)=>{const s=String(v??"").trim();return s||null}, digits=(v:any)=>{const s=String(v??"").replace(/\D/g,"");return s||null}, day=(v:any)=>txt(v)?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1]||null, round=(v:any,p=6)=>{const n=Number(v),f=10**p;return Number.isFinite(n)?Math.round(n*f)/f:0};
 function errorText(err:any){
-  if(err instanceof Error)return err.message;
-  if(typeof err==='string')return err;
-  if(err&&typeof err==='object'){
-    for(const key of ['message','details','detail','hint','code','error_description','description']){
-      const value=err[key];
-      if(typeof value==='string'&&value.trim())return value.trim();
+  const seen=new Set<any>();
+  const walk=(value:any,depth=0):string|null=>{
+    if(value==null||depth>5)return null;
+    if(value instanceof Error)return value.message||value.name||null;
+    if(typeof value==='string'){const s=value.trim();return s&&s!=='[object Object]'?s:null}
+    if(typeof value!=='object')return String(value);
+    if(seen.has(value))return null;
+    seen.add(value);
+    for(const key of ['message','details','detail','hint','description','error_description','error','errors','code']){
+      if(!(key in value))continue;
+      const found=walk(value[key],depth+1);
+      if(found)return found;
     }
-    try{const s=JSON.stringify(err);if(s&&s!=='{}')return s}catch{}
-  }
-  return String(err??'Erro desconhecido');
+    try{const s=JSON.stringify(value);if(s&&s!=='{}'&&s!=='[]')return s}catch{}
+    return null;
+  };
+  return walk(err)||'Erro desconhecido';
 }
 function stable(v:any):any{if(Array.isArray(v))return v.map(stable);if(v&&typeof v==="object"){const o:any={};for(const k of Object.keys(v).sort())o[k]=stable(v[k]);return o}return v}
 async function digest(v:any){const b=new TextEncoder().encode(JSON.stringify(stable(v??null))),d=await crypto.subtle.digest("SHA-256",b);return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
