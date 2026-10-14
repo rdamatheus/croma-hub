@@ -111,7 +111,7 @@ function refreshFinish(){
  const p=selectedFinish();
  if(!p){$('#finishUsage').value='0';$('#finishUsageLabel').textContent='Consumo do acabamento';$('#finishHint').textContent='Selecione um acabamento.';$('#finishCost').textContent='';return}
  const m=finishProfile(p),c=techCost(p);
- $('#finishUsage').value=String(Number(m.default_consumption||1));
+ $('#finishUsage').value=String(m.family==='bopp'?Number(m.default_consumption||1.3)*Number($('#printSides').value||1)/2:Number(m.default_consumption||1));
  $('#finishUsageLabel').textContent='Consumo ('+(m.usage_unit||'un')+')';
  $('#finishHint').textContent=m.default_consumption_label||'Consumo por unidade de produção.';
  $('#finishCost').textContent='Custo técnico: '+brl(c)+'/'+(m.usage_unit||'un');
@@ -141,6 +141,7 @@ function calc(){
  if(finish&&!hasCost(finish))warnings.push('Acabamento sem custo cadastrado.');
  if(sides===2&&paperProfile(paper).print_sides!=='dupla_face')warnings.push('Confirme se o papel é compatível com impressão frente e verso.');
  if(finish&&fm?.family==='polaseal'&&fm.format&&fm.format!==paperProfile(paper).format)warnings.push('Confira o formato da plastificação.');
+ if(finish&&fm?.family==='polaseal'&&pps>1)warnings.push('Plastificação calculada por peça; confira se as peças serão plastificadas separadamente.');
  if(finish&&fm?.family==='bopp'&&paperProfile(paper).format==='A4')warnings.push('Ajuste o consumo de BOPP para A4.');
  if(!Number($('#laborPerItem').value||0))warnings.push('Mão de obra ainda não informada.');
  const blocking=warnings.some(w=>w.includes('sem custo')||w.includes('incompleto'));
@@ -155,7 +156,7 @@ function calc(){
 document.addEventListener('input',e=>{if(e.target.matches('input'))calc()});
 $('#paper').addEventListener('change',()=>{refreshInk();calc()});
 $('#finish').addEventListener('change',()=>{refreshFinish();calc()});
-$('#printSides').addEventListener('change',calc);
+$('#printSides').addEventListener('change',()=>{if(selectedFinish()&&finishProfile(selectedFinish()).family==='bopp')refreshFinish();calc()});
 boot().catch(e=>{$('#status').textContent='Erro ao carregar: '+e.message;console.error(e)});
 </script>
 </body></html>
