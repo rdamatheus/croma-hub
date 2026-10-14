@@ -1,6 +1,7 @@
 import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, loadPrimaryMedia, rootCategories, categoryChildren, descendantIds, categoryPath } from './public-catalog-data.js?v=20261001-perf2';
 
 import { loadCommercialActions } from './commercial-areas-data.js?v=20261001-perf';
+import { supabase } from './croma-supabase.js';
 
 const root=document.querySelector('#productCatalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -48,6 +49,16 @@ function familyCard(f){
 async function renderProductDetail(product){
   await ensureMedia([product.id]);
   const media=mediaCache.get(product.id),path=categoryPath(categories,families,product.catalog_category_id),backHref='/produtos/';
+  const {data:galleryRows,error:galleryError}=await supabase.from('product_media')
+    .select('id,url,alt_text,is_primary,ordem')
+    .eq('product_id',product.id).eq('kind','image').eq('ativo',true)
+    .order('is_primary',{ascending:false}).order('ordem',{ascending:true}).limit(24);
+  if(galleryError)console.warn('Galeria indisponível:',galleryError.message);
+  const gallery=galleryError?[]:(galleryRows||[]).filter(item=>item.url);
+  if(!gallery.length&&media?.url)gallery.push(media);
+  const firstImage=gallery[0]||media;
+  const galleryHtml=gallery.length>1?`<div class="croma-product-thumbnails" aria-label="Fotos do produto" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${gallery.map((m,i)=>`<button type="button" class="croma-gallery-thumb" data-gallery-index="${i}" aria-label="Ver foto ${i+1} do produto" aria-pressed="${i===0?'true':'false'}" style="width:72px;height:72px;padding:3px;border:2px solid ${i===0?'#30297f':'#ddd'};border-radius:10px;background:#fff;cursor:pointer"><img src="${esc(m.url)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain;border-radius:6px"></button>`).join('')}</div>`:'';
+
   const priced=Number(product.preco)>0;
   const actions=await loadCommercialActions([product.id]).catch(()=>new Map());
   const canBuy=actions.get(product.id)==='buy'&&priced&&product.is_sellable!==false&&!product.is_input;
@@ -56,7 +67,7 @@ async function renderProductDetail(product){
   root.innerHTML=`
     <div class="public-breadcrumb"><a href="/">Início</a><span>›</span><a href="${backHref}">Produtos</a>${path.length?`<span>›</span><span>${esc(path.map(x=>x.nome).join(' › '))}</span>`:''}<span>›</span><strong>${esc(product.nome)}</strong></div>
     <section class="public-editorial-hero" style="align-items:start">
-      <div>${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||product.nome)}" loading="eager" referrerpolicy="no-referrer">`:'<div class="public-card-media" style="border-radius:20px;min-height:320px"></div>'}</div>
+      <div>${firstImage?.url?`<img id="cromaProductMainImage" src="${esc(firstImage.url)}" alt="${esc(firstImage.alt_text||product.nome)}" loading="eager" referrerpolicy="no-referrer">`:'<div class="public-card-media" style="border-radius:20px;min-height:320px"></div>'}${galleryHtml}</div>
       <div>
         <span class="public-eyebrow">${esc(path.slice(1).map(x=>x.nome).join(' › ')||'Produto Croma')}</span>
         <h1 style="color:var(--pc-deep);font-size:clamp(2rem,4vw,3.8rem);line-height:1.02;margin:10px 0 14px">${esc(product.nome)}</h1>
@@ -68,6 +79,18 @@ async function renderProductDetail(product){
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px"><a class="public-close" href="${backHref}" style="text-decoration:none">← Voltar aos produtos</a></div>
       </div>
     </section>`;
+  root.querySelectorAll('[data-gallery-index]').forEach(button=>button.addEventListener('click',()=>{
+    const selected=gallery[Number(button.dataset.galleryIndex)];
+    const main=root.querySelector('#cromaProductMainImage');
+    if(!selected?.url||!main)return;
+    main.src=selected.url;
+    main.alt=selected.alt_text||product.nome;
+    root.querySelectorAll('[data-gallery-index]').forEach(item=>{
+      const active=item===button;
+      item.setAttribute('aria-pressed',String(active));
+      item.style.borderColor=active?'#30297f':'#ddd';
+    });
+  }));
   document.title=`${product.nome} | Croma Papelaria & Presentes`;
   const addButton=root.querySelector('#addProductToCart');
   if(addButton){
