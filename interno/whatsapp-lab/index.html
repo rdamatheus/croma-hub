@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Laboratório WhatsApp | Croma Hub</title>
   <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <link rel="stylesheet" href="/css/whatsapp-lab.css?v=20261013-1">
   <style>
     .lab-banner{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;background:linear-gradient(135deg,#211c5c,#30297f);color:#fff;border-radius:22px;padding:22px;margin:18px 0}.lab-banner p{margin:6px 0 0;color:#dedcf2;max-width:760px}.lab-badge{background:#ffec00;color:#30297f;font-size:.72rem;font-weight:950;letter-spacing:.08em;text-transform:uppercase;padding:7px 10px;border-radius:999px;white-space:nowrap}.lab-grid{display:grid;grid-template-columns:minmax(320px,.9fr) minmax(0,1.35fr);gap:18px;align-items:start}.card{background:#fff;border:1px solid var(--croma-line);border-radius:20px;padding:20px}.card h2{margin:0 0 7px;color:var(--croma-deep)}.hint{color:var(--croma-muted);font-size:.84rem;line-height:1.5}.drop{display:block;border:2px dashed #c9c6d8;border-radius:16px;padding:18px;background:#faf9fd;margin-top:12px;cursor:pointer}.drop strong{display:block;color:var(--croma-deep);margin-bottom:4px}.drop input{display:block;width:100%;margin-top:12px}.preview{margin-top:14px;border:1px solid #e6e3ef;border-radius:15px;padding:14px;background:#fcfbfe}.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.preview small,.saved-card small{color:var(--croma-muted)}.preview strong{display:block;color:var(--croma-deep);margin-top:3px}.files{display:grid;gap:7px;margin-top:10px}.file{display:flex;justify-content:space-between;gap:12px;padding:9px 10px;background:#f4f2f9;border-radius:10px;font-size:.82rem}.file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.status{min-height:22px;margin-top:10px;font-size:.85rem;color:#537b23}.status.error{color:#a32620}.saved-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.saved-list{display:grid;gap:10px}.saved-card{border:1px solid #e6e3ef;border-radius:15px;padding:14px}.saved-card h3{margin:3px 0 8px;color:var(--croma-deep)}.saved-meta{display:flex;gap:7px;flex-wrap:wrap}.saved-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.danger{background:#fff0ef!important;color:#9d241d!important;border-color:#f2cbc8!important}.empty{padding:30px 16px;border:1px dashed #cbc7d8;border-radius:15px;text-align:center;color:var(--croma-muted)}.detail{margin-top:18px}.detail-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.detail-list{display:grid;gap:9px;margin-top:14px;max-height:520px;overflow:auto}.message{padding:12px;border-radius:14px;background:#f4f2f9;border-left:4px solid #30297f}.message.recebida{background:#f3f8fb;border-left-color:#009cdf}.message.enviada{background:#f3f8f2;border-left-color:#80b03d}.message-head{display:flex;justify-content:space-between;gap:10px;font-size:.74rem;color:var(--croma-muted);margin-bottom:6px}.message p{white-space:pre-wrap;margin:0;line-height:1.45}.quote{margin:0 0 8px;padding:8px 10px;border-left:3px solid #c3bfd4;background:#fff9;border-radius:7px;font-size:.8rem}.attachment-list{display:grid;gap:8px;margin-top:12px}.attachment{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #e7e4ef;border-radius:12px;padding:10px}.progress{height:7px;border-radius:99px;background:#ebe8f2;overflow:hidden;margin-top:10px}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#c30079,#009cdf);transition:.2s}.privacy-note{margin-top:12px;padding:11px 12px;border-radius:12px;background:#fff8d6;color:#655b00;font-size:.8rem}.analysis{margin:18px 0;padding:16px;border:1px solid #dcd8ea;border-radius:16px;background:#faf9fd}.analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.analysis-box{padding:11px;border-radius:12px;background:#fff}.analysis-box h4{margin:0 0 7px;color:var(--croma-deep)}.analysis-box ul{margin:0;padding-left:18px}.suggested-reply{white-space:pre-wrap;line-height:1.5;margin:0}.hidden{display:none!important}@media(max-width:900px){.lab-grid{grid-template-columns:1fr}.lab-banner{display:block}.lab-badge{display:inline-block;margin-top:12px}}@media(max-width:560px){.preview-grid,.analysis-grid{grid-template-columns:1fr}.saved-head,.detail-head{display:block}.saved-head button{margin-top:8px}}
     .exporter-card{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:20px;align-items:center;margin:0 0 18px}.exporter-card h2{margin:0 0 7px}.exporter-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.exporter-steps{margin:10px 0 0;padding-left:19px;color:var(--croma-muted);font-size:.84rem;line-height:1.55}.exporter-status{grid-column:1/-1;margin:0;min-height:0}.whatsapp-link{background:#e7f7ef!important;color:#086b4d!important;border-color:#b9e4d1!important}@media(max-width:760px){.exporter-card{grid-template-columns:1fr}.exporter-actions{justify-content:flex-start}}
@@ -18,15 +19,10 @@
 
   <main class="internal-shell">
     <span class="internal-eyebrow">Teste isolado</span>
-    <h1 class="internal-title">Laboratório de atendimentos do WhatsApp</h1>
-    <p class="internal-lead">Importe o histórico gerado pelo Exportador Croma e associe os arquivos que o cliente enviou. Esta área usa tabelas próprias de laboratório e não altera pedidos, produtos, preços ou clientes oficiais.</p>
+    <h1 class="internal-title">Laboratório de atendimento</h1>
+    <p class="internal-lead">Testes de atendimento, com revisão humana e resposta sugerida.</p>
 
-    <section class="lab-banner">
-      <div><strong>Fluxo de validação</strong><p>1. No WhatsApp, clique no ícone ✦ do Exportador Croma. 2. A conversa será recebida neste laboratório. 3. Salve o atendimento. 4. Clique em “Processar com IA”. 5. Confira o resumo e a resposta sugerida.</p></div>
-      <span class="lab-badge">LAB · removível</span>
-    </section>
-
-    <section class="card exporter-card">
+    <section id="legacyExporter" class="card exporter-card hidden">
       <div>
         <span class="internal-eyebrow">Exportador Croma</span>
         <h2>Levar a conversa do WhatsApp para o laboratório</h2>
@@ -44,8 +40,23 @@
     <div class="lab-grid">
       <section class="card">
         <h2>Novo teste</h2>
-        <p class="hint">Os arquivos só são enviados quando você clicar em “Salvar atendimento”.</p>
+        <div class="entry-modes" role="group" aria-label="Origem do teste">
+          <button class="internal-btn" type="button" id="manualMode" aria-pressed="true">Mensagem manual</button>
+          <button class="internal-btn secondary" type="button" id="importMode" aria-pressed="false">Importar conversa</button>
+        </div>
+        <div id="manualPane">
+          <div class="example-tools">
+            <label class="internal-field" for="exampleCase">Exemplo fictício<select id="exampleCase"></select></label>
+            <button class="internal-btn secondary" id="loadExample" type="button">Usar exemplo</button>
+          </div>
+          <div class="form-grid">
+            <label class="internal-field" for="manualName">Nome do contato<input id="manualName" type="text" maxlength="120" autocomplete="off" placeholder="Contato de teste"></label>
+            <label class="internal-field" for="manualPhone">Telefone (opcional)<input id="manualPhone" type="tel" maxlength="25" autocomplete="off" placeholder="País e DDD"></label>
+          </div>
+          <label class="internal-field" for="manualBody">Mensagem do cliente<textarea id="manualBody" rows="7" maxlength="8000"></textarea></label>
+        </div>
 
+        <div id="importPane" class="hidden">
         <label class="drop" for="jsonFile">
           <strong>1. Histórico em JSON — modo legado</strong>
           <span class="hint">Para o fluxo novo, use o ícone ✦ no painel do WhatsApp. Este campo permanece apenas para arquivos JSON exportados anteriormente.</span>
@@ -68,13 +79,14 @@
         </label>
 
         <div id="fileList" class="files"></div>
-        <div class="privacy-note">Este módulo fica atrás do login interno. Os anexos são enviados para o bucket privado já usado pela Croma.</div>
+        <div class="privacy-note">Arquivos acessíveis apenas à equipe interna.</div>
+        </div>
         <div class="progress hidden" id="progress"><i id="progressBar"></i></div>
         <div class="form-actions">
           <button class="internal-btn" id="saveTest" type="button" disabled>Salvar atendimento</button>
           <button class="internal-btn secondary" id="clearTest" type="button">Limpar</button>
         </div>
-        <div id="formStatus" class="status"></div>
+        <div id="formStatus" class="status" role="status" aria-live="polite"></div>
       </section>
 
       <section>
@@ -84,10 +96,24 @@
         </div>
 
         <section id="detailCard" class="card detail hidden">
-          <div class="detail-head"><div><span class="internal-eyebrow">Atendimento importado</span><h2 id="detailTitle">Detalhes</h2><p class="hint" id="detailMeta"></p></div><button class="internal-btn secondary" id="closeDetail" type="button">Fechar</button></div>
+          <div class="detail-head"><div><span class="internal-eyebrow">Atendimento de teste</span><h2 id="detailTitle">Detalhes</h2><p class="hint" id="detailMeta"></p></div><button class="internal-btn secondary" id="closeDetail" type="button">Fechar</button></div>
+          <form id="reviewForm" class="review-form">
+            <h3>Revisão do atendimento</h3>
+            <div class="form-grid">
+              <label class="internal-field" for="reviewCategory">Categoria confirmada<select id="reviewCategory"></select></label>
+              <label class="internal-field" for="reviewPriority">Prioridade<select id="reviewPriority"></select></label>
+              <label class="internal-field" for="reviewWorkflow">Andamento comercial<select id="reviewWorkflow"></select></label>
+              <label class="internal-field" for="reviewResponsible">Responsável<select id="reviewResponsible"></select></label>
+            </div>
+            <div class="form-actions"><button class="internal-btn" id="saveReview" type="submit">Salvar revisão</button><button class="internal-btn secondary" id="useSuggestion" type="button" disabled>Usar classificação sugerida</button></div>
+            <p id="reviewStatus" class="status" role="status" aria-live="polite"></p>
+          </form>
           <section id="analysisBox" class="analysis hidden">
             <h3>Análise do atendimento</h3>
+            <div id="analysisClassification" class="saved-meta"></div>
             <p id="analysisSummary"></p>
+            <div id="analysisData" class="extracted-data"></div>
+            <h4>Dados faltantes</h4><ul id="analysisMissing"></ul>
             <div class="analysis-grid">
               <div class="analysis-box"><h4>Pedido do cliente</h4><ul id="analysisRequests"></ul></div>
               <div class="analysis-box"><h4>Especificações</h4><ul id="analysisSpecs"></ul></div>
@@ -96,6 +122,7 @@
             </div>
             <div class="analysis-box" style="margin-top:10px"><h4>Resposta sugerida</h4><p id="analysisReply" class="suggested-reply"></p></div>
           </section>
+          <section class="history-section"><h3>Histórico das análises</h3><div id="analysisHistory" class="history-list"></div></section>
           <h3>Mensagens</h3>
           <div id="messageList" class="detail-list"></div>
           <h3>Anexos</h3>
@@ -105,6 +132,6 @@
     </div>
   </main>
 
-  <script type="module" src="/js/whatsapp-lab.js?v=20260830-5"></script>
+  <script type="module" src="/js/whatsapp-lab.js?v=20261013-1"></script>
 </body>
 </html>

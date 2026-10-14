@@ -4,13 +4,15 @@ Prova de conceito isolada do Croma Hub. A rota `/interno/whatsapp-lab/` importa 
 
 ## Isolamento
 
-- Tabelas próprias: `lab_whatsapp_atendimentos`, `lab_whatsapp_mensagens` e `lab_whatsapp_anexos`.
+- Tabelas próprias: `lab_whatsapp_atendimentos`, `lab_whatsapp_mensagens`, `lab_whatsapp_anexos` e, após a migração do MVP, `lab_whatsapp_analises`.
 - Arquivos no bucket privado `croma-arquivos`, sob `whatsapp-lab/<user-id>/<atendimento-id>/`.
 - Acesso restrito às contas internas ativas por RLS.
 - Nenhuma referência a pedidos, clientes, produtos, preços ou produção.
 - A exclusão de um atendimento remove primeiro os arquivos e depois o registro; mensagens e metadados são eliminados em cascata.
 
 ## Escopo do teste
+
+A evolução do MVP acrescenta entrada manual e exemplos fictícios, revisão de categoria/prioridade/responsável/andamento e histórico de análises. O plano de implantação e os testes estão em [WHATSAPP-LAB-MVP.md](WHATSAPP-LAB-MVP.md). O processamento exige uma ação explícita no botão “Processar com IA”.
 
 1. Importar conversa em JSON.
 2. Corrigir localmente nome genérico e direção indefinida quando possível.
@@ -25,4 +27,4 @@ O processamento depende do segredo `OPENAI_API_KEY` configurado nas Edge Functio
 
 ## Remoção futura
 
-Quando o teste terminar, remover primeiro os objetos no prefixo `whatsapp-lab/` do bucket privado e só então eliminar as três tabelas e as políticas `lab_whatsapp_*`. Não executar essa limpeza enquanto houver testes que devam ser preservados.
+Quando o teste terminar, remover primeiro os objetos no prefixo `whatsapp-lab/` do bucket privado e só então eliminar as tabelas, funções e políticas específicas do laboratório. O histórico de análises acompanha a exclusão do atendimento de teste. Não executar essa limpeza enquanto houver testes que devam ser preservados; limpeza depende de autorização própria.
