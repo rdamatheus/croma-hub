@@ -134,10 +134,22 @@ function calc(){
  const manual=Number($('#manualPrice').value);
  const price=Number.isFinite(manual)&&$('#manualPrice').value!==''?manual:automatic;
  const margin=price>0?(price-total)/price*100:0;
+ const warnings=[];
+ const hasCost=p=>!!p&&costs.has(p.id)&&Number(costs.get(p.id))>0;
+ if(!hasCost(paper))warnings.push('Papel sem custo cadastrado.');
+ if(inks.length!==6||inks.some(p=>!hasCost(p)))warnings.push('Cadastro de tintas L1800 incompleto.');
+ if(finish&&!hasCost(finish))warnings.push('Acabamento sem custo cadastrado.');
+ if(sides===2&&paperProfile(paper).print_sides!=='dupla_face')warnings.push('Confirme se o papel é compatível com impressão frente e verso.');
+ if(finish&&fm?.family==='polaseal'&&fm.format&&fm.format!==paperProfile(paper).format)warnings.push('Confira o formato da plastificação.');
+ if(finish&&fm?.family==='bopp'&&paperProfile(paper).format==='A4')warnings.push('Ajuste o consumo de BOPP para A4.');
+ if(!Number($('#laborPerItem').value||0))warnings.push('Mão de obra ainda não informada.');
+ const blocking=warnings.some(w=>w.includes('sem custo')||w.includes('incompleto'));
+ const notice=$('#validationNote');notice.hidden=!warnings.length;notice.textContent=warnings.join(' ');
+ $('#grossProfit').textContent=blocking?'—':brl(price-total,2);
  $('#sheetQty').textContent=sheetQty.toLocaleString('pt-BR');
  $('#paperCost').textContent='Custo técnico: '+brl(paperUnit)+'/folha';
  $('#paperTotal').textContent=brl(paperTotal);$('#inkTotal').textContent=brl(inkTotal);$('#finishTotal').textContent=brl(finishTotal);$('#laborTotal').textContent=brl(laborTotal);$('#otherTotal').textContent=brl(otherTotal);
- $('#totalCost').textContent=brl(total,2);$('#suggestedPrice').textContent=brl(price,2);$('#unitPrice').textContent=brl(price/qty,2);$('#margin').textContent=margin.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+ $('#totalCost').textContent=blocking?'Incompleto':brl(total,2);$('#suggestedPrice').textContent=blocking?'Custo pendente':brl(price,2);$('#unitPrice').textContent=blocking?'—':brl(price/qty,2);$('#margin').textContent=blocking?'—':margin.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
  $('#inkRate').textContent='Média das '+inks.length+' cores: '+brl(inkCostPerMl)+'/ml · custo nesta configuração '+brl(inkMlPerSheet*inkCostPerMl)+'/folha';
 }
 document.addEventListener('input',e=>{if(e.target.matches('input'))calc()});
