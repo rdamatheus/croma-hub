@@ -34,7 +34,7 @@
 <section class="card">
 <h2 style="margin-top:0">2. Impressão e acabamento</h2>
 <div class="grid">
-<div class="field"><label>Tinta por folha (R$)</label><input id="inkPerSheet" type="number" min="0" step="0.001" value="0"><span class="muted">Deixe 0 enquanto o consumo por impressão não estiver calibrado.</span></div>
+<div class="field"><label>Consumo de tinta L1800 (ml/folha)</label><input id="inkMlPerSheet" type="number" min="0" step="0.1" value="1.5"><span class="muted" id="inkRate">Carregando custo médio das 6 cores…</span></div>
 <div class="field"><label>Acabamento</label><select id="finish"><option value="">Sem acabamento</option></select><span class="muted" id="finishCost"></span></div>
 <div class="field"><label id="finishUsageLabel">Consumo do acabamento</label><input id="finishUsage" type="number" min="0" step="0.001" value="0"><span class="muted" id="finishHint">Selecione um acabamento.</span></div>
 <div class="field"><label>Mão de obra por peça (R$)</label><input id="laborPerItem" type="number" min="0" step="0.01" value="0"></div>
@@ -45,7 +45,7 @@
 <div class="field"><label>Ajuste comercial (R$)</label><input id="commercialAdjustment" type="number" step="0.01" value="0"></div>
 <div class="field"><label>Preço manual opcional</label><input id="manualPrice" type="number" min="0" step="0.01" placeholder="Deixe vazio para usar markup"></div>
 </div>
-<div class="note" id="inkWarning">O custo de tinta por folha ainda não está calibrado. O resultado será exato para papel/acabamento e parcial para impressão enquanto este campo estiver em zero.</div>
+<div class="note ok" id="inkProfileNote"><strong>Perfil Croma L1800:</strong> A4 = 1,5 ml/folha e A3 = 3,0 ml/folha. Parâmetro baseado em pesagem antes/depois da impressão com margem de segurança e pode ser ajustado manualmente.</div>
 </section>
 
 <section class="card">
@@ -73,9 +73,9 @@ import {supabase} from '/js/croma-supabase.js?v=20260821-2';
 import {protectInternalPage} from '/js/interno-auth.js?v=20261013-2';
 const session=await protectInternalPage({roles:['owner','manager']});if(!session)throw new Error('auth');document.body.hidden=false;
 const $=s=>document.querySelector(s),brl=(v,d=4)=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:d});
-let papers=[],finishes=[],costs=new Map();
-const paperProfile=p=>p?.metadata?.printing_material||{},finishProfile=p=>p?.metadata?.printing_finish||{};
-const units=p=>Math.max(1,Number(paperProfile(p).sheets_per_stock_unit||finishProfile(p).units_per_stock_unit||p?.metadata?.input_configuration?.sheets_per_stock_unit||1));
+let papers=[],finishes=[],inks=[],costs=new Map(),inkCostPerMl=0;
+const paperProfile=p=>p?.metadata?.printing_material||{},finishProfile=p=>p?.metadata?.printing_finish||{},inkProfile=p=>p?.metadata?.printing_consumable||{};
+const units=p=>Math.max(1,Number(paperProfile(p).sheets_per_stock_unit||finishProfile(p).units_per_stock_unit||inkProfile(p).units_per_stock_unit||p?.metadata?.input_configuration?.sheets_per_stock_unit||1));
 const techCost=p=>Number(costs.get(p.id)||0)/units(p);
 
 async function fetchAllProducts(){
@@ -85,15 +85,25 @@ async function boot(){
  const all=await fetchAllProducts();
  papers=all.filter(p=>paperProfile(p).enabled).sort((a,b)=>Number(paperProfile(a).sort_order||999)-Number(paperProfile(b).sort_order||999));
  finishes=all.filter(p=>finishProfile(p).enabled);
- const ids=[...new Set([...papers,...finishes].map(p=>p.id))];
+ inks=all.filter(p=>inkProfile(p).enabled&&inkProfile(p).family==='ink'&&inkProfile(p).reference_printer==='Epson L1800');
+ const ids=[...new Set([...papers,...finishes,...inks].map(p=>p.id))];
  if(ids.length){const{data,error}=await supabase.from('product_costs').select('product_id,cost').in('product_id',ids);if(error)throw error;(data||[]).forEach(r=>costs.set(r.product_id,Number(r.cost||0)))}
+ inkCostPerMl=inks.length?inks.reduce((sum,p)=>sum+techCost(p),0)/inks.length:0;
  $('#paper').innerHTML=papers.map(p=>{const m=paperProfile(p);return '<option value="'+p.id+'">'+(m.client_label||p.nome)+' — '+brl(techCost(p))+'/folha</option>'}).join('');
  $('#finish').insertAdjacentHTML('beforeend',finishes.map(p=>{const m=finishProfile(p);return '<option value="'+p.id+'">'+(m.client_label||p.nome)+' — '+brl(techCost(p))+'/'+(m.usage_unit||'un')+'</option>'}).join(''));
  $('#status').textContent='';
- refreshFinish();calc();
+ refreshInk();refreshFinish();calc();
 }
 function selectedPaper(){return papers.find(p=>p.id===$('#paper').value)}
 function selectedFinish(){return finishes.find(p=>p.id===$('#finish').value)}
+function refreshInk(){
+ const paper=selectedPaper();if(!paper)return;
+ const format=String(paperProfile(paper).format||'').toUpperCase();
+ const profile=inkProfile(inks[0])?.usage_profile||{};
+ const ml=format==='A3'?Number(profile.a3_ml||3):Number(profile.a4_ml||1.5);
+ $('#inkMlPerSheet').value=String(ml);
+ $('#inkRate').textContent='Média das '+inks.length+' cores: '+brl(inkCostPerMl)+'/ml · custo padrão '+brl(ml*inkCostPerMl)+'/folha';
+}
 function refreshFinish(){
  const p=selectedFinish();
  if(!p){$('#finishUsage').value='0';$('#finishUsageLabel').textContent='Consumo do acabamento';$('#finishHint').textContent='Selecione um acabamento.';$('#finishCost').textContent='';return}
@@ -108,7 +118,7 @@ function calc(){
  const qty=Math.max(1,Number($('#qty').value||1)),pps=Math.max(.01,Number($('#piecesPerSheet').value||1)),waste=Math.max(0,Number($('#waste').value||0));
  const baseSheets=qty/pps, sheetQty=Math.ceil(baseSheets*(1+waste/100));
  const paperUnit=techCost(paper),paperTotal=sheetQty*paperUnit;
- const inkPerSheet=Math.max(0,Number($('#inkPerSheet').value||0)),inkTotal=sheetQty*inkPerSheet;
+ const inkMlPerSheet=Math.max(0,Number($('#inkMlPerSheet').value||0)),inkTotal=sheetQty*inkMlPerSheet*inkCostPerMl;
  const finish=selectedFinish(),fm=finish?finishProfile(finish):null,finishUnit=finish?techCost(finish):0,finishUsage=Math.max(0,Number($('#finishUsage').value||0));
  const finishBase=fm?.family==='polaseal'?qty:sheetQty;
  const finishTotal=finish?finishBase*finishUsage*finishUnit:0;
@@ -124,10 +134,10 @@ function calc(){
  $('#paperCost').textContent='Custo técnico: '+brl(paperUnit)+'/folha';
  $('#paperTotal').textContent=brl(paperTotal);$('#inkTotal').textContent=brl(inkTotal);$('#finishTotal').textContent=brl(finishTotal);$('#laborTotal').textContent=brl(laborTotal);$('#otherTotal').textContent=brl(otherTotal);
  $('#totalCost').textContent=brl(total,2);$('#suggestedPrice').textContent=brl(price,2);$('#unitPrice').textContent=brl(price/qty,2);$('#margin').textContent=margin.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
- $('#inkWarning').style.display=inkPerSheet>0?'none':'block';
+ $('#inkRate').textContent='Média das '+inks.length+' cores: '+brl(inkCostPerMl)+'/ml · custo nesta configuração '+brl(inkMlPerSheet*inkCostPerMl)+'/folha';
 }
 document.addEventListener('input',e=>{if(e.target.matches('input'))calc()});
-$('#paper').addEventListener('change',calc);
+$('#paper').addEventListener('change',()=>{refreshInk();calc()});
 $('#finish').addEventListener('change',()=>{refreshFinish();calc()});
 boot().catch(e=>{$('#status').textContent='Erro ao carregar: '+e.message;console.error(e)});
 </script>
