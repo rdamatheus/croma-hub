@@ -7,7 +7,7 @@ const root=document.querySelector('#productCatalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const PAGE_SIZE=48;
 const params=new URLSearchParams(location.search);
-let families=[],categories=[],categoryCounts=new Map(),page=1,selectedCategory='',searchTerm=(params.get('q')||'').trim().toLowerCase(),renderSeq=0,searchTimer=null;
+let families=[],categories=[],categoryCounts=new Map(),page=1,selectedCategory='',selectedFamily='',searchTerm=(params.get('q')||'').trim().toLowerCase(),renderSeq=0,searchTimer=null;
 const selectedProductRef=(params.get('produto')||'').trim();
 const mediaCache=new Map();
 
@@ -59,13 +59,19 @@ async function renderProductDetail(product){
   const firstImage=gallery[0]||media;
   const galleryHtml=gallery.length>1?`<div class="croma-product-thumbnails" aria-label="Fotos do produto" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${gallery.map((m,i)=>`<button type="button" class="croma-gallery-thumb" data-gallery-index="${i}" aria-label="Ver foto ${i+1} do produto" aria-pressed="${i===0?'true':'false'}" style="width:72px;height:72px;padding:3px;border:2px solid ${i===0?'#30297f':'#ddd'};border-radius:10px;background:#fff;cursor:pointer"><img src="${esc(m.url)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain;border-radius:6px"></button>`).join('')}</div>`:'';
 
+  const breadcrumbItems=path.map((item,i)=>{
+    const isFamily=i===0;
+    const family=isFamily?item:path[0];
+    const href=isFamily?`/produtos/?familia=${encodeURIComponent(item.slug)}`:`/produtos/?familia=${encodeURIComponent(family.slug)}&categoria=${encodeURIComponent(item.slug)}`;
+    return `<span aria-hidden="true">›</span><a href="${esc(href)}">${esc(item.nome)}</a>`;
+  }).join('');
   const priced=Number(product.preco)>0;
   const actions=await loadCommercialActions([product.id]).catch(()=>new Map());
   const canBuy=actions.get(product.id)==='buy'&&priced&&product.is_sellable!==false&&!product.is_input;
   const consultUrl=`https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Gostaria de consultar disponibilidade e condições do produto ${product.nome}${product.sku?` (SKU ${product.sku})`:''}.`)}`;
   const purchase=canBuy?`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:10px">Comprar este produto</strong><div style="display:flex;align-items:end;gap:10px;flex-wrap:wrap"><label style="display:grid;gap:6px;font-weight:800;color:var(--pc-deep)">Quantidade<input id="productQty" type="number" min="1" step="1" value="1" inputmode="numeric" style="width:94px;min-height:46px;border:1px solid #d9d6e5;border-radius:11px;padding:0 12px;font:inherit"></label><button class="public-cta" type="button" id="addProductToCart" style="border:0;cursor:pointer;min-height:46px">Adicionar ao carrinho</button><a class="public-close" href="/carrinho/" style="display:inline-flex;align-items:center;min-height:46px;text-decoration:none">Ir para o carrinho</a></div><p id="cartFeedback" class="tx-meta" role="status" aria-live="polite" style="margin:10px 0 0"></p></div>`:`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:6px">Consulte disponibilidade</strong><p class="tx-meta" style="margin:0 0 12px">Este item não possui compra direta disponível no site neste momento.</p><a class="public-cta" href="${consultUrl}" target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp</a></div>`;
   root.innerHTML=`
-    <div class="public-breadcrumb"><a href="/">Início</a><span>›</span><a href="${backHref}">Produtos</a>${path.length?`<span>›</span><span>${esc(path.map(x=>x.nome).join(' › '))}</span>`:''}<span>›</span><strong>${esc(product.nome)}</strong></div>
+    <nav class="public-breadcrumb" aria-label="Caminho de navegação" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><a href="/">Início</a><span aria-hidden="true">›</span><a href="${backHref}">Produtos</a>${breadcrumbItems}<span aria-hidden="true">›</span><strong aria-current="page">${esc(product.metadata?.commercial_draft?.commercial_name||product.nome)}</strong></nav>
     <section class="public-editorial-hero" style="align-items:start">
       <div>${firstImage?.url?`<img id="cromaProductMainImage" src="${esc(firstImage.url)}" alt="${esc(firstImage.alt_text||product.nome)}" loading="eager" referrerpolicy="no-referrer">`:'<div class="public-card-media" style="border-radius:20px;min-height:320px"></div>'}${galleryHtml}</div>
       <div>
@@ -119,21 +125,21 @@ function renderShell(){
   root.querySelectorAll('[data-family-trigger]').forEach(b=>b.addEventListener('click',()=>toggleFamily(b.dataset.familyTrigger)));
   const search=root.querySelector('#productSearch');search.value=searchTerm;search.addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{searchTerm=search.value.trim().toLowerCase();page=1;renderProducts()},250)});
   const current=new URLSearchParams(location.search),familySlug=current.get('familia')||'',catSlug=current.get('categoria')||'';
-  if(catSlug){const cat=categories.find(c=>c.slug===catSlug);if(cat){selectedCategory=cat.id;const fam=families.find(f=>f.id===cat.family_id);if(fam)requestAnimationFrame(()=>openFamily(fam.slug,false))}}else if(familySlug)requestAnimationFrame(()=>openFamily(familySlug,false));
+  if(catSlug){const cat=categories.find(c=>c.slug===catSlug);if(cat){selectedCategory=cat.id;selectedFamily=cat.family_id;const fam=families.find(f=>f.id===cat.family_id);if(fam)requestAnimationFrame(()=>openFamily(fam.slug,false))}}else if(familySlug){const fam=families.find(f=>f.slug===familySlug);if(fam){selectedFamily=fam.id;requestAnimationFrame(()=>openFamily(familySlug,false))}}
   renderProducts();
 }
 
-function closeFamilies(update=true){root.querySelectorAll('[data-family-card]').forEach(card=>{card.classList.remove('is-expanded');card.querySelector('[data-family-trigger]')?.setAttribute('aria-expanded','false');const detail=card.querySelector('[data-family-detail]');if(detail)detail.innerHTML=''});if(update){selectedCategory='';setUrl('','');renderProducts()}}
+function closeFamilies(update=true){root.querySelectorAll('[data-family-card]').forEach(card=>{card.classList.remove('is-expanded');card.querySelector('[data-family-trigger]')?.setAttribute('aria-expanded','false');const detail=card.querySelector('[data-family-detail]');if(detail)detail.innerHTML=''});if(update){selectedCategory='';selectedFamily='';setUrl('','');renderProducts()}}
 function toggleFamily(slug){const card=root.querySelector(`[data-family-card="${CSS.escape(slug)}"]`);if(card?.classList.contains('is-expanded'))closeFamilies();else openFamily(slug,true)}
-function openFamily(slug,scroll=true){const f=families.find(x=>x.slug===slug),card=root.querySelector(`[data-family-card="${CSS.escape(slug)}"]`);if(!f||!card)return;closeFamilies(false);card.classList.add('is-expanded');card.querySelector('[data-family-trigger]')?.setAttribute('aria-expanded','true');const detail=card.querySelector('[data-family-detail]');detail.innerHTML=`<div class="public-family-detail-head"><div><h3>${esc(f.nome)}</h3><p>Escolha uma categoria ou subcategoria.</p></div><button class="public-close" type="button" data-family-close>Fechar</button></div>${hierarchyMarkup(f)}`;detail.querySelector('[data-family-close]')?.addEventListener('click',e=>{e.stopPropagation();closeFamilies()});detail.querySelectorAll('[data-category-id]').forEach(b=>b.addEventListener('click',()=>selectCategory(f,b.dataset.categoryId,b.dataset.categorySlug)));setUrl(f.slug,'');if(scroll)requestAnimationFrame(()=>card.scrollIntoView({behavior:'smooth',block:'nearest'}))}
-function selectCategory(f,id,slug){selectedCategory=id;page=1;searchTerm='';const search=root.querySelector('#productSearch');if(search)search.value='';setUrl(f.slug,slug);renderProducts();root.querySelector('#productResults')?.scrollIntoView({behavior:'smooth',block:'start'})}
+function openFamily(slug,scroll=true){const f=families.find(x=>x.slug===slug),card=root.querySelector(`[data-family-card="${CSS.escape(slug)}"]`);if(!f||!card)return;closeFamilies(false);selectedFamily=f.id;if(scroll){selectedCategory='';page=1;}card.classList.add('is-expanded');card.querySelector('[data-family-trigger]')?.setAttribute('aria-expanded','true');const detail=card.querySelector('[data-family-detail]');detail.innerHTML=`<div class="public-family-detail-head"><div><h3>${esc(f.nome)}</h3><p>Escolha uma categoria ou subcategoria.</p></div><button class="public-close" type="button" data-family-close>Fechar</button></div>${hierarchyMarkup(f)}`;detail.querySelector('[data-family-close]')?.addEventListener('click',e=>{e.stopPropagation();closeFamilies()});detail.querySelectorAll('[data-category-id]').forEach(b=>b.addEventListener('click',()=>selectCategory(f,b.dataset.categoryId,b.dataset.categorySlug)));if(scroll){setUrl(f.slug,'');renderProducts();requestAnimationFrame(()=>card.scrollIntoView({behavior:'smooth',block:'nearest'}))}}
+function selectCategory(f,id,slug){selectedFamily=f.id;selectedCategory=id;page=1;searchTerm='';const search=root.querySelector('#productSearch');if(search)search.value='';setUrl(f.slug,slug);renderProducts();root.querySelector('#productResults')?.scrollIntoView({behavior:'smooth',block:'start'})}
 
 async function ensureMedia(ids){const missing=ids.filter(id=>!mediaCache.has(id));if(!missing.length)return;const map=await loadPrimaryMedia(missing);for(const id of missing)mediaCache.set(id,map.get(id)||null)}
 
 async function renderProducts(){
   const box=root.querySelector('#productResults');if(!box)return;
   const seq=++renderSeq;
-  const categoryIds=selectedCategory?[...descendantIds(categories,selectedCategory)]:[];
+  const categoryIds=selectedCategory?[...descendantIds(categories,selectedCategory)]:selectedFamily?categories.filter(c=>c.family_id===selectedFamily).map(c=>c.id):[];
   box.innerHTML='<div class="public-empty">Carregando produtos...</div>';
   try{
     const result=await loadPublicCatalogPage('produto',{requirePublished:false,categoryIds,search:searchTerm,page,pageSize:PAGE_SIZE});
