@@ -119,7 +119,8 @@ function calc(){
  const qty=Math.max(1,Number($('#qty').value||1)),pps=Math.max(.01,Number($('#piecesPerSheet').value||1)),waste=Math.max(0,Number($('#waste').value||0));
  const baseSheets=qty/pps, sheetQty=Math.ceil(baseSheets*(1+waste/100));
  const paperUnit=techCost(paper),paperTotal=sheetQty*paperUnit;
- const inkMlPerSheet=Math.max(0,Number($('#inkMlPerSheet').value||0)),inkTotal=sheetQty*inkMlPerSheet*inkCostPerMl;
+ const sides=Number($('#printSides').value||1);
+ const inkMlPerSheet=Math.max(0,Number($('#inkMlPerSheet').value||0)),inkTotal=sheetQty*sides*inkMlPerSheet*inkCostPerMl;
  const finish=selectedFinish(),fm=finish?finishProfile(finish):null,finishUnit=finish?techCost(finish):0,finishUsage=Math.max(0,Number($('#finishUsage').value||0));
  const finishBase=fm?.family==='polaseal'?qty:sheetQty;
  const finishTotal=finish?finishBase*finishUsage*finishUnit:0;
@@ -140,6 +141,7 @@ function calc(){
 document.addEventListener('input',e=>{if(e.target.matches('input'))calc()});
 $('#paper').addEventListener('change',()=>{refreshInk();calc()});
 $('#finish').addEventListener('change',()=>{refreshFinish();calc()});
+$('#printSides').addEventListener('change',calc);
 boot().catch(e=>{$('#status').textContent='Erro ao carregar: '+e.message;console.error(e)});
 </script>
 </body></html>
