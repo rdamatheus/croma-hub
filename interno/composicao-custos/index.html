@@ -50,7 +50,7 @@
 </main>
 <div class="savebar"><span class="dirty clean" id="dirty">Nenhuma alteração pendente</span><button class="btn light" id="discard" type="button">Descartar alterações</button><button class="btn" id="save" type="button">Salvar composição e recalcular</button></div>
 <script type="module">
-import{supabase}from'/js/croma-supabase.js?v=20260821-2';import{protectInternalPage}from'/js/interno-auth.js?v=20261013-2';
+import{supabase}from'/js/croma-supabase.js?v=20260821-2';import{protectInternalPage}from'/js/interno-auth.js?v=20261014-1';
 const session=await protectInternalPage({roles:['owner','manager']});if(!session)throw new Error('auth');document.body.hidden=false;
 const $=s=>document.querySelector(s),brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 let products=[],costs=new Map(),product=null,original=[],working=[],dirty=false,settings={},adjustment={};
