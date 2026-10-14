@@ -151,7 +151,7 @@ function calc(){
  $('#paperCost').textContent='Custo técnico: '+brl(paperUnit)+'/folha';
  $('#paperTotal').textContent=brl(paperTotal);$('#inkTotal').textContent=brl(inkTotal);$('#finishTotal').textContent=brl(finishTotal);$('#laborTotal').textContent=brl(laborTotal);$('#otherTotal').textContent=brl(otherTotal);
  $('#totalCost').textContent=blocking?'Incompleto':brl(total,2);$('#suggestedPrice').textContent=blocking?'Custo pendente':brl(price,2);$('#unitPrice').textContent=blocking?'—':brl(price/qty,2);$('#margin').textContent=blocking?'—':margin.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
- $('#inkRate').textContent='Média das '+inks.length+' cores: '+brl(inkCostPerMl)+'/ml · custo nesta configuração '+brl(inkMlPerSheet*inkCostPerMl)+'/folha';
+ $('#inkRate').textContent='Média das '+inks.length+' cores: '+brl(inkCostPerMl)+'/ml · custo nesta configuração '+brl(inkMlPerSheet*sides*inkCostPerMl)+'/folha ('+sides+' face(s))';
 }
 document.addEventListener('input',e=>{if(e.target.matches('input'))calc()});
 $('#paper').addEventListener('change',()=>{refreshInk();calc()});
