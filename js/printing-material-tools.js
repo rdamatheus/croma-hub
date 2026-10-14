@@ -187,7 +187,7 @@ async function mountCompositionQuickPicker(){
 
     wrap.innerHTML=`
       <div class="quick-cost"><div><label>Papel</label><div class="quick-qty"><select id="quickPaper">${paperOptions}</select><input id="quickPaperQty" type="number" min="0.01" step="0.01" value="1" title="Folhas"></div><small>Informe quantas folhas serão consumidas.</small></div><button class="btn light" id="quickPaperAdd" type="button">+ Papel</button></div>
-      <div class="quick-cost"><div><label>Tinta</label><div class="quick-qty"><select id="quickInk">${inkOptions}</select><input id="quickInkQty" type="number" min="0.001" step="0.001" value="1" title="mL"></div><small>Custo por mL calculado pelo preço do frasco. Consumo por impressão ainda precisa ser calibrado.</small></div><button class="btn light" id="quickInkAdd" type="button">+ Tinta</button></div>
+      <div class="quick-cost"><div><label>Tinta</label><div class="quick-qty"><select id="quickInk">${inkOptions}</select><input id="quickInkQty" type="number" min="0.001" step="0.001" value="1" title="mL"></div><small>Custo por mL calculado pelo frasco. Perfil Croma L1800: A4 1,5 ml/folha e A3 3,0 ml/folha; aqui o lançamento continua por cor.</small></div><button class="btn light" id="quickInkAdd" type="button">+ Tinta</button></div>
       <div class="quick-cost"><div><label>Acabamento</label><div class="quick-qty"><select id="quickFinish">${finishOptions}</select><input id="quickFinishQty" type="number" min="0.001" step="0.001" value="1"></div><small id="quickFinishHint">Informe o consumo do acabamento.</small></div><button class="btn light" id="quickFinishAdd" type="button">+ Acabamento</button></div>
     `;
     tableWrap.parentElement.insertBefore(wrap,tableWrap);
