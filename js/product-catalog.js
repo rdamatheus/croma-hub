@@ -2,10 +2,13 @@ import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, lo
 
 import { loadCommercialActions } from './commercial-areas-data.js?v=20261001-perf';
 import { supabase } from './croma-supabase.js';
+import { setupDirectCart } from './direct-cart.js';
 
 const root=document.querySelector('#productCatalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const PAGE_SIZE=48;
+const directItems=new Map();
+setupDirectCart(root,directItems);
 const params=new URLSearchParams(location.search);
 let families=[],categories=[],categoryCounts=new Map(),page=1,selectedCategory='',selectedFamily='',searchTerm=(params.get('q')||'').trim().toLowerCase(),renderSeq=0,searchTimer=null;
 const selectedProductRef=(params.get('produto')||'').trim();
@@ -150,7 +153,11 @@ async function renderProducts(){
     await ensureMedia(shown.map(p=>p.id));
     if(seq!==renderSeq)return;
     const selectedPath=selectedCategory?categoryPath(categories,families,selectedCategory).map(x=>x.nome).join(' → '):'';
-    box.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 14px"><div><strong style="color:var(--pc-deep)">${total} produto(s)</strong>${selectedPath?`<div class="tx-meta">${esc(selectedPath)}</div>`:''}</div>${selectedCategory?'<button type="button" class="public-close" id="clearProductCategory">Limpar categoria</button>':''}</div>${shown.length?`<div class="public-card-grid">${shown.map(p=>{const m=mediaCache.get(p.id),path=categoryPath(categories,families,p.catalog_category_id).map(x=>x.nome);return `<a class="public-card" href="${productHref(p)}" aria-label="Ver ${esc(p.nome)}" style="display:block;text-decoration:none;color:inherit;cursor:pointer"><div class="public-card-media">${m?.url?`<img src="${esc(m.url)}" alt="${esc(m.alt_text||p.nome)}" loading="lazy" referrerpolicy="no-referrer">`:''}</div><div class="public-card-copy"><span class="public-eyebrow">${esc(path.slice(1).join(' › '))}</span><h3>${esc(p.nome)}</h3>${Number(p.preco)>0?`<p class="public-price">${esc(money(p.preco))}</p>`:''}<span class="public-family-action">Ver produto →</span></div></a>`}).join('')}</div>`:'<div class="public-empty">Nenhum produto encontrado.</div>'}${pages>1?`<div style="display:flex;justify-content:center;gap:10px;align-items:center;margin-top:24px"><button class="public-close" type="button" id="prevProductPage" ${page<=1?'disabled':''}>Anterior</button><span>Página ${page} de ${pages}</span><button class="public-close" type="button" id="nextProductPage" ${page>=pages?'disabled':''}>Próxima</button></div>`:''}`;
+    const actions=await loadCommercialActions(shown.map(p=>p.id)).catch(()=>new Map());
+    if(seq!==renderSeq)return;
+    directItems.clear();
+    for(const p of shown){if(actions.get(p.id)==='buy'&&Number(p.preco)>0)directItems.set(String(p.id),{...p,action:'buy'})}
+    box.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 14px"><div><strong style="color:var(--pc-deep)">${total} produto(s)</strong>${selectedPath?`<div class="tx-meta">${esc(selectedPath)}</div>`:''}</div>${selectedCategory?'<button type="button" class="public-close" id="clearProductCategory">Limpar categoria</button>':''}</div>${shown.length?`<div class="public-card-grid">${shown.map(p=>{const m=mediaCache.get(p.id),path=categoryPath(categories,families,p.catalog_category_id).map(x=>x.nome);return `<article class="public-card" style="display:block;text-decoration:none;color:inherit;overflow:hidden"><a href="${productHref(p)}" aria-label="Ver ${esc(p.nome)}" style="display:block;text-decoration:none;color:inherit"><div class="public-card-media">${m?.url?`<img src="${esc(m.url)}" alt="${esc(m.alt_text||p.nome)}" loading="lazy" referrerpolicy="no-referrer">`:''}</div><div class="public-card-copy"><span class="public-eyebrow">${esc(path.slice(1).join(' › '))}</span><h3>${esc(p.nome)}</h3>${Number(p.preco)>0?`<p class="public-price">${esc(money(p.preco))}</p>`:''}</div></a><div style="padding:0 16px 16px">${directItems.has(String(p.id))?`<button type="button" class="public-cta" data-direct-cart="${esc(p.id)}" style="width:100%;border:0;cursor:pointer">Comprar</button>`:`<a class="public-family-action" href="${productHref(p)}">Ver produto →</a>`}</div></article>`}).join('')}</div>`:'<div class="public-empty">Nenhum produto encontrado.</div>'}${pages>1?`<div style="display:flex;justify-content:center;gap:10px;align-items:center;margin-top:24px"><button class="public-close" type="button" id="prevProductPage" ${page<=1?'disabled':''}>Anterior</button><span>Página ${page} de ${pages}</span><button class="public-close" type="button" id="nextProductPage" ${page>=pages?'disabled':''}>Próxima</button></div>`:''}`;
     box.querySelector('#clearProductCategory')?.addEventListener('click',()=>{selectedCategory='';page=1;setUrl('','');renderProducts()});
     box.querySelector('#prevProductPage')?.addEventListener('click',()=>{if(page>1){page--;renderProducts();box.scrollIntoView({behavior:'smooth',block:'start'})}});
     box.querySelector('#nextProductPage')?.addEventListener('click',()=>{if(page<pages){page++;renderProducts();box.scrollIntoView({behavior:'smooth',block:'start'})}});
