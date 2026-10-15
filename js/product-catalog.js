@@ -3,6 +3,7 @@ import { loadPublicCatalogMeta, loadPublicCatalogPage, loadPublicCatalogItem, lo
 import { loadCommercialActions } from './commercial-areas-data.js?v=20261001-perf';
 import { supabase } from './croma-supabase.js';
 import { setupDirectCart } from './direct-cart.js';
+import { commercialCopy, commercialName } from './product-commercial-copy.js';
 
 const root=document.querySelector('#productCatalogRoot');
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -52,6 +53,8 @@ function familyCard(f){
 async function renderProductDetail(product){
   await ensureMedia([product.id]);
   const media=mediaCache.get(product.id),path=categoryPath(categories,families,product.catalog_category_id),backHref='/produtos/';
+  const copy=commercialCopy(product);
+  const displayName=copy.name;
   const {data:galleryRows,error:galleryError}=await supabase.from('product_media')
     .select('id,url,alt_text,is_primary,ordem')
     .eq('product_id',product.id).eq('kind','image').eq('ativo',true)
@@ -71,23 +74,36 @@ async function renderProductDetail(product){
   const priced=Number(product.preco)>0;
   const actions=await loadCommercialActions([product.id]).catch(()=>new Map());
   const canBuy=actions.get(product.id)==='buy'&&priced&&product.is_sellable!==false&&!product.is_input;
-  const consultUrl=`https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Gostaria de consultar disponibilidade e condições do produto ${product.nome}${product.sku?` (SKU ${product.sku})`:''}.`)}`;
+  const consultUrl=`https://wa.me/553230253588?text=${encodeURIComponent(`Olá! Gostaria de consultar disponibilidade e condições do produto ${displayName}.`)}`;
   const purchase=canBuy?`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:10px">Comprar este produto</strong><div style="display:flex;align-items:end;gap:10px;flex-wrap:wrap"><label style="display:grid;gap:6px;font-weight:800;color:var(--pc-deep)">Quantidade<input id="productQty" type="number" min="1" step="1" value="1" inputmode="numeric" style="width:94px;min-height:46px;border:1px solid #d9d6e5;border-radius:11px;padding:0 12px;font:inherit"></label><button class="public-cta" type="button" id="addProductToCart" style="border:0;cursor:pointer;min-height:46px">Adicionar ao carrinho</button><a class="public-close" href="/carrinho/" style="display:inline-flex;align-items:center;min-height:46px;text-decoration:none">Ir para o carrinho</a></div><p id="cartFeedback" class="tx-meta" role="status" aria-live="polite" style="margin:10px 0 0"></p></div>`:`<div style="margin-top:22px;padding:18px;border:1px solid #e7e4ef;border-radius:18px;background:#fff"><strong style="display:block;color:var(--pc-deep);margin-bottom:6px">Consulte disponibilidade</strong><p class="tx-meta" style="margin:0 0 12px">Este item não possui compra direta disponível no site neste momento.</p><a class="public-cta" href="${consultUrl}" target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp</a></div>`;
   root.innerHTML=`
-    <nav class="public-breadcrumb" aria-label="Caminho de navegação" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><a href="/">Início</a><span aria-hidden="true">›</span><a href="${backHref}">Produtos</a>${breadcrumbItems}<span aria-hidden="true">›</span><strong aria-current="page">${esc(product.metadata?.commercial_draft?.commercial_name||product.nome)}</strong></nav>
+    <nav class="public-breadcrumb" aria-label="Caminho de navegação" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><a href="/">Início</a><span aria-hidden="true">›</span><a href="${backHref}">Produtos</a>${breadcrumbItems}<span aria-hidden="true">›</span><strong aria-current="page">${esc(displayName)}</strong></nav>
     <section class="public-editorial-hero" style="align-items:start">
-      <div>${firstImage?.url?`<img id="cromaProductMainImage" src="${esc(firstImage.url)}" alt="${esc(firstImage.alt_text||product.nome)}" loading="eager" referrerpolicy="no-referrer">`:'<div class="public-card-media" style="border-radius:20px;min-height:320px"></div>'}${galleryHtml}</div>
+      <div class="croma-product-gallery"><div class="croma-product-main-media">${firstImage?.url?`<button type="button" id="cromaProductZoom" class="croma-product-zoom" aria-label="Ampliar foto do produto"><img id="cromaProductMainImage" src="${esc(firstImage.url)}" alt="${esc(firstImage.alt_text||displayName)}" loading="eager" referrerpolicy="no-referrer"><span class="croma-zoom-hint">Ampliar imagem ↗</span></button>`:'<div class="public-card-media" style="border-radius:20px;min-height:320px"></div>'}</div>${galleryHtml}</div>
       <div>
         <span class="public-eyebrow">${esc(path.slice(1).map(x=>x.nome).join(' › ')||'Produto Croma')}</span>
-        <h1 style="color:var(--pc-deep);font-size:clamp(2rem,4vw,3.8rem);line-height:1.02;margin:10px 0 14px">${esc(product.nome)}</h1>
-        ${product.sku?`<p class="tx-meta">SKU ${esc(product.sku)}</p>`:''}
+        <h1 style="color:var(--pc-deep);font-size:clamp(2rem,4vw,3.8rem);line-height:1.02;margin:10px 0 14px">${esc(displayName)}</h1>
+
         ${priced?`<p class="public-price" style="font-size:1.55rem!important;margin:16px 0!important">${esc(money(product.preco))}</p>`:''}
-        <p class="public-lead">${esc(product.short_description||product.descricao||'Consulte disponibilidade e condições deste produto com a Croma.')}</p>
+        ${copy.tagline?`<p class="croma-product-tagline">${esc(copy.tagline)}</p>`:''}
+        <p class="public-lead">${esc(copy.description||'Consulte disponibilidade e condições deste produto com a Croma.')}</p>
+        ${copy.highlights.length?`<section class="croma-product-highlights" aria-label="Destaques do produto"><h2>Destaques</h2><ul>${copy.highlights.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></section>`:''}
         <div class="tx-meta"><p><strong>Disponibilidade:</strong> o saldo será conferido antes de registrar o pedido.</p><p><strong>Recebimento:</strong> retirada na Croma ou entrega com frete a confirmar. Aguarde a confirmação de disponibilidade e prazo antes de se deslocar.</p></div>
         ${purchase}
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px"><a class="public-close" href="${backHref}" style="text-decoration:none">← Voltar aos produtos</a></div>
       </div>
-    </section>`;
+    </section>
+    ${firstImage?.url?`<dialog id="cromaProductLightbox" class="croma-product-lightbox" aria-label="Foto ampliada do produto"><button type="button" id="cromaLightboxClose" class="croma-lightbox-close" aria-label="Fechar foto ampliada">Fechar ×</button><img id="cromaLightboxImage" src="${esc(firstImage.url)}" alt="${esc(firstImage.alt_text||displayName)}"></dialog>`:''}`;
+  const lightbox=root.querySelector('#cromaProductLightbox');
+  root.querySelector('#cromaProductZoom')?.addEventListener('click',()=>{
+    if(!lightbox?.showModal)return;
+    const current=root.querySelector('#cromaProductMainImage');
+    const large=root.querySelector('#cromaLightboxImage');
+    if(current&&large){large.src=current.src;large.alt=current.alt}
+    lightbox.showModal();
+  });
+  root.querySelector('#cromaLightboxClose')?.addEventListener('click',()=>lightbox?.close());
+  lightbox?.addEventListener('click',event=>{if(event.target===lightbox)lightbox.close()});
   root.querySelectorAll('[data-gallery-index]').forEach(button=>button.addEventListener('click',()=>{
     const selected=gallery[Number(button.dataset.galleryIndex)];
     const main=root.querySelector('#cromaProductMainImage');
@@ -100,7 +116,7 @@ async function renderProductDetail(product){
       item.style.borderColor=active?'#30297f':'#ddd';
     });
   }));
-  document.title=`${product.nome} | Croma Papelaria & Presentes`;
+  document.title=`${displayName} | Croma Papelaria & Presentes`;
   const addButton=root.querySelector('#addProductToCart');
   if(addButton){
     addButton.addEventListener('click',async()=>{
@@ -157,7 +173,7 @@ async function renderProducts(){
     if(seq!==renderSeq)return;
     directItems.clear();
     for(const p of shown){if(actions.get(p.id)==='buy'&&Number(p.preco)>0)directItems.set(String(p.id),{...p,action:'buy'})}
-    box.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 14px"><div><strong style="color:var(--pc-deep)">${total} produto(s)</strong>${selectedPath?`<div class="tx-meta">${esc(selectedPath)}</div>`:''}</div>${selectedCategory?'<button type="button" class="public-close" id="clearProductCategory">Limpar categoria</button>':''}</div>${shown.length?`<div class="public-card-grid">${shown.map(p=>{const m=mediaCache.get(p.id),path=categoryPath(categories,families,p.catalog_category_id).map(x=>x.nome);return `<article class="public-card" style="display:block;text-decoration:none;color:inherit;overflow:hidden"><a href="${productHref(p)}" aria-label="Ver ${esc(p.nome)}" style="display:block;text-decoration:none;color:inherit"><div class="public-card-media">${m?.url?`<img src="${esc(m.url)}" alt="${esc(m.alt_text||p.nome)}" loading="lazy" referrerpolicy="no-referrer">`:''}</div><div class="public-card-copy"><span class="public-eyebrow">${esc(path.slice(1).join(' › '))}</span><h3>${esc(p.nome)}</h3>${Number(p.preco)>0?`<p class="public-price">${esc(money(p.preco))}</p>`:''}</div></a><div style="padding:0 16px 16px">${directItems.has(String(p.id))?`<button type="button" class="public-cta" data-direct-cart="${esc(p.id)}" style="width:100%;border:0;cursor:pointer">Comprar</button>`:`<a class="public-family-action" href="${productHref(p)}">Ver produto →</a>`}</div></article>`}).join('')}</div>`:'<div class="public-empty">Nenhum produto encontrado.</div>'}${pages>1?`<div style="display:flex;justify-content:center;gap:10px;align-items:center;margin-top:24px"><button class="public-close" type="button" id="prevProductPage" ${page<=1?'disabled':''}>Anterior</button><span>Página ${page} de ${pages}</span><button class="public-close" type="button" id="nextProductPage" ${page>=pages?'disabled':''}>Próxima</button></div>`:''}`;
+    box.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 14px"><div><strong style="color:var(--pc-deep)">${total} produto(s)</strong>${selectedPath?`<div class="tx-meta">${esc(selectedPath)}</div>`:''}</div>${selectedCategory?'<button type="button" class="public-close" id="clearProductCategory">Limpar categoria</button>':''}</div>${shown.length?`<div class="public-card-grid">${shown.map(p=>{const m=mediaCache.get(p.id),path=categoryPath(categories,families,p.catalog_category_id).map(x=>x.nome);return `<article class="public-card" style="display:block;text-decoration:none;color:inherit;overflow:hidden"><a href="${productHref(p)}" aria-label="Ver ${esc(p.nome)}" style="display:block;text-decoration:none;color:inherit"><div class="public-card-media">${m?.url?`<img src="${esc(m.url)}" alt="${esc(m.alt_text||p.nome)}" loading="lazy" referrerpolicy="no-referrer">`:''}</div><div class="public-card-copy"><span class="public-eyebrow">${esc(path.slice(1).join(' › '))}</span><h3>${esc(commercialName(p))}</h3>${Number(p.preco)>0?`<p class="public-price">${esc(money(p.preco))}</p>`:''}</div></a><div style="padding:0 16px 16px">${directItems.has(String(p.id))?`<button type="button" class="public-cta" data-direct-cart="${esc(p.id)}" style="width:100%;border:0;cursor:pointer">Comprar</button>`:`<a class="public-family-action" href="${productHref(p)}">Ver produto →</a>`}</div></article>`}).join('')}</div>`:'<div class="public-empty">Nenhum produto encontrado.</div>'}${pages>1?`<div style="display:flex;justify-content:center;gap:10px;align-items:center;margin-top:24px"><button class="public-close" type="button" id="prevProductPage" ${page<=1?'disabled':''}>Anterior</button><span>Página ${page} de ${pages}</span><button class="public-close" type="button" id="nextProductPage" ${page>=pages?'disabled':''}>Próxima</button></div>`:''}`;
     box.querySelector('#clearProductCategory')?.addEventListener('click',()=>{selectedCategory='';page=1;setUrl('','');renderProducts()});
     box.querySelector('#prevProductPage')?.addEventListener('click',()=>{if(page>1){page--;renderProducts();box.scrollIntoView({behavior:'smooth',block:'start'})}});
     box.querySelector('#nextProductPage')?.addEventListener('click',()=>{if(page<pages){page++;renderProducts();box.scrollIntoView({behavior:'smooth',block:'start'})}});
