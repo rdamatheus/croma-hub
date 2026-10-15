@@ -5,21 +5,58 @@
 <title>Demanda de cotações | Croma Hub</title>
 <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
 <link rel="stylesheet" href="/css/supplier-admin.css?v=20260912-1">
-<style>[hidden] { display: none !important; } #demandDetails .supplier-table td { vertical-align: top; overflow-wrap: anywhere; } #demandDetails .supplier-table td:nth-child(3) { min-width: 220px; }</style>
+<style>[hidden] { display: none !important; }
+.demand-toolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:16px 0 6px}
+.demand-toolbar .field{min-width:170px;flex:1}
+.demand-toolbar .field:first-child{flex:2;min-width:210px}
+.demand-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.demand-kpi{background:#fff;border:1px solid var(--croma-line);border-radius:16px;padding:16px}
+.demand-kpi small{display:block;color:var(--croma-muted);font-weight:800;font-size:.8rem}
+.demand-kpi strong{display:block;color:var(--croma-deep);font-size:1.65rem;margin-top:6px}
+.demand-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:720px){
+.demand-kpis{grid-template-columns:1fr 1fr}
+.demand-kpi:last-child{grid-column:1/-1}
+#demandRankTable{min-width:0}
+#demandRankTable thead{display:none}
+#demandRankTable,#demandRankTable tbody,#demandRankTable tr,#demandRankTable td{display:block;width:100%}
+#demandRankTable tbody{padding:8px}
+#demandRankTable tr{border:1px solid var(--croma-line);border-radius:14px;margin-bottom:10px;padding:8px;background:#fff}
+#demandRankTable td{display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;padding:6px 8px;text-align:right}
+#demandRankTable td:before{content:attr(data-label);font-weight:850;color:var(--croma-muted);font-size:.74rem;text-align:left}
+#demandRankTable td:first-child{display:block;text-align:left;font-weight:900;color:var(--croma-deep);font-size:1rem;padding-bottom:10px}
+#demandRankTable td:first-child:before{display:none}
+#demandRankTable td:last-child{justify-content:flex-end}
+#demandRankTable td:last-child:before{margin-right:auto}
+#demandRankTable td[colspan]{display:block;text-align:left}
+#demandRankTable td[colspan]:before{display:none}
+}
+ #demandDetails .supplier-table td { vertical-align: top; overflow-wrap: anywhere; } #demandDetails .supplier-table td:nth-child(3) { min-width: 220px; }</style>
 </head>
 <body>
 <header class="internal-header"><a href="/interno/fornecedores/">← Fornecedores</a><strong>Inteligência de demanda</strong></header>
-<main class="supplier-shell">
+<section id="demandAccess" class="supplier-shell"><div class="supplier-card"><h2 id="demandAccessTitle">Validando acesso…</h2><p id="demandAccessMessage" class="muted">Confirmando sua sessão de gestão.</p><button id="demandRetry" class="btn light" type="button" hidden>Tentar novamente</button></div></section>
+<main id="demandMain" class="supplier-shell" hidden>
   <div class="supplier-head">
-    <div><span class="internal-eyebrow">Croma Hub / Fornecedores / Fase 1</span><h1>Produtos mais procurados</h1>
-    <p>Ranking de famílias de produtos nas propostas comerciais dos últimos 90 dias. Conta cada proposta uma vez por família, mesmo quando existem várias opções de quantidade.</p></div>
+    <div><span class="internal-eyebrow">Croma Hub / Compras e fornecedores</span><h1>Produtos mais procurados</h1>
+    <p>Descubra quais produtos mais aparecem nas cotações para priorizar a conferência de fornecedores. Cada proposta conta uma vez por família, mesmo com diferentes quantidades.</p></div>
+    <nav class="demand-actions" aria-label="Acesso rápido"><a class="btn light" href="/interno/fornecedores/">Fornecedores</a><a class="btn light" href="/interno/fornecedores/catalogo/">Catálogos</a><a class="btn light" href="/interno/propostas/">Propostas</a></nav>
+  </div>
+  <div class="demand-kpis" aria-label="Resumo da demanda">
+    <div class="demand-kpi"><small>Famílias monitoradas</small><strong id="demandFamilies">—</strong></div>
+    <div class="demand-kpi"><small>Pesquisa prioritária</small><strong id="demandHigh">—</strong></div>
+    <div class="demand-kpi"><small>Cotações por família, últimos 30 dias</small><strong id="demandQuotes">—</strong></div>
   </div>
   <section class="supplier-card">
-    <div class="table-head"><div><h2>Prioridade de pesquisa</h2><p class="muted">Alta: 5+ propostas em 30 dias · Média: 2–4 · Baixa: 0–1. Intervalos são sugestões, não agendamentos.</p></div>
+    <div class="table-head"><div><h2>Prioridade de pesquisa</h2><p class="muted">Alta: 5+ propostas em 30 dias · Média: 2–4 · Baixa: 0–1. Intervalos são sugestões de revisão, não pesquisas automáticas.</p></div>
       <button type="button" class="btn light" id="refreshDemand">Atualizar ranking</button></div>
-    <p id="demandStatus" class="status" role="status">Validando acesso…</p>
+    <div class="demand-toolbar">
+      <div class="field"><label for="demandSearch">Buscar produto ou família</label><input id="demandSearch" type="search" placeholder="Ex.: adesivos, banners, envelopes" autocomplete="off"></div>
+      <div class="field"><label for="demandPriority">Prioridade</label><select id="demandPriority"><option value="">Todas</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option><option value="revisar">Revisar</option></select></div>
+    </div>
+    <p id="demandStatus" class="status" role="status">Carregando ranking…</p>
     <div class="supplier-table-wrap">
-      <table class="supplier-table">
+      <table class="supplier-table" id="demandRankTable">
         <thead><tr><th>Família de produtos</th><th>7 dias</th><th>30 dias</th><th>90 dias</th><th>Última cotação</th><th>Prioridade</th><th>Revisar a cada</th><th>Origem</th></tr></thead>
         <tbody id="demandRows"><tr><td colspan="8">Carregando…</td></tr></tbody>
       </table>
@@ -36,6 +73,6 @@
   </section>
   <p class="muted" style="margin-top:16px">Fonte: propostas do Croma Hub e Bling (data original quando disponível). Famílias classificadas por descrição; “Outros” requer revisão manual. Serviços de aplicação e arte não contam como demanda de compra. Abra “Ver propostas” para conferir a origem dos números. Sem alteração de preços, fornecedores ou pedidos.</p>
 </main>
-<script type="module" src="/js/interno-fornecedores-demanda.js?v=20261014-2"></script>
+<script type="module" src="/js/interno-fornecedores-demanda.js?v=20261014-3"></script>
 </body>
 </html>
