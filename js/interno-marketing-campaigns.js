@@ -5,12 +5,14 @@ import {loadModuleState,saveModuleState} from './interno-store.js';
 const session=await protectInternalPage();
 if(!session)throw new Error('Acesso restrito');
 const KEY='marketing_campaigns_v1';
+const S100_CANVA='https://www.canva.com/folder/FAHYCv12A1w';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const safeUrl=value=>{try{const u=new URL(value);return ['https:','http:'].includes(u.protocol)?u.href:''}catch{return ''}};
 const link=(url,label)=>safeUrl(url)?`<a href="${esc(safeUrl(url))}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>`:'';
 const statuses={rascunho:'Rascunho',aprovacao:'Em aprovação',pronto:'Pronto para postar',publicado:'Publicado'};
 let campaigns=[],currentCampaign=null,currentAsset=null,productMatches=[],busy=false;
+const canvaDefault=S100_CANVA;
 function message(text,bad=false){$('campaignStatus').textContent=text;$('campaignStatus').style.color=bad?'#a43b3b':'#537b23'}
 function statusLabel(v){return statuses[v]||statuses.rascunho}
 function findCampaign(id){return campaigns.find(c=>c.id===id)}
@@ -61,4 +63,4 @@ $('campaignAssets').addEventListener('click',async e=>{
   if(b.dataset.asset){editAsset(a);return}
   try{await navigator.clipboard.writeText(a.caption||'');message('Legenda copiada.')}catch{message('Não foi possível copiar a legenda automaticamente.',true)}
 });
-try{const loaded=await loadModuleState(KEY,[]);campaigns=Array.isArray(loaded)?loaded:[];render()}catch(error){message('Não foi possível carregar campanhas: '+error.message,true)}
+try{const loaded=await loadModuleState(KEY,[]);campaigns=Array.isArray(loaded)?loaded:[];if(campaigns.length===1&&campaigns[0].id==='s100-caixa-rgb-20261014'&&!campaigns[0].canva_url){campaigns[0].canva_url=canvaDefault}render()}catch(error){message('Não foi possível carregar campanhas: '+error.message,true)}
