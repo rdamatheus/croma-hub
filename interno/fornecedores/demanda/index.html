@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demanda de cotações | Croma Hub</title>
+<link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+<link rel="stylesheet" href="/css/supplier-admin.css?v=20260912-1">
+</head>
+<body>
+<header class="internal-header"><a href="/interno/fornecedores/">← Fornecedores</a><strong>Inteligência de demanda</strong></header>
+<main class="supplier-shell">
+  <div class="supplier-head">
+    <div><span class="internal-eyebrow">Croma Hub / Fornecedores / Fase 1</span><h1>Produtos mais procurados</h1>
+    <p>Ranking de famílias de produtos nas propostas comerciais dos últimos 90 dias. Conta cada proposta uma vez por família, mesmo quando existem várias opções de quantidade.</p></div>
+  </div>
+  <section class="supplier-card">
+    <div class="table-head"><div><h2>Prioridade de pesquisa</h2><p class="muted">Alta: 5+ propostas em 30 dias · Média: 2–4 · Baixa: 0–1. Intervalos são sugestões, não agendamentos.</p></div>
+      <button type="button" class="btn light" id="refreshDemand">Atualizar ranking</button></div>
+    <p id="demandStatus" class="status" role="status">Validando acesso…</p>
+    <div class="supplier-table-wrap">
+      <table class="supplier-table">
+        <thead><tr><th>Família de produtos</th><th>7 dias</th><th>30 dias</th><th>90 dias</th><th>Última cotação</th><th>Prioridade</th><th>Revisar a cada</th></tr></thead>
+        <tbody id="demandRows"><tr><td colspan="7">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  <p class="muted" style="margin-top:16px">Fonte: propostas do Croma Hub e Bling (data original quando disponível). Famílias classificadas por descrição; “Outros” requer revisão manual. Sem alteração de preços, fornecedores ou pedidos.</p>
+</main>
+<script type="module" src="/js/interno-fornecedores-demanda.js?v=20261014-1"></script>
+</body>
+</html>
