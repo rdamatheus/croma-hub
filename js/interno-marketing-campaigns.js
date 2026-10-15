@@ -2,7 +2,7 @@ import {supabase} from './croma-supabase.js';
 import {protectInternalPage} from './interno-auth.js';
 import {loadModuleState,saveModuleState} from './interno-store.js';
 
-const session=await protectInternalPage({roles:['owner','manager']});
+const session=await protectInternalPage();
 if(!session)throw new Error('Acesso restrito');
 const KEY='marketing_campaigns_v1';
 const $=id=>document.getElementById(id);
