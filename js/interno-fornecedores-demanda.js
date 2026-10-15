@@ -6,12 +6,55 @@ const allowed = new Set(['owner', 'manager']);
 const fmtDate = value => value ? new Date(value + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
 const priorityLabel = { alta: 'Alta', media: 'Média', baixa: 'Baixa', revisar: 'Revisar classificação' };
 let detailRequest = 0;
+let allRows = [];
+const columns = ['Família','7 dias','30 dias','90 dias','Última cotação','Prioridade','Revisar a cada'];
+function showAccess(title,message,retry=false){
+  el('demandAccessTitle').textContent=title;
+  el('demandAccessMessage').textContent=message;
+  el('demandRetry').hidden=!retry;
+}
 
 function cell(row, value) {
   const td = document.createElement('td');
   td.textContent = String(value ?? '—');
   row.appendChild(td);
   return td;
+}
+
+function renderRanking() {
+  const query = el('demandSearch').value.trim().toLocaleLowerCase('pt-BR');
+  const priority = el('demandPriority').value;
+  const data = allRows.filter(item => (!priority || item.research_priority === priority) &&
+    (!query || item.product_family.toLocaleLowerCase('pt-BR').includes(query)));
+  const tbody = el('demandRows');
+  tbody.replaceChildren();
+  for (const item of data) {
+    const tr = document.createElement('tr');
+    const values = [
+      item.product_family, item.quotes_7d, item.quotes_30d, item.quotes_90d,
+      fmtDate(item.last_quote_date), priorityLabel[item.research_priority] || item.research_priority,
+      item.suggested_interval_days ? item.suggested_interval_days + ' dias' : 'Manual'
+    ];
+    values.forEach((value,index) => cell(tr,value).setAttribute('data-label',columns[index]));
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'btn light';
+    action.textContent = 'Ver propostas';
+    action.setAttribute('aria-label', 'Ver propostas de ' + item.product_family);
+    action.addEventListener('click', () => showDetails(item.product_family));
+    const td = document.createElement('td');
+    td.setAttribute('data-label','Origem');
+    td.appendChild(action);
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+  if (!data.length) {
+    const tr = document.createElement('tr');
+    const td = cell(tr, allRows.length ? 'Nenhuma família corresponde aos filtros.' : 'Não há propostas classificáveis nos últimos 90 dias.');
+    td.colSpan = 8;
+    tbody.appendChild(tr);
+  }
+  el('demandStatus').textContent = data.length + ' de ' + allRows.length + ' famílias exibidas.';
 }
 
 async function load() {
@@ -21,34 +64,11 @@ async function load() {
     .order('quotes_30d', { ascending: false })
     .order('quotes_90d', { ascending: false });
   if (error) throw error;
-  const tbody = el('demandRows');
-  tbody.replaceChildren();
-  for (const item of data || []) {
-    const tr = document.createElement('tr');
-    cell(tr, item.product_family);
-    cell(tr, item.quotes_7d);
-    cell(tr, item.quotes_30d);
-    cell(tr, item.quotes_90d);
-    cell(tr, fmtDate(item.last_quote_date));
-    cell(tr, priorityLabel[item.research_priority] || item.research_priority);
-    cell(tr, item.suggested_interval_days ? item.suggested_interval_days + ' dias' : 'Manual');
-    const action = document.createElement('button');
-    action.type = 'button';
-    action.className = 'btn light';
-    action.textContent = 'Ver propostas';
-    action.addEventListener('click', () => showDetails(item.product_family));
-    const td = document.createElement('td');
-    td.appendChild(action);
-    tr.appendChild(td);
-    tbody.appendChild(tr);
-  }
-  if (!data?.length) {
-    const tr = document.createElement('tr');
-    const td = cell(tr, 'Não há propostas classificáveis nos últimos 90 dias.');
-    td.colSpan = 8;
-    tbody.appendChild(tr);
-  }
-  el('demandStatus').textContent = (data?.length || 0) + ' famílias encontradas. Ranking atualizado.';
+  allRows = data || [];
+  el('demandFamilies').textContent = String(allRows.length);
+  el('demandHigh').textContent = String(allRows.filter(item => item.research_priority === 'alta').length);
+  el('demandQuotes').textContent = String(allRows.reduce((total,item)=>total + Number(item.quotes_30d || 0),0));
+  renderRanking();
 }
 
 async function showDetails(family) {
@@ -93,26 +113,35 @@ async function showDetails(family) {
 }
 
 async function init() {
+  showAccess('Validando acesso…','Confirmando sua sessão de gestão.');
   try {
-    const session = await getStaffSession();
+    const session = await Promise.race([
+      getStaffSession(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Tempo limite da sessão.')),10000))
+    ]);
     if (!session?.user) {
       location.replace('/interno/?next=' + encodeURIComponent(location.pathname));
       return;
     }
     if (!allowed.has(session.profile?.role)) {
-      el('demandStatus').textContent = 'Acesso restrito à gestão.';
-      el('refreshDemand').disabled = true;
-      el('showExcluded').disabled = true;
-      el('demandRows').replaceChildren();
+      showAccess('Acesso restrito','Esta funcionalidade está disponível para Proprietário e Gerência.');
       return;
     }
+    el('demandAccess').hidden = true;
+    el('demandMain').hidden = false;
     await load();
   } catch (error) {
-    console.error('Erro ao carregar ranking de demanda:', error);
-    el('demandStatus').textContent = 'Não foi possível carregar o ranking. Tente novamente.';
+    console.error('Erro na inteligência de fornecedores:', error);
+    if (el('demandMain').hidden) {
+      showAccess('Não foi possível validar o acesso','A sessão não foi confirmada. Tente novamente.',true);
+    } else {
+      el('demandStatus').textContent = 'Não foi possível carregar o ranking. Tente novamente.';
+    }
   }
 }
-
+el('demandRetry').addEventListener('click',init);
+el('demandSearch').addEventListener('input',renderRanking);
+el('demandPriority').addEventListener('change',renderRanking);
 el('refreshDemand').addEventListener('click', () => load().catch(error => {
   console.error(error);
   el('demandStatus').textContent = 'Erro ao atualizar. Tente novamente.';
