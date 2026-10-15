@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Comparador de adesivos | Croma Hub</title>
+<link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+<link rel="stylesheet" href="/css/supplier-admin.css?v=20260912-1">
+<style>
+[hidden]{display:none!important}
+.compare-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.compare-grid .field{min-width:0}
+.compare-note{padding:12px 14px;border-radius:12px;background:#fff8e9;border:1px solid #e4d3a5;color:#624915;margin:14px 0}
+.compare-actions{display:flex;gap:8px;flex-wrap:wrap}
+.compare-table{min-width:870px}
+.compare-table td{vertical-align:top;overflow-wrap:anywhere}
+.compare-table small{display:block;color:var(--croma-muted);margin-top:4px}
+.compare-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.compare-summary article{padding:14px;border:1px solid var(--croma-line);border-radius:12px;background:white}
+.compare-summary strong{display:block;margin-bottom:8px}
+.compare-summary p{margin:5px 0}
+@media(max-width:760px){.compare-grid{grid-template-columns:1fr 1fr}.compare-grid .wide{grid-column:1/-1}.compare-table{min-width:740px}}
+@media(max-width:420px){.compare-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="internal-header"><a href="/interno/fornecedores/demanda/">← Inteligência de fornecedores</a><strong>Comparador de adesivos</strong></header>
+<section class="supplier-shell" id="compareAccess"><div class="supplier-card"><h2 id="compareAccessTitle">Validando acesso…</h2><p id="compareAccessMessage" class="muted">Confirmando sua sessão.</p><button class="btn light" type="button" id="compareRetry" hidden>Tentar novamente</button></div></section>
+<main class="supplier-shell" id="compareMain" hidden>
+  <div class="supplier-head">
+    <div><span class="internal-eyebrow">Croma Hub / Inteligência de fornecedores / Comparação</span><h1>Comparador de adesivos e etiquetas</h1><p>Consulte opções da Zap Gráfica com base no catálogo importado. Nenhuma consulta realiza pedidos ou altera preços de venda.</p></div>
+    <nav class="compare-actions"><a class="btn light" href="/interno/fornecedores/demanda/">Ver demanda</a><a class="btn light" href="/interno/fornecedores/catalogo/?supplier=3fee83e7-8b01-46cc-8b00-01f9e9268e3e">Catálogo Zap</a></nav>
+  </div>
+  <div class="compare-note"><strong>Preços históricos, não cotações atuais.</strong> Confirme especificações, grade, frete e prazo no fornecedor antes de comprar. O tamanho de impressão informado no catálogo pode não ser o tamanho final do adesivo. Frete padrão é estimativa, não valor confirmado.</div>
+  <section class="supplier-card">
+    <h2>Pesquisar opções</h2>
+    <div class="compare-grid">
+      <div class="field wide"><label for="compareQuote">Partir de uma cotação existente (opcional)</label><select id="compareQuote"><option value="">Pesquisa manual</option></select></div>
+      <div class="field wide"><label for="compareSearch">Material, nome ou SKU</label><input id="compareSearch" type="search" placeholder="Ex.: BOPP, vinil, papel, ADPC1" autocomplete="off"></div>
+      <div class="field"><label for="compareMaterial">Material</label><select id="compareMaterial"><option value="">Todos</option><option value="bopp">BOPP</option><option value="vinil">Vinil</option><option value="papel">Papel adesivo</option><option value="outros">Outros</option></select></div>
+      <div class="field"><label for="compareQuantity">Quantidade exata da grade</label><input id="compareQuantity" type="number" min="1" step="1" placeholder="Ex.: 1000"></div>
+      <div class="field"><label for="compareFreight">Frete estimado (R$ por pedido)</label><input id="compareFreight" type="number" min="0" step="0.01" value="18.00"></div>
+      <div class="field"><label for="compareSort">Ordenar por</label><select id="compareSort"><option value="price">Custo total crescente</option><option value="unit">Custo por unidade crescente</option><option value="time">Prazo de produção</option><option value="sku">SKU</option></select></div>
+    </div>
+    <div class="compare-actions"><button class="btn" type="button" id="compareApply">Pesquisar</button><button class="btn light" type="button" id="compareClear">Limpar filtros</button></div>
+    <p id="compareQuoteContext" class="muted"></p><p class="status" id="compareStatus" role="status">Carregando catálogo…</p>
+  </section>
+  <section class="supplier-card" style="margin-top:16px">
+    <div class="table-head"><div><h2>Opções encontradas</h2><p class="muted">A seleção é manual. Itens com nomes parecidos não são automaticamente considerados equivalentes.</p></div><div id="compareCount" class="muted"></div></div>
+    <div class="supplier-table-wrap"><table class="supplier-table compare-table"><thead><tr><th>Selecionar</th><th>SKU e descrição</th><th>Grade</th><th>Custo do lote</th><th>Custo por un.</th><th>Frete estimado</th><th>Total estimado</th><th>Produção</th><th>Fonte</th></tr></thead><tbody id="compareRows"><tr><td colspan="9">Carregando…</td></tr></tbody></table></div>
+    <div class="supplier-pagination"><span id="comparePageInfo" class="muted"></span><div class="compare-actions"><button class="btn light" id="comparePrev" type="button">Anterior</button><button class="btn light" id="compareNext" type="button">Próxima</button></div></div>
+  </section>
+  <section class="supplier-card" style="margin-top:16px" aria-live="polite">
+    <div class="table-head"><div><h2>Comparação selecionada</h2><p class="muted">Selecione até três SKUs. A comparação é preliminar e exige conferência técnica.</p></div><button class="btn light" id="compareResetSelection" type="button">Limpar seleção</button></div>
+    <p id="compareCompatibility" class="status">Nenhum SKU selecionado.</p><div id="compareSelected" class="compare-summary"></div>
+  </section>
+  <p class="muted" style="margin:16px 0">Fonte: catálogo importado da Zap no Croma Hub e propostas registradas. Sem API externa, atualização automática de preços, comparação entre fornecedores ou alterações de cadastros.</p>
+</main>
+<script type="module" src="/js/interno-fornecedores-comparador-adesivos.js?v=20261014-1"></script>
+</body>
+</html>
