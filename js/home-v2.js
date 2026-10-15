@@ -1,3 +1,4 @@
+import { setupDirectCart } from './direct-cart.js';
 import { loadCommercialAreas, loadCommercialArea } from './commercial-areas-data.js?v=20261001-perf';
 import { supabase } from './croma-supabase.js';
 
@@ -128,6 +129,8 @@ function renderTabs(){
   root.innerHTML=areaData.map(area=>`<button type="button" class="${area.slug===activeAreaSlug?'active':''}" data-area-tab="${esc(area.slug)}">${esc(area.name)}</button>`).join('');
   root.querySelectorAll('[data-area-tab]').forEach(button=>button.addEventListener('click',()=>{activeAreaSlug=button.dataset.areaTab;renderTabs();renderHighlights()}));
 }
+const directItems=new Map();
+setupDirectCart(document.querySelector('#home2ProductGrid'),directItems);
 function renderHighlights(){
   const root=document.querySelector('#home2ProductGrid');
   if(!root)return;
@@ -135,9 +138,13 @@ function renderHighlights(){
   if(!area){root.innerHTML='<div class="home2-empty">Os destaques estão sendo organizados.</div>';return}
   const categoryById=new Map(area.categories.map(c=>[c.id,c]));
   const rows=highlights(area);
+  directItems.clear();
   root.innerHTML=rows.length?rows.map(item=>{
     const media=area.media.get(item.id),category=categoryById.get(item.catalog_category_id),action=area.actions.get(item.id)||'quote',href=itemHref(item,action),external=action==='quote'?' target="_blank" rel="noopener noreferrer"':'';
-    return `<article class="home2-product"><div class="home2-product-media">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</div><div class="home2-product-copy"><small>${esc(category?.nome||area.name)}</small><h3>${esc(item.nome)}</h3><div class="home2-product-price">${esc(price(item,action))}</div><a class="home2-product-action ${actionClass(action)}" href="${esc(href)}"${external}>${esc(actionLabel(action))}</a></div></article>`
+    const detail=`/produtos/?produto=${encodeURIComponent(item.slug||item.id)}`;
+    if(action==='buy')directItems.set(String(item.id),{...item,action});
+    const button=action==='buy'?`<button type="button" class="home2-product-action" data-direct-cart="${esc(item.id)}">Comprar</button>`:`<a class="home2-product-action ${actionClass(action)}" href="${esc(href)}"${external}>${esc(actionLabel(action))}</a>`;
+    return `<article class="home2-product"><a class="home2-product-media" href="${esc(detail)}" aria-label="Ver ${esc(item.nome)}">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</a><div class="home2-product-copy"><small>${esc(category?.nome||area.name)}</small><h3><a href="${esc(detail)}">${esc(item.nome)}</a></h3><div class="home2-product-price">${esc(price(item,action))}</div>${button}</div></article>`
   }).join(''):'<div class="home2-empty">Os destaques desta área serão adicionados em breve.</div>';
 }
 
