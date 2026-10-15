@@ -19,13 +19,22 @@
     <p id="demandStatus" class="status" role="status">Validando acesso…</p>
     <div class="supplier-table-wrap">
       <table class="supplier-table">
-        <thead><tr><th>Família de produtos</th><th>7 dias</th><th>30 dias</th><th>90 dias</th><th>Última cotação</th><th>Prioridade</th><th>Revisar a cada</th></tr></thead>
-        <tbody id="demandRows"><tr><td colspan="7">Carregando…</td></tr></tbody>
+        <thead><tr><th>Família de produtos</th><th>7 dias</th><th>30 dias</th><th>90 dias</th><th>Última cotação</th><th>Prioridade</th><th>Revisar a cada</th><th>Origem</th></tr></thead>
+        <tbody id="demandRows"><tr><td colspan="8">Carregando…</td></tr></tbody>
       </table>
     </div>
+    <div style="margin-top:12px"><button type="button" class="btn light" id="showExcluded">Ver serviços excluídos da pesquisa</button></div>
   </section>
-  <p class="muted" style="margin-top:16px">Fonte: propostas do Croma Hub e Bling (data original quando disponível). Famílias classificadas por descrição; “Outros” requer revisão manual. Sem alteração de preços, fornecedores ou pedidos.</p>
+  <section class="supplier-card" id="demandDetails" hidden aria-live="polite" style="margin-top:16px">
+    <div class="table-head"><div><h2 id="detailsTitle">Origem das cotações</h2><p id="detailsSummary" class="muted"></p></div><button type="button" class="btn light" id="closeDetails">Fechar</button></div>
+    <p id="detailsStatus" role="status"></p>
+    <div class="supplier-table-wrap"><table class="supplier-table">
+      <thead><tr><th>Proposta</th><th>Data</th><th>Descrição dos itens</th><th>Opções</th></tr></thead>
+      <tbody id="detailsRows"></tbody>
+    </table></div>
+  </section>
+  <p class="muted" style="margin-top:16px">Fonte: propostas do Croma Hub e Bling (data original quando disponível). Famílias classificadas por descrição; “Outros” requer revisão manual. Serviços de aplicação e arte não contam como demanda de compra. Abra “Ver propostas” para conferir a origem dos números. Sem alteração de preços, fornecedores ou pedidos.</p>
 </main>
-<script type="module" src="/js/interno-fornecedores-demanda.js?v=20261014-1"></script>
+<script type="module" src="/js/interno-fornecedores-demanda.js?v=20261014-2"></script>
 </body>
 </html>
