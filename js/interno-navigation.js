@@ -49,6 +49,7 @@ export const INTERNAL_GROUPS=[
     {key:'produtos',label:'Produtos',href:'/interno/produtos/',description:'Cadastro mestre único de produtos e serviços.',icon:ICONS.produtos,roles:MANAGEMENT_ROLES},
     {key:'insumos',label:'Insumos',href:'/interno/insumos/',description:'Produtos habilitados para uso em composições.',icon:ICONS.insumos,roles:MANAGEMENT_ROLES},
     {key:'fornecedores',label:'Fornecedores',href:'/interno/fornecedores/',description:'Cadastro e relacionamento com fornecedores.',icon:ICONS.fornecedores,roles:MANAGEMENT_ROLES},
+    {key:'inteligencia-fornecedores',label:'Inteligência de fornecedores',href:'/interno/fornecedores/demanda/',description:'Demanda das cotações, prioridades de pesquisa e rastreabilidade das propostas.',icon:ICONS.evolucao,roles:MANAGEMENT_ROLES},
     {key:'catalogos-fornecedores',label:'Catálogos de fornecedores',href:'/interno/fornecedores/catalogo/',description:'Importação, conferência e vínculo de catálogos de fornecedores.',icon:ICONS.catalogoFornecedor,roles:MANAGEMENT_ROLES},
     {key:'categorias',label:'Categorias',href:'/interno/categorias/',description:'Famílias, categorias e classificação do catálogo.',icon:ICONS.categorias,roles:MANAGEMENT_ROLES},
     {key:'segmentos',label:'Segmentos',href:'/interno/segmentos/',description:'Segmentação comercial e organização por público.',icon:ICONS.segmentos,roles:MANAGEMENT_ROLES},
