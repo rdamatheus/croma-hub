@@ -1,4 +1,5 @@
 import { searchCommercialCatalog } from './commercial-areas-data.js?v=20261001-perf';
+import { setupDirectCart } from './direct-cart.js';
 
 const root=document.querySelector('#searchResults');
 const form=document.querySelector('#commercialSearchForm');
@@ -23,6 +24,8 @@ function hrefFor(item,action){
 }
 
 let runId=0;
+const directItems=new Map();
+setupDirectCart(root,directItems);
 async function run(term){
   const requestId=++runId;
   const q=String(term||'').trim();
@@ -36,9 +39,13 @@ async function run(term){
     const count=data.items.length;
     status.textContent=count?`${count} resultado${count===1?'':'s'} para “${data.query}”.`:`Nenhum resultado para “${data.query}”.`;
     if(!count){root.innerHTML='<div class="search-empty">Não encontrei um item com esse termo. Tente uma palavra mais ampla ou solicite um orçamento para um projeto personalizado.</div>';return}
+    directItems.clear();
     root.innerHTML=`<div class="search-grid">${data.items.map(item=>{
       const category=categoryById.get(item.catalog_category_id),family=category?familyById.get(category.family_id):null,action=data.actions.get(item.id)||'quote',media=data.media.get(item.id),href=hrefFor(item,action),external=action==='quote'?' target="_blank" rel="noopener noreferrer"':'';
-      return `<article class="search-card"><div class="search-media">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</div><div class="search-copy"><small>${esc(category?.nome||family?.nome||'Croma')}</small><h2>${esc(item.nome)}</h2><div class="search-price">${esc(price(item,action))}</div><a class="search-action ${cls(action)}" href="${esc(href)}"${external}>${esc(label(action))}</a></div></article>`
+      const detail=`/produtos/?produto=${encodeURIComponent(item.slug||item.id)}`;
+      if(action==='buy')directItems.set(String(item.id),{...item,action});
+      const button=action==='buy'?`<button type="button" class="search-action" data-direct-cart="${esc(item.id)}">Comprar</button>`:`<a class="search-action ${cls(action)}" href="${esc(href)}"${external}>${esc(label(action))}</a>`;
+      return `<article class="search-card"><a class="search-media" href="${esc(detail)}" aria-label="Ver ${esc(item.nome)}">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</a><div class="search-copy"><small>${esc(category?.nome||family?.nome||'Croma')}</small><h2><a href="${esc(detail)}">${esc(item.nome)}</a></h2><div class="search-price">${esc(price(item,action))}</div>${button}</div></article>`
     }).join('')}</div>`;
   }catch(error){if(requestId!==runId)return;console.error('commercial_search_error',error);status.textContent='Não foi possível concluir a busca agora.';root.innerHTML='<div class="search-empty"><button type="button" id="retrySearch">Tentar novamente</button> <a href="/comunicacao-marketing/">Explorar produtos e serviços</a></div>';root.querySelector('#retrySearch').onclick=()=>run(q)}
 }

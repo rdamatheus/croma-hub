@@ -337,7 +337,7 @@
       const style = document.createElement('style');
       style.dataset.cromaCartStyle = '1';
       style.textContent = `
-        .croma-cart-fab{position:fixed;right:18px;bottom:18px;z-index:9998;background:#30297F;color:#fff;border:0;border-radius:999px;padding:12px 16px;font-weight:900;box-shadow:0 12px 32px #0003;cursor:pointer}
+        .croma-cart-fab{position:fixed;right:18px;bottom:18px;z-index:9998;background:#fff;color:#30297F;border:2px solid #ded9f0;border-radius:20px;padding:12px 17px;font-weight:900;box-shadow:0 12px 36px #211c5c33;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:58px}.croma-cart-fab [data-cart-count]{background:#30297F;color:#fff;border-radius:999px;min-width:30px;padding:5px 8px;text-align:center}.croma-cart-fab:focus-visible{outline:3px solid #f04aa0;outline-offset:3px}@media(max-width:620px){.croma-cart-fab{right:14px;bottom:calc(14px + env(safe-area-inset-bottom));padding:11px 14px}}
         .croma-cart-panel{position:fixed;inset:0 0 0 auto;width:min(420px,94vw);z-index:9999;background:#fff;box-shadow:-16px 0 50px #0003;padding:20px;overflow:auto;display:none;color:#29263b}
         .croma-cart-panel.open{display:block}
         .croma-cart-item{border:1px solid #e7e5ee;border-radius:14px;padding:12px;margin:10px 0}
@@ -350,7 +350,7 @@
     }
 
     document.body.insertAdjacentHTML('beforeend', `
-      <button class="croma-cart-fab" type="button">Carrinho <span data-cart-count>0</span></button>
+      <button class="croma-cart-fab" type="button" aria-label="Abrir carrinho"><span aria-hidden="true">🛒</span><span>Meu carrinho</span><span data-cart-count>0</span></button>
       <aside class="croma-cart-panel" aria-label="Carrinho">
         <div class="croma-cart-row"><strong>Seu carrinho</strong><button type="button" data-cart-close>Fechar</button></div>
         <p class="croma-cart-muted">O carrinho permanece neste aparelho. Ao entrar na sua conta, também fica disponível nos seus outros dispositivos.</p>
