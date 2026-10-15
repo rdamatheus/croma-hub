@@ -93,7 +93,7 @@ function renderSelected(){
   for(const item of selected){
     const card=document.createElement('article');
     const heading=document.createElement('strong');heading.textContent=item.sku+' · '+item.name;card.appendChild(heading);
-    for(const line of ['Grade: '+(qty(item)?number(qty(item)):'a confirmar'),'Base: '+(item.price_basis||'indefinida'),'Preço cadastrado: '+brl(item.purchase_price),'Frete estimado: '+brl(state.freight),'Total estimado: '+brl(total(item)),'Por unidade: '+(perUnit(item)!==null?brl(perUnit(item)):'não comparável'),'Produção cadastrada: '+(item.lead_time_days??'a confirmar')+' dia(s)','Origem: '+dateText(item.catalog_date||item.source_updated_at),printSpecs(item)]){
+    for(const line of ['Grade: '+(qty(item)?number(qty(item)):'a confirmar'),'Base: '+(item.price_basis||'indefinida'),'Preço cadastrado: '+brl(item.purchase_price),'Frete estimado: '+brl(state.freight),'Total estimado: '+brl(total(item)),'Preço por unidade (sem frete): '+(perUnit(item)!==null?brl(perUnit(item)):'não comparável'),'Produção cadastrada: '+(item.lead_time_days??'a confirmar')+' dia(s)','Origem: '+dateText(item.catalog_date||item.source_updated_at),printSpecs(item)]){
       const p=document.createElement('p');p.textContent=line;card.appendChild(p);
     }
     root.appendChild(card);
