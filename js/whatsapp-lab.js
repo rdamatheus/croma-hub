@@ -1,5 +1,6 @@
 import { supabase, STORAGE_BUCKET } from './croma-supabase.js';
 import { protectInternalPage, roleLabel } from './interno-auth.js';
+import { CATEGORIES, PRIORITIES, WORKFLOW_STATUSES, TAGS, DATA_FIELDS, EXAMPLES, manualTestInput, canEditAtendimento } from './whatsapp-lab-model.js?v=20261013-1';
 
 const MAX_JSON_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
@@ -38,13 +39,55 @@ const elements = {
   analysisReply: document.querySelector('#analysisReply'),
   messageList: document.querySelector('#messageList'),
   attachmentList: document.querySelector('#attachmentList'),
-  closeDetail: document.querySelector('#closeDetail')
+  closeDetail: document.querySelector('#closeDetail'),
+  manualMode: document.querySelector('#manualMode'), importMode: document.querySelector('#importMode'),
+  manualPane: document.querySelector('#manualPane'), importPane: document.querySelector('#importPane'),
+  legacyExporter: document.querySelector('#legacyExporter'), exampleCase: document.querySelector('#exampleCase'),
+  loadExample: document.querySelector('#loadExample'), manualName: document.querySelector('#manualName'),
+  manualPhone: document.querySelector('#manualPhone'), manualBody: document.querySelector('#manualBody'),
+  reviewForm: document.querySelector('#reviewForm'), reviewCategory: document.querySelector('#reviewCategory'),
+  reviewPriority: document.querySelector('#reviewPriority'), reviewWorkflow: document.querySelector('#reviewWorkflow'),
+  reviewResponsible: document.querySelector('#reviewResponsible'), saveReview: document.querySelector('#saveReview'),
+  useSuggestion: document.querySelector('#useSuggestion'), reviewStatus: document.querySelector('#reviewStatus'),
+  analysisClassification: document.querySelector('#analysisClassification'), analysisData: document.querySelector('#analysisData'),
+  analysisMissing: document.querySelector('#analysisMissing'), analysisHistory: document.querySelector('#analysisHistory')
 };
 
 let staffSession = null;
 let importedPayload = null;
 let attachmentFiles = [];
 let exporterSourcePromise = null;
+let entryMode = 'manual';
+let manualSource = 'manual';
+let manualInputKey = null;
+let busySaving = false;
+let activeAtendimento = null;
+let staffProfiles = [];
+let detailVersion = 0;
+const processingRequests = new Map();
+
+function selectOptions(values, emptyLabel){
+  return (emptyLabel ? `<option value="">${escapeHtml(emptyLabel)}</option>` : '')
+    + Object.entries(values).map(([value,label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
+}
+
+elements.exampleCase.innerHTML = selectOptions(CATEGORIES);
+elements.reviewCategory.innerHTML = selectOptions(CATEGORIES,'A classificar');
+elements.reviewPriority.innerHTML = selectOptions(PRIORITIES);
+elements.reviewWorkflow.innerHTML = selectOptions(WORKFLOW_STATUSES);
+
+function setEntryMode(mode){
+  entryMode = mode;
+  const manual = mode === 'manual';
+  elements.manualPane.classList.toggle('hidden',!manual);
+  elements.importPane.classList.toggle('hidden',manual);
+  elements.legacyExporter.classList.toggle('hidden',manual);
+  elements.manualMode.setAttribute('aria-pressed',String(manual));
+  elements.importMode.setAttribute('aria-pressed',String(!manual));
+  elements.manualMode.classList.toggle('secondary',!manual);
+  elements.importMode.classList.toggle('secondary',manual);
+  refreshSaveState();
+}
 
 function escapeHtml(value=''){
   return String(value).replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
@@ -155,6 +198,7 @@ window.addEventListener('message',event => {
   if(event.data?.type !== 'croma-whatsapp-import') return;
   try{
     importedPayload = normalizePayload(event.data.payload);
+    setEntryMode('import');
     renderPayloadPreview();
     refreshSaveState();
     setStatus(`${importedPayload.messages.length} mensagens recebidas do WhatsApp. Salve o atendimento e clique em “Processar com IA”.`);
@@ -197,7 +241,9 @@ function renderFiles(){
 }
 
 function refreshSaveState(){
-  elements.saveTest.disabled = !importedPayload;
+  elements.saveTest.disabled = busySaving || (entryMode === 'manual' ? !elements.manualBody.value.trim() : !importedPayload);
+  for(const control of [elements.manualMode,elements.importMode,elements.loadExample,elements.exampleCase,
+    elements.manualName,elements.manualPhone,elements.manualBody,elements.jsonFile,elements.attachmentFiles,elements.clearTest]) control.disabled = busySaving;
 }
 
 function resetForm(){
@@ -205,6 +251,11 @@ function resetForm(){
   attachmentFiles = [];
   elements.jsonFile.value = '';
   elements.attachmentFiles.value = '';
+  elements.manualName.value = '';
+  elements.manualPhone.value = '';
+  elements.manualBody.value = '';
+  manualInputKey = null;
+  manualSource = 'manual';
   renderPayloadPreview();
   renderFiles();
   refreshSaveState();
@@ -334,7 +385,9 @@ async function uploadAttachments(atendimentoId){
 }
 
 async function saveAtendimento(){
+  if(entryMode === 'manual') return saveManualTest();
   if(!importedPayload || !staffSession) return;
+  busySaving = true;
   elements.saveTest.disabled = true;
   setStatus('Salvando o histórico…');
   setProgress(12);
@@ -371,7 +424,32 @@ async function saveAtendimento(){
     if(atendimentoId) await supabase.from('lab_whatsapp_atendimentos').delete().eq('id',atendimentoId);
     setStatus(`Não foi possível salvar: ${error.message}`,true);
   }finally{
+    busySaving = false;
     setProgress(0);
+    refreshSaveState();
+  }
+}
+
+async function saveManualTest(){
+  if(!staffSession || busySaving) return;
+  busySaving = true;
+  refreshSaveState();
+  try{
+    manualInputKey ||= crypto.randomUUID();
+    const input = manualTestInput({name:elements.manualName.value,phone:elements.manualPhone.value,
+      body:elements.manualBody.value,source:manualSource,inputKey:manualInputKey});
+    setStatus('Salvando o teste…');
+    const {data:id,error} = await supabase.rpc('save_lab_whatsapp_manual_test',input);
+    if(error) throw error;
+    if(!id) throw new Error('O atendimento não foi confirmado pelo servidor.');
+    resetForm();
+    setStatus('Teste salvo. A análise fica disponível no botão “Processar com IA”.');
+    await loadAtendimentos();
+    await showDetail(id);
+  }catch(error){
+    setStatus(`Não foi possível salvar: ${error.message}`,true);
+  }finally{
+    busySaving = false;
     refreshSaveState();
   }
 }
@@ -384,7 +462,7 @@ async function loadAtendimentos(){
   elements.savedList.innerHTML = '<div class="empty">Carregando atendimentos…</div>';
   const { data, error } = await supabase
     .from('lab_whatsapp_atendimentos')
-    .select('id,contact_name,contact_phone,message_count,status,created_at,lab_whatsapp_anexos(count)')
+    .select('id,created_by,contact_name,contact_phone,message_count,status,category,priority,workflow_status,created_at,lab_whatsapp_anexos(count)')
     .order('created_at',{ascending:false})
     .limit(50);
   if(error){
@@ -399,8 +477,8 @@ async function loadAtendimentos(){
     <article class="saved-card">
       <small>${new Date(item.created_at).toLocaleString('pt-BR')}</small>
       <h3>${escapeHtml(item.contact_name || item.contact_phone || 'Contato WhatsApp')}</h3>
-      <div class="saved-meta"><span class="internal-pill">${item.message_count} mensagens</span><span class="internal-pill">${nestedCount(item.lab_whatsapp_anexos)} anexos</span><span class="internal-pill ok">${escapeHtml(item.status)}</span></div>
-      <div class="saved-actions"><button class="internal-btn" type="button" data-process="${item.id}">Processar com IA</button><button class="internal-btn secondary" type="button" data-view="${item.id}">Ver atendimento</button><button class="internal-btn secondary danger" type="button" data-delete="${item.id}" data-name="${escapeHtml(item.contact_name || 'este atendimento')}">Excluir teste</button></div>
+      <div class="saved-meta"><span class="internal-pill">${item.message_count} ${item.message_count===1?'mensagem':'mensagens'}</span><span class="internal-pill">${escapeHtml(CATEGORIES[item.category] || 'A classificar')}</span><span class="internal-pill">${escapeHtml(PRIORITIES[item.priority] || 'Normal')}</span><span class="internal-pill ok">${escapeHtml(WORKFLOW_STATUSES[item.workflow_status] || 'Novo')}</span><span class="internal-pill">${escapeHtml(({novo:'Sem análise',em_analise:'IA processando',concluido:'Análise disponível',arquivado:'Teste arquivado'})[item.status] || item.status)}</span></div>
+      <div class="saved-actions"><button class="internal-btn" type="button" data-process="${item.id}" ${canEditAtendimento(staffSession,item)?'':'disabled'}>Processar com IA</button><button class="internal-btn secondary" type="button" data-view="${item.id}">Ver atendimento</button><button class="internal-btn secondary danger" type="button" data-delete="${item.id}" data-name="${escapeHtml(item.contact_name || 'este atendimento')}" ${canEditAtendimento(staffSession,item)?'':'disabled'}>Excluir teste</button></div>
     </article>`).join('');
 }
 
@@ -418,6 +496,13 @@ function renderAnalysis(analysis){
   listItems(elements.analysisPending,analysis.pendencias);
   listItems(elements.analysisTasks,analysis.tarefas_internas);
   elements.analysisReply.textContent = analysis.resposta_sugerida || 'Nenhuma resposta sugerida.';
+  const labels = [CATEGORIES[analysis.categoria_sugerida] || 'Sem categoria sugerida', PRIORITIES[analysis.prioridade_sugerida],
+    ...(Array.isArray(analysis.tags)?analysis.tags.map(tag=>TAGS[tag]).filter(Boolean):[])].filter(Boolean);
+  elements.analysisClassification.innerHTML = [...new Set(labels)].map(label=>`<span class="internal-pill">${escapeHtml(label)}</span>`).join('');
+  const data = analysis.dados_extraidos || {};
+  elements.analysisData.innerHTML = Object.entries(DATA_FIELDS).map(([key,label])=>`<dl><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(data[key] ?? 'Não informado')}</dd></dl>`).join('');
+  listItems(elements.analysisMissing,analysis.dados_faltantes || analysis.pendencias);
+  if(analysis.contexto_truncado) elements.analysisSummary.textContent += ' Histórico parcial: a análise considerou o trecho mais recente da conversa.';
 }
 
 async function functionErrorMessage(error,data){
@@ -447,14 +532,22 @@ async function processAtendimento(id,button){
   button.textContent = 'Processando…';
   setStatus('Transcrevendo áudios, lendo documentos e analisando a conversa…');
   try{
-    const { data, error } = await supabase.functions.invoke('whatsapp-lab-processar',{body:{atendimento_id:id}});
-    if(error) throw new Error(await functionErrorMessage(error,data));
+    if(!processingRequests.has(id)) processingRequests.set(id,crypto.randomUUID());
+    const { data, error } = await supabase.functions.invoke('whatsapp-lab-processar',{body:{atendimento_id:id,request_id:processingRequests.get(id)}});
+    if(error){
+      let details = data;
+      try{ if(!details && error.context?.clone) details = await error.context.clone().json(); }catch{ /* erro sem JSON */ }
+      if(details?.request_completed) processingRequests.delete(id);
+      throw new Error(await functionErrorMessage(error,details));
+    }
     if(data?.error) throw new Error(data.message || data.error);
+    processingRequests.delete(id);
     const failed = data?.attachment_errors?.length || 0;
     setStatus(failed ? `Análise concluída, com ${failed} anexo(s) não processado(s).` : 'Análise concluída. A resposta sugerida já está disponível.',failed > 0);
     await Promise.all([loadAtendimentos(),showDetail(id)]);
   }catch(error){
     setStatus(`Não foi possível processar com IA: ${friendlyProcessError(error.message)}`,true);
+    if(activeAtendimento?.id === id) await showDetail(id);
   }finally{
     button.disabled = false;
     button.textContent = original;
@@ -462,16 +555,21 @@ async function processAtendimento(id,button){
 }
 
 async function showDetail(id){
+  const version = ++detailVersion;
+  activeAtendimento = null;
+  elements.reviewForm.classList.add('hidden');
   elements.detailCard.classList.remove('hidden');
   elements.detailTitle.textContent = 'Carregando…';
   renderAnalysis(null);
   elements.messageList.innerHTML = '';
   elements.attachmentList.innerHTML = '';
-  const [atendimentoResult,messagesResult,attachmentsResult] = await Promise.all([
+  const [atendimentoResult,messagesResult,attachmentsResult,historyResult] = await Promise.all([
     supabase.from('lab_whatsapp_atendimentos').select('*').eq('id',id).single(),
     supabase.from('lab_whatsapp_mensagens').select('*').eq('atendimento_id',id).order('sequence'),
-    supabase.from('lab_whatsapp_anexos').select('*').eq('atendimento_id',id).order('created_at')
+    supabase.from('lab_whatsapp_anexos').select('*').eq('atendimento_id',id).order('created_at'),
+    supabase.from('lab_whatsapp_analises').select('id,status,result,error,created_at,finished_at').eq('atendimento_id',id).order('created_at',{ascending:false}).limit(10)
   ]);
+  if(version !== detailVersion) return;
   const error = atendimentoResult.error || messagesResult.error || attachmentsResult.error;
   if(error){
     elements.detailTitle.textContent = 'Erro ao abrir atendimento';
@@ -479,9 +577,12 @@ async function showDetail(id){
     return;
   }
   const atendimento = atendimentoResult.data;
+  activeAtendimento = atendimento;
+  renderReview(atendimento);
+  renderHistory(historyResult.data || [],historyResult.error);
   renderAnalysis(atendimento.analysis);
   elements.detailTitle.textContent = atendimento.contact_name || atendimento.contact_phone || 'Contato WhatsApp';
-  elements.detailMeta.textContent = `${messagesResult.data.length} mensagens · ${attachmentsResult.data.length} anexos · importado em ${new Date(atendimento.created_at).toLocaleString('pt-BR')}`;
+  elements.detailMeta.textContent = `${messagesResult.data.length} ${messagesResult.data.length===1?'mensagem':'mensagens'} · ${attachmentsResult.data.length} anexos · registrado em ${new Date(atendimento.created_at).toLocaleString('pt-BR')}`;
   elements.messageList.innerHTML = messagesResult.data.length ? messagesResult.data.map(message => `
     <article class="message ${escapeHtml(message.direction)}">
       <div class="message-head"><strong>${escapeHtml(message.author || message.direction)}</strong><span>${escapeHtml([message.message_date,message.message_time].filter(Boolean).join(' '))}</span></div>
@@ -493,6 +594,58 @@ async function showDetail(id){
     <div class="attachment"><div><strong>${escapeHtml(attachment.file_name)}</strong><div class="hint">${escapeHtml(attachment.kind)} · ${formatBytes(attachment.size_bytes)} · ${escapeHtml(attachment.processing_status)}</div>${attachment.transcription || attachment.extracted_text ? `<details><summary class="hint">Ver conteúdo extraído</summary><p class="suggested-reply">${escapeHtml(attachment.transcription || attachment.extracted_text)}</p></details>` : ''}</div><button class="internal-btn secondary" type="button" data-open-file="${attachment.id}">Abrir</button></div>`).join('') : '<div class="empty">Nenhum anexo enviado neste teste.</div>';
   elements.attachmentList.querySelectorAll('[data-open-file]').forEach(button => button.addEventListener('click',() => openAttachment(button.dataset.openFile,attachmentsResult.data)));
   elements.detailCard.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function renderReview(atendimento){
+  elements.reviewForm.classList.remove('hidden');
+  elements.reviewCategory.value = atendimento.category || '';
+  elements.reviewPriority.value = atendimento.priority || 'normal';
+  elements.reviewWorkflow.value = atendimento.workflow_status || 'novo';
+  elements.reviewResponsible.innerHTML = selectOptions(Object.fromEntries(staffProfiles.map(profile=>[profile.id,profile.nome])),'Sem responsável');
+  if(atendimento.responsible_id && !staffProfiles.some(profile=>profile.id===atendimento.responsible_id)){
+    const option = document.createElement('option'); option.value = atendimento.responsible_id; option.textContent = 'Responsável indisponível';
+    elements.reviewResponsible.append(option);
+  }
+  elements.reviewResponsible.value = atendimento.responsible_id || '';
+  const editable = canEditAtendimento(staffSession,atendimento);
+  for(const control of [elements.reviewCategory,elements.reviewPriority,elements.reviewWorkflow,elements.reviewResponsible,elements.saveReview]) control.disabled = !editable;
+  elements.useSuggestion.disabled = !editable || !atendimento.analysis
+    || (!Object.hasOwn(CATEGORIES,atendimento.analysis.categoria_sugerida) && !Object.hasOwn(PRIORITIES,atendimento.analysis.prioridade_sugerida));
+  elements.reviewStatus.textContent = editable ? '' : 'Revisão disponível para o criador do teste ou a gerência.';
+  elements.reviewStatus.classList.remove('error');
+}
+
+function renderHistory(history,error){
+  if(error){elements.analysisHistory.textContent='Não foi possível carregar o histórico das análises.';return;}
+  if(!history.length){elements.analysisHistory.textContent='Nenhuma análise registrada nesta versão.';return;}
+  elements.analysisHistory.innerHTML = history.map(item=>`<details><summary>${escapeHtml(new Date(item.created_at).toLocaleString('pt-BR'))} · ${escapeHtml(({processando:'Processando',concluida:'Concluída',erro:'Erro'})[item.status] || item.status)}${item.result?.categoria_sugerida ? ` · ${escapeHtml(CATEGORIES[item.result.categoria_sugerida] || '')}` : ''}</summary><p class="${item.status==='erro'?'history-error':''}">${escapeHtml(item.error || item.result?.resumo || 'Análise em andamento.')}</p>${item.result?.resposta_sugerida ? `<p>${escapeHtml(item.result.resposta_sugerida)}</p>` : ''}</details>`).join('');
+}
+
+async function saveReview(event){
+  event.preventDefault();
+  const atendimento = activeAtendimento;
+  if(!atendimento || !canEditAtendimento(staffSession,atendimento)) return;
+  elements.saveReview.disabled = true;
+  elements.reviewStatus.textContent = 'Salvando revisão…';
+  try{
+    const {data,error} = await supabase.from('lab_whatsapp_atendimentos').update({
+      category:elements.reviewCategory.value || null,priority:elements.reviewPriority.value,
+      workflow_status:elements.reviewWorkflow.value,responsible_id:elements.reviewResponsible.value || null,
+      updated_at:new Date().toISOString()
+    }).eq('id',atendimento.id).select('id').maybeSingle();
+    if(error) throw error;
+    if(!data) throw new Error('A revisão não foi autorizada pelo servidor.');
+    await loadAtendimentos();
+    if(activeAtendimento?.id === atendimento.id){
+      await showDetail(atendimento.id);
+      elements.reviewStatus.textContent = 'Revisão salva.';
+    }
+  }catch(error){
+    elements.reviewStatus.textContent = error.message;
+    elements.reviewStatus.classList.add('error');
+  }finally{
+    elements.saveReview.disabled = !activeAtendimento || !canEditAtendimento(staffSession,activeAtendimento);
+  }
 }
 
 async function openAttachment(id,attachments){
@@ -573,7 +726,25 @@ elements.attachmentFiles.addEventListener('change',async event => {
 elements.saveTest.addEventListener('click',saveAtendimento);
 elements.clearTest.addEventListener('click',resetForm);
 elements.refreshList.addEventListener('click',loadAtendimentos);
-elements.closeDetail.addEventListener('click',() => elements.detailCard.classList.add('hidden'));
+elements.closeDetail.addEventListener('click',() => {detailVersion++;activeAtendimento=null;elements.detailCard.classList.add('hidden');});
+elements.manualMode.addEventListener('click',()=>setEntryMode('manual'));
+elements.importMode.addEventListener('click',()=>setEntryMode('import'));
+for(const control of [elements.manualName,elements.manualPhone,elements.manualBody]) control.addEventListener('input',()=>{
+  manualInputKey=null;manualSource='manual';refreshSaveState();
+});
+elements.loadExample.addEventListener('click',()=>{
+  setEntryMode('manual');manualSource='simulador';manualInputKey=null;
+  elements.manualName.value='Cliente de teste';elements.manualPhone.value='';
+  elements.manualBody.value=EXAMPLES[elements.exampleCase.value];refreshSaveState();
+});
+elements.reviewForm.addEventListener('submit',saveReview);
+elements.useSuggestion.addEventListener('click',()=>{
+  const analysis=activeAtendimento?.analysis;
+  if(!analysis || !canEditAtendimento(staffSession,activeAtendimento)) return;
+  if(Object.hasOwn(CATEGORIES,analysis.categoria_sugerida)) elements.reviewCategory.value=analysis.categoria_sugerida;
+  if(Object.hasOwn(PRIORITIES,analysis.prioridade_sugerida)) elements.reviewPriority.value=analysis.prioridade_sugerida;
+  elements.reviewStatus.textContent='Classificação preenchida. Aguardando salvar a revisão.';
+});
 elements.savedList.addEventListener('click',event => {
   const processButton = event.target.closest('[data-process]');
   const viewButton = event.target.closest('[data-view]');
@@ -587,6 +758,10 @@ try{
   staffSession = await protectInternalPage();
   if(staffSession){
     elements.who.textContent = `${staffSession.profile.nome || staffSession.user.email} · ${roleLabel(staffSession.profile.role)}`;
+    const {data:profiles,error} = await supabase.from('profiles').select('id,nome,role,ativo').eq('ativo',true);
+    if(error) throw error;
+    staffProfiles = (profiles || []).filter(profile=>['owner','manager','equipe'].includes(profile.role));
+    refreshSaveState();
     await loadAtendimentos();
   }
 }catch(error){
