@@ -49,3 +49,15 @@ Nenhuma alteração nos cadastros de produtos, cotações ou fornecedores. O ran
 - Ajustados os identificadores de versão dos scripts de navegação para reduzir risco de cache antigo.
 - Testes estáticos: arquivos e links conferidos no GitHub; view de ranking consultada no Supabase. Teste de uso real no site publicado, sessão autenticada e dispositivos ainda pendente.
 - Fase 2 (pesquisa automática e comparação de preço/frete/prazo) permanece fora do escopo e não foi ativada.
+
+
+## Fase 2 — Comparador de adesivos (14/10/2026)
+- Autorizada pelo usuário implementação direta no Croma Hub sem integração externa. Nenhum agendamento, API Zap ou escrita no banco.
+- Interface: `/interno/fornecedores/demanda/comparador/`, acessível pelo painel de demanda e pela família Adesivos e etiquetas.
+- Catálogo existente: `supplier_catalog_items`, filtrado pelo fornecedor Zap, categoria ADESIVOS, `active=true`, `validation_status=ok`, com `purchase_price` não nulo; carregamento limitado a 1.000 registros (727 utilizáveis na leitura prévia).
+- Cotações: view `supplier_demand_quote_lines_90d`, filtro de família e elegibilidade, sem dados pessoais de clientes; selecionar proposta preenche quantidade e material sugerido, sem pareamento automático de SKU.
+- Busca por SKU/nome/material, filtro de quantidade exata da grade, ordenação por custo/prazo, comparação manual de até três SKUs, com alerta se campos principais não coincidirem. Exibe especificações de impressão e link para ficha original.
+- Custo estimado = preço do lote cadastrado + frete informado (padrão visual R$ 18,00, editável). Custo por unidade é exibido apenas quando a base de preço permite; frete não é rateado no custo unitário.
+- O catálogo contém data histórica (13/09/2026); não há consulta em tempo real. Tamanho de impressão não é necessariamente dimensão final; acabamento, preço, frete e prazo exigem confirmação humana. Não afirmar que Zap é o fornecedor mais barato do mercado.
+- A interface exige autenticação e perfil owner/manager; usa SELECT com políticas existentes no banco, sem mudanças de grants/RLS.
+- Sem alteração de cotações, produtos, preços de venda, fornecedor preferencial ou pedidos. Teste autenticado real e visual em dispositivos ainda pendente.
