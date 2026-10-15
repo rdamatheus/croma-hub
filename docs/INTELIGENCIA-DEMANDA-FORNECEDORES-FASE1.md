@@ -38,3 +38,14 @@ Nenhuma alteração nos cadastros de produtos, cotações ou fornecedores. O ran
 - Validados exemplos: placas sem adesivo, adesivo com aplicação opcional, aplicação com medidas antes da descrição, manual automotivo, cardápios, ingressos, blocos, itens descartáveis.
 - Não foram alterados dados de negócio, preços, SKUs, fornecedores, pedidos ou automações.
 - Pendente: teste de interface em sessão real de gestor; o ranking depende de propostas cadastradas e não representa toda procura informal.
+
+## Integração de usabilidade (14/10/2026)
+- Adicionado módulo próprio **Inteligência de fornecedores** ao diretório principal e ao menu lateral compartilhado, dentro de **Produtos, compras e produção**, visível para Proprietário/Gerência. A rota existente `/interno/fornecedores/demanda/` foi preservada.
+- Acesso alternativo continua disponível em **Fornecedores → Demanda de cotações**. Links internos para fornecedores, catálogos e propostas.
+- Painel exibe famílias monitoradas, número de famílias com prioridade alta e soma de ocorrências por família nos últimos 30 dias (esta soma não é o total de propostas únicas).
+- Busca textual por família e filtro de prioridade. Ação **Ver propostas** por linha, com consulta à view de rastreabilidade, e ação para ver serviços excluídos.
+- Layout responsivo: em telas até 720px a tabela de ranking vira cartões, sem rolagem horizontal para essa tabela. A tabela detalhada mantém rolagem quando necessário.
+- Conteúdo do ranking permanece oculto até autenticação e autorização. Estados de acesso restrito, falha e nova tentativa.
+- Ajustados os identificadores de versão dos scripts de navegação para reduzir risco de cache antigo.
+- Testes estáticos: arquivos e links conferidos no GitHub; view de ranking consultada no Supabase. Teste de uso real no site publicado, sessão autenticada e dispositivos ainda pendente.
+- Fase 2 (pesquisa automática e comparação de preço/frete/prazo) permanece fora do escopo e não foi ativada.
