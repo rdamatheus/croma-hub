@@ -1,3 +1,4 @@
+import { commercialName } from './product-commercial-copy.js';
 import { searchCommercialCatalog } from './commercial-areas-data.js?v=20261001-perf';
 import { setupDirectCart } from './direct-cart.js';
 
@@ -45,7 +46,7 @@ async function run(term){
       const detail=`/produtos/?produto=${encodeURIComponent(item.slug||item.id)}`;
       if(action==='buy')directItems.set(String(item.id),{...item,action});
       const button=action==='buy'?`<button type="button" class="search-action" data-direct-cart="${esc(item.id)}">Comprar</button>`:`<a class="search-action ${cls(action)}" href="${esc(href)}"${external}>${esc(label(action))}</a>`;
-      return `<article class="search-card"><a class="search-media" href="${esc(detail)}" aria-label="Ver ${esc(item.nome)}">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</a><div class="search-copy"><small>${esc(category?.nome||family?.nome||'Croma')}</small><h2><a href="${esc(detail)}">${esc(item.nome)}</a></h2><div class="search-price">${esc(price(item,action))}</div>${button}</div></article>`
+      return `<article class="search-card"><a class="search-media" href="${esc(detail)}" aria-label="Ver ${esc(item.nome)}">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</a><div class="search-copy"><small>${esc(category?.nome||family?.nome||'Croma')}</small><h2><a href="${esc(detail)}">${esc(commercialName(item))}</a></h2><div class="search-price">${esc(price(item,action))}</div>${button}</div></article>`
     }).join('')}</div>`;
   }catch(error){if(requestId!==runId)return;console.error('commercial_search_error',error);status.textContent='Não foi possível concluir a busca agora.';root.innerHTML='<div class="search-empty"><button type="button" id="retrySearch">Tentar novamente</button> <a href="/comunicacao-marketing/">Explorar produtos e serviços</a></div>';root.querySelector('#retrySearch').onclick=()=>run(q)}
 }

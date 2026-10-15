@@ -23,7 +23,7 @@
     const hero = root.querySelector('.public-editorial-hero');
     if (!hero) return false;
 
-    const media = hero.firstElementChild;
+    const media = hero.querySelector('.croma-product-main-media') || hero.firstElementChild;
     if (media) media.classList.add('public-product-media');
 
     const lead = hero.querySelector('.public-lead');

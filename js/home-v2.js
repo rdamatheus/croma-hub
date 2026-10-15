@@ -1,3 +1,4 @@
+import { commercialName } from './product-commercial-copy.js';
 import { setupDirectCart } from './direct-cart.js';
 import { loadCommercialAreas, loadCommercialArea } from './commercial-areas-data.js?v=20261001-perf';
 import { supabase } from './croma-supabase.js';
@@ -144,7 +145,7 @@ function renderHighlights(){
     const detail=`/produtos/?produto=${encodeURIComponent(item.slug||item.id)}`;
     if(action==='buy')directItems.set(String(item.id),{...item,action});
     const button=action==='buy'?`<button type="button" class="home2-product-action" data-direct-cart="${esc(item.id)}">Comprar</button>`:`<a class="home2-product-action ${actionClass(action)}" href="${esc(href)}"${external}>${esc(actionLabel(action))}</a>`;
-    return `<article class="home2-product"><a class="home2-product-media" href="${esc(detail)}" aria-label="Ver ${esc(item.nome)}">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</a><div class="home2-product-copy"><small>${esc(category?.nome||area.name)}</small><h3><a href="${esc(detail)}">${esc(item.nome)}</a></h3><div class="home2-product-price">${esc(price(item,action))}</div>${button}</div></article>`
+    return `<article class="home2-product"><a class="home2-product-media" href="${esc(detail)}" aria-label="Ver ${esc(item.nome)}">${media?.url?`<img src="${esc(media.url)}" alt="${esc(media.alt_text||item.nome)}" loading="lazy">`:''}</a><div class="home2-product-copy"><small>${esc(category?.nome||area.name)}</small><h3><a href="${esc(detail)}">${esc(commercialName(item))}</a></h3><div class="home2-product-price">${esc(price(item,action))}</div>${button}</div></article>`
   }).join(''):'<div class="home2-empty">Os destaques desta área serão adicionados em breve.</div>';
 }
 
