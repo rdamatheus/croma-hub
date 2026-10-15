@@ -45,6 +45,14 @@ function renderRanking() {
     const td = document.createElement('td');
     td.setAttribute('data-label','Origem');
     td.appendChild(action);
+    if (item.product_family === 'Adesivos e etiquetas') {
+      const compare = document.createElement('a');
+      compare.className = 'btn light';
+      compare.href = '/interno/fornecedores/demanda/comparador/';
+      compare.textContent = 'Comparar opções';
+      compare.style.marginLeft = '6px';
+      td.appendChild(compare);
+    }
     tr.appendChild(td);
     tbody.appendChild(tr);
   }
