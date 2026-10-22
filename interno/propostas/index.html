@@ -22,7 +22,7 @@
   <div id="proposalModalRoot"></div>
   <script type="module">
     import { protectInternalPage } from '/js/interno-auth.js?v=20260916-1';
-    import { initProposalsAdmin } from '/js/proposals-admin.js?v=20261021-2';
+    import { initProposalsAdmin } from '/js/proposals-admin.js?v=20261021-3';
     import { initProposalBlingSync } from '/js/proposal-bling-sync.js?v=20261007-2';
     const session=await protectInternalPage({roles:['owner','manager']});
     if(!session) throw new Error('Acesso não autorizado.');
