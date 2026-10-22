@@ -117,20 +117,20 @@ async function openLinkProduct(proposal,item){
   root.querySelector('[data-modal-close]').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
   save.addEventListener('click',async()=>{
     const productId=select.value||null;
-    if(initialId&&productId!==initialId){feedback.textContent='Trocas de vínculo existente precisam de revisão específica. Nenhum dado foi alterado.';feedback.dataset.type='error';return}
-    if(!productId){feedback.textContent='Selecione um produto correspondente para vincular.';feedback.dataset.type='error';return}
+    if(!productId&&!initialId){feedback.textContent='Selecione um produto correspondente para vincular.';feedback.dataset.type='error';return}
     if(productId===initialId){closeModal();return}
+    if(initialId&&!window.confirm(productId?'Confirma substituir o vínculo anterior? O histórico comercial e os valores da proposta serão preservados.':'Confirma remover o vínculo? O histórico comercial e os valores da proposta serão preservados.'))return;
     save.disabled=true;feedback.textContent='Verificando vínculo…';feedback.dataset.type='';
     try{
       const {data:current,error:readError}=await supabase.from('sales_proposal_items').select('id,product_id').eq('id',item.id).eq('proposal_id',proposal.id).single();
       if(readError)throw readError;
       if((current.product_id||'')!==initialId)throw new Error('Este item foi alterado desde a abertura. Recarregue a proposta antes de continuar.');
-      const {data:updated,error:writeError}=await supabase.from('sales_proposal_items').update({product_id:productId}).eq('id',item.id).eq('proposal_id',proposal.id).is('product_id',null).select('id,product_id');
+      let update=supabase.from('sales_proposal_items').update({product_id:productId}).eq('id',item.id).eq('proposal_id',proposal.id);
+      update=initialId?update.eq('product_id',initialId):update.is('product_id',null);
+      const {data:updated,error:writeError}=await update.select('id,product_id');
       if(writeError)throw writeError;
-      // Troca de vínculo existente é deliberadamente bloqueada nesta etapa.
-      if(initialId)throw new Error('Trocas de vínculo existente precisam de revisão específica.');
       if(!updated||updated.length!==1)throw new Error('Vínculo não confirmado; atualize a lista e revise o item.');
-      closeModal();await refreshList('Produto vinculado sem alterar os valores da proposta.');
+      closeModal();await refreshList('Vínculo do produto atualizado sem alterar os valores da proposta.');
     }catch(error){feedback.textContent=error.message||'Não foi possível vincular.';feedback.dataset.type='error';save.disabled=false}
   });
 }
