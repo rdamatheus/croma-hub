@@ -46,16 +46,84 @@ function renderItem(item){
 function renderProposal(proposal){
   const items=[...(proposal.sales_proposal_items||[])].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   return `<article class="proposal-card" data-proposal-id="${esc(proposal.id)}" data-search="${esc(`${proposal.proposal_no} ${proposal.customer_name} ${proposal.customer_phone||''}`.toLowerCase())}">
-    <header class="proposal-head"><div><span class="proposal-number">Proposta #${esc(proposal.proposal_no)}</span><h2>${esc(proposal.customer_name)}</h2><p>${esc(proposal.customer_phone||'Sem telefone')}</p></div><div class="proposal-head-side"><span class="status">${esc(statusLabel(proposal.status))}</span><button class="mini-btn alt" data-action="edit">Editar</button><button class="mini-btn share" data-action="share">Encaminhar proposta</button></div></header>
+    <header class="proposal-head"><div><span class="proposal-number">Proposta #${esc(proposal.proposal_no)}</span><h2>${esc(proposal.customer_name)}</h2><p>${esc(proposal.customer_phone||'Sem telefone')} · Contato: ${proposal.customer_id?'vinculado':'não vinculado'}</p></div><div class="proposal-head-side"><span class="status">${esc(statusLabel(proposal.status))}</span><button class="mini-btn alt" data-action="link-customer">Vincular contato</button><button class="mini-btn alt" data-action="edit">Editar</button><button class="mini-btn share" data-action="share">Encaminhar proposta</button></div></header>
     ${proposal.notes?`<p class="notes">${esc(proposal.notes)}</p>`:''}<div class="proposal-items">${items.length?items.map(renderItem).join(''):'<p class="empty">Sem itens nesta proposta.</p>'}</div>
     <footer>Criada em ${esc(dateTime.format(new Date(proposal.created_at)))}</footer>
   </article>`;
 }
 
 async function loadProposals(){
-  const {data,error}=await supabase.from('sales_proposals').select('id,proposal_no,customer_name,customer_phone,status,notes,created_at,sales_proposal_items(id,product_id,supplier_id,supplier_catalog_item_id,description,share_description,option_label,quantity,unit,supplier_sku,base_cost,freight_cost,total_cost,recommended_markup,applied_markup,unit_price,line_total,sort_order,market_reference_price,suggested_price,final_offer_price,image_url,market_reference_source,market_researched_at,market_reference_metadata,metadata)').order('created_at',{ascending:false}).limit(200);
+  const {data,error}=await supabase.from('sales_proposals').select('id,proposal_no,customer_id,customer_name,customer_phone,status,notes,created_at,bling_proposal_id,bling_sync_status,sales_proposal_items(id,product_id,supplier_id,supplier_catalog_item_id,description,share_description,option_label,quantity,unit,supplier_sku,base_cost,freight_cost,total_cost,recommended_markup,applied_markup,unit_price,line_total,sort_order,market_reference_price,suggested_price,final_offer_price,image_url,market_reference_source,market_researched_at,market_reference_metadata,metadata)').order('created_at',{ascending:false}).limit(200);
   if(error) throw error; proposals=data||[]; return proposals;
 }
+
+async function searchCustomers(term,currentId=''){
+  const clean=String(term||'').trim().replace(/[,%()]/g,' ').replace(/\\s+/g,' ').slice(0,80);
+  if(clean.length<3)return [];
+  const {data,error}=await supabase.from('customer_profiles').select('id,nome,nome_fantasia,telefone,celular,bling_contact_id,ativo').eq('ativo',true).or(`nome.ilike.%${clean}%,nome_fantasia.ilike.%${clean}%,telefone.ilike.%${clean}%,celular.ilike.%${clean}%`).order('nome').limit(30);
+  if(error)throw error;
+  const rows=[...(data||[])];
+  if(currentId&&!rows.some(row=>row.id===currentId)){
+    const {data:current,error:currentError}=await supabase.from('customer_profiles').select('id,nome,nome_fantasia,telefone,celular,bling_contact_id,ativo').eq('id',currentId).maybeSingle();
+    if(currentError)throw currentError;if(current)rows.unshift(current);
+  }
+  return rows;
+}
+function customerOptions(rows,currentId){
+  return rows.map(row=>`<option value="${esc(row.id)}" ${row.id===currentId?'selected':''}>${esc(row.nome||row.nome_fantasia||'Sem nome')} · ${esc(row.telefone||row.celular||'sem telefone')} · ${row.bling_contact_id?'Bling #'+esc(row.bling_contact_id):'sem ID Bling'}</option>`).join('');
+}
+async function openLinkCustomer(proposal){
+  if(proposal.bling_proposal_id||proposal.bling_sync_status==='synced'){
+    alert('Esta proposta já possui vínculo com o Bling. Revise o contato no fluxo de sincronização antes de alterar o cadastro interno; a alteração isolada poderia causar divergência.');
+    return;
+  }
+  setModal(`<div class="modal-backdrop" data-modal-close><section class="modal" role="dialog" aria-modal="true" aria-labelledby="linkCustomerTitle">
+    <h2 id="linkCustomerTitle">Vincular contato — proposta #${esc(proposal.proposal_no)}</h2>
+    <p class="modal-lead">Cliente da proposta: <b>${esc(proposal.customer_name)}</b>. Confira nome e telefone antes de escolher. A vinculação não altera a proposta enviada nem cria contato no Bling.</p>
+    <div class="field"><label for="linkCustomerSearch">Buscar no cadastro Croma</label><input id="linkCustomerSearch" autocomplete="off" placeholder="Nome ou telefone (mínimo 3 caracteres)" value="${esc(proposal.customer_name||'')}"></div>
+    <div class="field" style="margin-top:12px"><label for="linkCustomerSelect">Contato correspondente</label><select id="linkCustomerSelect"><option value="">Selecione um contato</option></select></div>
+    <p class="share-note">Um nome parecido não garante correspondência. Se não encontrar o cliente correto, deixe a proposta sem vínculo e revise o cadastro de contatos.</p>
+    <div id="linkCustomerFeedback" class="modal-feedback" aria-live="polite"></div>
+    <div class="modal-actions"><button type="button" class="mini-btn alt" data-close>Cancelar</button><button type="button" class="mini-btn" id="linkCustomerSave">Confirmar contato</button></div>
+  </section></div>`);
+  const root=document.getElementById('proposalModalRoot'),search=root.querySelector('#linkCustomerSearch'),select=root.querySelector('#linkCustomerSelect'),feedback=root.querySelector('#linkCustomerFeedback'),save=root.querySelector('#linkCustomerSave');
+  const initialId=proposal.customer_id||'';
+  let rows=[],timer=null,seq=0;
+  const load=async()=>{
+    const current=++seq;
+    feedback.textContent='Buscando contatos…';feedback.dataset.type='';
+    try{
+      const found=await searchCustomers(search.value,initialId);
+      if(current!==seq)return;
+      rows=found;select.innerHTML='<option value="">Selecione um contato</option>'+customerOptions(rows,initialId);
+      feedback.textContent=found.length?`${found.length} contato(s) encontrado(s). Confira a identidade.`:'Nenhum contato encontrado. Use ao menos três caracteres.';
+    }catch(error){if(current===seq){feedback.textContent=error.message||'Falha ao buscar contatos.';feedback.dataset.type='error'}}
+  };
+  search.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(load,350)});
+  root.querySelector('[data-close]').onclick=closeModal;
+  root.querySelector('[data-modal-close]').addEventListener('click',event=>{if(event.target===event.currentTarget)closeModal()});
+  save.addEventListener('click',async()=>{
+    const selectedId=select.value,selected=rows.find(row=>row.id===selectedId);
+    if(!selected){feedback.textContent='Selecione e confira um contato existente.';feedback.dataset.type='error';return}
+    if(selectedId===initialId){closeModal();return}
+    const description=`${selected.nome||selected.nome_fantasia||'Contato'} — ${selected.telefone||selected.celular||'sem telefone'}`;
+    if(!window.confirm(`Vincular a proposta #${proposal.proposal_no} ao contato "${description}"? Os dados comerciais e o Bling não serão alterados.`))return;
+    save.disabled=true;feedback.textContent='Verificando dados atuais…';feedback.dataset.type='';
+    try{
+      const {data:current,error:readError}=await supabase.from('sales_proposals').select('customer_id,bling_proposal_id,bling_sync_status').eq('id',proposal.id).single();
+      if(readError)throw readError;
+      if((current.customer_id||'')!==initialId||current.bling_proposal_id||current.bling_sync_status==='synced')throw new Error('A proposta foi modificada ou sincronizada. Recarregue antes de vincular.');
+      let update=supabase.from('sales_proposals').update({customer_id:selectedId}).eq('id',proposal.id).is('bling_proposal_id',null).neq('bling_sync_status','synced');
+      update=initialId?update.eq('customer_id',initialId):update.is('customer_id',null);
+      const {data:changed,error:writeError}=await update.select('id,customer_id');
+      if(writeError)throw writeError;
+      if(changed?.length!==1)throw new Error('O vínculo não foi confirmado. Atualize e confira o estado da proposta.');
+      closeModal();await refreshList('Contato vinculado sem alterar a proposta ou o Bling.');
+    }catch(error){feedback.textContent=error.message||'Falha ao vincular contato.';feedback.dataset.type='error';save.disabled=false}
+  });
+  await load();
+}
+
 function productSearchTerm(value){return String(value||'').trim().replace(/[,%()]/g,' ').replace(/\s+/g,' ').slice(0,80)}
 async function searchProducts(term='',currentId=''){
   const clean=productSearchTerm(term);
@@ -138,41 +206,28 @@ async function openLinkProduct(proposal,item){
 async function openEdit(proposal,selectedItem=null){
   const items=[...(proposal.sales_proposal_items||[])].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   const item=selectedItem||items[0]; if(!item)return;
-  let products=[]; try{products=await searchProducts('',item.product_id||'')}catch(error){alert(error.message);return}
+  
   setModal(`<div class="modal-backdrop" data-modal-close><section class="modal" role="dialog" aria-modal="true"><h2>Editar proposta #${esc(proposal.proposal_no)}</h2><p class="modal-lead">Editando item: <b>${esc(item.option_label||item.description)}</b>. As alterações ficam somente nesta cotação e não mudam automaticamente o cadastro mestre do produto. ${proposal.status==='sent'?'Esta proposta já foi enviada ao cliente; confirme qualquer alteração comercial e revise a sincronização com o Bling.':''}</p>
     <div class="form-grid"><div class="field"><label>Cliente</label><input id="editCustomer" value="${esc(proposal.customer_name)}"></div><div class="field"><label>Telefone</label><input id="editPhone" value="${esc(proposal.customer_phone||'')}"></div><div class="field"><label>Status</label><select id="editStatus">${['draft','sent','approved','rejected','expired','cancelled'].map(s=>`<option value="${s}" ${s===proposal.status?'selected':''}>${statusLabel(s)}</option>`).join('')}</select></div><div class="field full"><label>Observações internas</label><textarea id="editNotes">${esc(proposal.notes||'')}</textarea></div></div>
-    <div class="form-section"><h3>Item da proposta</h3><div class="form-grid"><div class="field full"><label>Produto vinculado</label><input id="editProductSearch" autocomplete="off" placeholder="Digite nome ou SKU para buscar" style="margin-bottom:7px"><select id="editProduct"><option value="">Sem produto vinculado</option>${optionProductHtml(products,item.product_id)}</select><small>Até 40 resultados por busca. O catálogo completo não é mais carregado ao abrir a proposta.</small></div><div class="field full"><label>Descrição comercial</label><textarea id="editDescription">${esc(item.share_description||item.description||'')}</textarea></div><div class="field"><label>Quantidade</label><input id="editQuantity" type="number" min="0.01" step="0.01" value="${esc(item.quantity)}"></div><div class="field"><label>Markup desta cotação</label><input id="editMarkup" type="number" min="0.01" step="0.01" value="${esc(item.applied_markup||item.recommended_markup||'')}"></div><div class="field"><label>Custo fornecedor</label><input id="editBaseCost" type="number" min="0" step="0.01" value="${esc(item.base_cost)}"></div><div class="field"><label>Frete</label><input id="editFreight" type="number" min="0" step="0.01" value="${esc(item.freight_cost)}"></div><div class="field"><label>Preço de mercado</label><input id="editMarket" type="number" min="0" step="0.01" value="${esc(item.market_reference_price??'')}"></div><div class="field"><label>Preço sugerido</label><input id="editSuggested" type="number" min="0" step="0.01" value="${esc(item.suggested_price??'')}"></div><div class="field"><label>Preço final ao cliente</label><input id="editFinal" type="number" min="0" step="0.01" value="${esc(item.final_offer_price??item.suggested_price??item.line_total)}"></div><div class="field"><label>Imagem da proposta (URL)</label><input id="editImage" value="${esc(item.image_url||'')}"></div></div><div id="editCalc" class="analysis-strip"></div></div>
+    <div class="form-section"><h3>Item da proposta</h3><div class="form-grid"><div class="field full"><label>Produto vinculado</label><p class="share-note">${item.product_id?'Produto já associado. Use “Revisar vínculo” no item para corrigir.':'Sem produto associado. Use “Vincular produto” no item após salvar.'}</p></div><div class="field full"><label>Descrição comercial</label><textarea id="editDescription">${esc(item.share_description||item.description||'')}</textarea></div><div class="field"><label>Quantidade</label><input id="editQuantity" type="number" min="0.01" step="0.01" value="${esc(item.quantity)}"></div><div class="field"><label>Markup desta cotação</label><input id="editMarkup" type="number" min="0.01" step="0.01" value="${esc(item.applied_markup||item.recommended_markup||'')}"></div><div class="field"><label>Custo fornecedor</label><input id="editBaseCost" type="number" min="0" step="0.01" value="${esc(item.base_cost)}"></div><div class="field"><label>Frete</label><input id="editFreight" type="number" min="0" step="0.01" value="${esc(item.freight_cost)}"></div><div class="field"><label>Preço de mercado</label><input id="editMarket" type="number" min="0" step="0.01" value="${esc(item.market_reference_price??'')}"></div><div class="field"><label>Preço sugerido</label><input id="editSuggested" type="number" min="0" step="0.01" value="${esc(item.suggested_price??'')}"></div><div class="field"><label>Preço final ao cliente</label><input id="editFinal" type="number" min="0" step="0.01" value="${esc(item.final_offer_price??item.suggested_price??item.line_total)}"></div><div class="field"><label>Imagem da proposta (URL)</label><input id="editImage" value="${esc(item.image_url||'')}"></div></div><div id="editCalc" class="analysis-strip"></div></div>
     <div id="editFeedback" class="modal-feedback"></div><div class="modal-actions"><button class="mini-btn alt" data-close>Cancelar</button><button class="mini-btn" id="saveEdit">Salvar alterações</button></div></section></div>`);
   const root=document.getElementById('proposalModalRoot');
   const calc=()=>{const base=n(root.querySelector('#editBaseCost').value)||0, freight=n(root.querySelector('#editFreight').value)||0, markup=n(root.querySelector('#editMarkup').value)||0, cost=base+freight, price=cost*markup;root.querySelector('#editCalc').innerHTML=`<span>Custo total: <b>${money.format(cost)}</b></span><span>Preço pelo markup: <b>${money.format(price)}</b></span>`};
   ['#editBaseCost','#editFreight','#editMarkup'].forEach(sel=>root.querySelector(sel).addEventListener('input',calc));calc();
-  let productSearchTimer=null;
-  root.querySelector('#editProductSearch').addEventListener('input',e=>{
-    clearTimeout(productSearchTimer);
-    productSearchTimer=setTimeout(async()=>{
-      const select=root.querySelector('#editProduct'),selected=select.value;
-      try{
-        const rows=await searchProducts(e.target.value,selected||item.product_id||'');
-        select.innerHTML='<option value="">Sem produto vinculado</option>'+optionProductHtml(rows,selected||item.product_id);
-      }catch(error){
-        const fb=root.querySelector('#editFeedback');fb.textContent=error.message||'Não foi possível buscar produtos.';fb.dataset.type='error';
-      }
-    },300);
-  });
-  root.querySelector('#editProduct').addEventListener('change',()=>{const fb=root.querySelector('#editFeedback');fb.textContent='O vínculo não atualiza automaticamente preços, descrição ou imagem. Para vincular sem alterar a cotação, use o botão Vincular produto no item.';fb.dataset.type='';});
   root.querySelector('[data-close]').onclick=closeModal;root.querySelector('[data-modal-close]').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
   root.querySelector('#saveEdit').onclick=async()=>{
-    const fb=root.querySelector('#editFeedback'),btn=root.querySelector('#saveEdit'),productId=root.querySelector('#editProduct').value||null;
+    const fb=root.querySelector('#editFeedback'),btn=root.querySelector('#saveEdit');
     const base=n(root.querySelector('#editBaseCost').value)||0,freight=n(root.querySelector('#editFreight').value)||0,markup=n(root.querySelector('#editMarkup').value)||0,qty=n(root.querySelector('#editQuantity').value);
     const market=n(root.querySelector('#editMarket').value),suggested=n(root.querySelector('#editSuggested').value),finalPrice=n(root.querySelector('#editFinal').value);
     if(!root.querySelector('#editCustomer').value.trim()||!qty||qty<=0||markup<=0||finalPrice==null||finalPrice<0){fb.textContent='Revise cliente, quantidade, markup e preço final.';fb.dataset.type='error';return}
+    if(proposal.bling_proposal_id||proposal.bling_sync_status==='synced'){fb.textContent='Proposta já sincronizada com o Bling. Revise o fluxo de sincronização antes de editar condições comerciais.';fb.dataset.type='error';return}
     if(proposal.status==='sent'&&!window.confirm('Esta proposta já foi enviada. Confirma a edição deste item? As alterações podem exigir nova sincronização e reenvio ao cliente.'))return;
     btn.disabled=true;fb.textContent='Salvando…';
     try{
       const supplierData={}; // Preserva o fornecedor histórico da cotação, mesmo ao revisar o vínculo.
       const totalCost=base+freight,markupTotal=Number((totalCost*markup).toFixed(2));
       const {error:pError}=await supabase.from('sales_proposals').update({customer_name:root.querySelector('#editCustomer').value.trim(),customer_phone:root.querySelector('#editPhone').value.trim()||null,status:root.querySelector('#editStatus').value,notes:root.querySelector('#editNotes').value.trim()||null,updated_at:new Date().toISOString()}).eq('id',proposal.id);if(pError)throw pError;
-      const {error:iError}=await supabase.from('sales_proposal_items').update({product_id:productId,description:root.querySelector('#editDescription').value.trim(),share_description:root.querySelector('#editDescription').value.trim(),quantity:qty,base_cost:base,freight_cost:freight,total_cost:totalCost,applied_markup:markup,line_total:markupTotal,unit_price:markupTotal/qty,market_reference_price:market,suggested_price:suggested,final_offer_price:finalPrice,image_url:root.querySelector('#editImage').value.trim()||null,...supplierData}).eq('id',item.id);if(iError)throw iError;
+      const {error:iError}=await supabase.from('sales_proposal_items').update({description:root.querySelector('#editDescription').value.trim(),share_description:root.querySelector('#editDescription').value.trim(),quantity:qty,base_cost:base,freight_cost:freight,total_cost:totalCost,applied_markup:markup,line_total:markupTotal,unit_price:markupTotal/qty,market_reference_price:market,suggested_price:suggested,final_offer_price:finalPrice,image_url:root.querySelector('#editImage').value.trim()||null,...supplierData}).eq('id',item.id);if(iError)throw iError;
       closeModal();await refreshList('Proposta atualizada.');
     }catch(error){fb.textContent=error.message||'Não foi possível salvar.';fb.dataset.type='error'}finally{btn.disabled=false}
   };
@@ -238,5 +293,5 @@ async function refreshList(successMessage=''){
 export async function initProposalsAdmin(){
   const list=document.getElementById('proposalsList'),search=document.getElementById('proposalSearch'),feedback=document.getElementById('proposalFeedback');await refreshList();
   search?.addEventListener('input',()=>{const term=search.value.trim().toLowerCase();let visible=0;list.querySelectorAll('.proposal-card').forEach(card=>{const show=!term||card.dataset.search.includes(term);card.hidden=!show;if(show)visible++});feedback.textContent=term?`${visible} proposta(s) encontrada(s).`:`${proposals.length} proposta(s) encontrada(s).`});
-  list.addEventListener('click',async event=>{const card=event.target.closest('.proposal-card'),button=event.target.closest('[data-action]');if(!card||!button)return;const proposal=proposals.find(p=>p.id===card.dataset.proposalId);if(!proposal)return;if(button.dataset.action==='edit')await openEdit(proposal);if(button.dataset.action==='link-product'){const item=proposal.sales_proposal_items?.find(i=>i.id===button.dataset.itemId);if(item)await openLinkProduct(proposal,item)}if(button.dataset.action==='edit-item'){const item=proposal.sales_proposal_items?.find(i=>i.id===button.dataset.itemId);if(item)await openEdit(proposal,item)}if(button.dataset.action==='share')await openShare(proposal)});
+  list.addEventListener('click',async event=>{const card=event.target.closest('.proposal-card'),button=event.target.closest('[data-action]');if(!card||!button)return;const proposal=proposals.find(p=>p.id===card.dataset.proposalId);if(!proposal)return;if(button.dataset.action==='edit')await openEdit(proposal);if(button.dataset.action==='link-customer')await openLinkCustomer(proposal);if(button.dataset.action==='link-product'){const item=proposal.sales_proposal_items?.find(i=>i.id===button.dataset.itemId);if(item)await openLinkProduct(proposal,item)}if(button.dataset.action==='edit-item'){const item=proposal.sales_proposal_items?.find(i=>i.id===button.dataset.itemId);if(item)await openEdit(proposal,item)}if(button.dataset.action==='share')await openShare(proposal)});
 }
