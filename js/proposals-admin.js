@@ -27,6 +27,7 @@ function renderItem(item){
   const p=itemPricing(item), sourceUrl=safeUrl(item.market_reference_metadata?.primary?.url), marketSource=item.market_reference_source||item.market_reference_metadata?.primary?.supplier||'';
   return `<section class="proposal-item">
     <div class="proposal-item-head"><div class="item-head-main">${item.image_url?`<img class="item-photo" src="${esc(item.image_url)}" alt="${esc(item.option_label||item.description)}">`:''}<div><strong>${esc(item.option_label||item.description)}</strong><small>${esc(item.description||'')}</small></div></div><span class="sku">${esc(item.supplier_sku||'sem SKU')}</span></div>
+    <div class="analysis-strip"><span>Cadastro Croma: <b>${item.product_id?'Vinculado':'Não vinculado'}</b></span><button type="button" class="mini-btn alt" data-action="link-product" data-item-id="${esc(item.id)}">${item.product_id?'Revisar vínculo':'Vincular produto'}</button></div>
     <div class="price-grid">
       <div><span>Custo fornecedor</span><strong>${money.format(Number(item.base_cost||0))}</strong></div>
       <div><span>Frete</span><strong>${money.format(Number(item.freight_cost||0))}</strong></div>
@@ -79,6 +80,61 @@ async function getProductSnapshot(productId){
 
 function optionProductHtml(products,currentId){return products.map(p=>`<option value="${esc(p.id)}" ${p.id===currentId?'selected':''}>${esc(p.nome)}${p.sku?` · ${esc(p.sku)}`:''}</option>`).join('')}
 
+
+// Vinculação assistida: não altera valores, descrições, imagens, fornecedor ou dados do Bling.
+async function openLinkProduct(proposal,item){
+  let rows;
+  try{rows=await searchProducts('',item.product_id||'')}catch(error){alert(error.message||'Falha ao buscar produtos.');return}
+  setModal(`<div class="modal-backdrop" data-modal-close><section class="modal" role="dialog" aria-modal="true" aria-labelledby="linkProductTitle">
+    <h2 id="linkProductTitle">Vincular produto — proposta #${esc(proposal.proposal_no)}</h2>
+    <p class="modal-lead">Item: ${esc(item.option_label||item.description)}. A vinculação organiza o cadastro, sem atualizar os valores e as condições que foram cotados ao cliente.</p>
+    <div class="form-grid"><div class="field full"><label for="linkProductSearch">Buscar produto por nome ou SKU</label><input id="linkProductSearch" autocomplete="off" placeholder="Digite o nome ou SKU"></div>
+    <div class="field full"><label for="linkProductSelect">Produto correspondente</label><select id="linkProductSelect"><option value="">Sem produto vinculado</option>${optionProductHtml(rows,item.product_id)}</select></div></div>
+    <p class="share-note">Confira se o produto corresponde ao material, tamanho e acabamento da proposta. Não vincule apenas pela semelhança do nome. O histórico comercial e a sincronização com o Bling não serão modificados.</p>
+    <div id="linkProductFeedback" class="modal-feedback" aria-live="polite"></div>
+    <div class="modal-actions"><button type="button" class="mini-btn alt" data-close>Cancelar</button><button type="button" class="mini-btn" id="linkProductSave">Confirmar vínculo</button></div>
+  </section></div>`);
+  const root=document.getElementById('proposalModalRoot');
+  const select=root.querySelector('#linkProductSelect'),search=root.querySelector('#linkProductSearch'),feedback=root.querySelector('#linkProductFeedback'),save=root.querySelector('#linkProductSave');
+  const initialId=item.product_id||'';
+  let timer=null,sequence=0;
+  search.addEventListener('input',()=>{
+    clearTimeout(timer);
+    const request=++sequence;
+    timer=setTimeout(async()=>{
+      const selected=select.value;
+      try{
+        const found=await searchProducts(search.value,selected||initialId);
+        if(request!==sequence)return;
+        select.innerHTML='<option value="">Sem produto vinculado</option>'+optionProductHtml(found,selected);
+        feedback.textContent=found.length?'Confira o produto selecionado.':'Nenhum produto encontrado; refine a busca.';
+        feedback.dataset.type='';
+      }catch(error){if(request===sequence){feedback.textContent=error.message||'Erro na busca.';feedback.dataset.type='error'}}
+    },300);
+  });
+  select.addEventListener('change',()=>{feedback.textContent='';feedback.dataset.type=''});
+  root.querySelector('[data-close]').onclick=closeModal;
+  root.querySelector('[data-modal-close]').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
+  save.addEventListener('click',async()=>{
+    const productId=select.value||null;
+    if(initialId&&productId!==initialId){feedback.textContent='Trocas de vínculo existente precisam de revisão específica. Nenhum dado foi alterado.';feedback.dataset.type='error';return}
+    if(!productId){feedback.textContent='Selecione um produto correspondente para vincular.';feedback.dataset.type='error';return}
+    if(productId===initialId){closeModal();return}
+    save.disabled=true;feedback.textContent='Verificando vínculo…';feedback.dataset.type='';
+    try{
+      const {data:current,error:readError}=await supabase.from('sales_proposal_items').select('id,product_id').eq('id',item.id).eq('proposal_id',proposal.id).single();
+      if(readError)throw readError;
+      if((current.product_id||'')!==initialId)throw new Error('Este item foi alterado desde a abertura. Recarregue a proposta antes de continuar.');
+      const {data:updated,error:writeError}=await supabase.from('sales_proposal_items').update({product_id:productId}).eq('id',item.id).eq('proposal_id',proposal.id).is('product_id',null).select('id,product_id');
+      if(writeError)throw writeError;
+      // Troca de vínculo existente é deliberadamente bloqueada nesta etapa.
+      if(initialId)throw new Error('Trocas de vínculo existente precisam de revisão específica.');
+      if(!updated||updated.length!==1)throw new Error('Vínculo não confirmado; atualize a lista e revise o item.');
+      closeModal();await refreshList('Produto vinculado sem alterar os valores da proposta.');
+    }catch(error){feedback.textContent=error.message||'Não foi possível vincular.';feedback.dataset.type='error';save.disabled=false}
+  });
+}
+
 async function openEdit(proposal){
   const item=proposal.sales_proposal_items?.[0]; if(!item)return;
   let products=[]; try{products=await searchProducts('',item.product_id||'')}catch(error){alert(error.message);return}
@@ -102,7 +158,7 @@ async function openEdit(proposal){
       }
     },300);
   });
-  root.querySelector('#editProduct').addEventListener('change',async e=>{if(!e.target.value)return;const fb=root.querySelector('#editFeedback');fb.textContent='Carregando dados do produto…';try{const snap=await getProductSnapshot(e.target.value);if(snap.product){root.querySelector('#editDescription').value=snap.product.short_description||snap.product.nome;root.querySelector('#editMarkup').value=snap.product.default_markup||root.querySelector('#editMarkup').value}if(snap.supplier){root.querySelector('#editBaseCost').value=snap.supplier.purchase_price||0;root.querySelector('#editFreight').value=snap.supplier.freight_cost||0}if(snap.imageUrl)root.querySelector('#editImage').value=snap.imageUrl;calc();fb.textContent='Dados do produto carregados. Revise antes de salvar.'}catch(error){fb.textContent=error.message;fb.dataset.type='error'}});
+  root.querySelector('#editProduct').addEventListener('change',()=>{const fb=root.querySelector('#editFeedback');fb.textContent='O vínculo não atualiza automaticamente preços, descrição ou imagem. Para vincular sem alterar a cotação, use o botão Vincular produto no item.';fb.dataset.type='';});
   root.querySelector('[data-close]').onclick=closeModal;root.querySelector('[data-modal-close]').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
   root.querySelector('#saveEdit').onclick=async()=>{
     const fb=root.querySelector('#editFeedback'),btn=root.querySelector('#saveEdit'),productId=root.querySelector('#editProduct').value||null;
@@ -111,7 +167,7 @@ async function openEdit(proposal){
     if(!root.querySelector('#editCustomer').value.trim()||!qty||qty<=0||markup<=0||finalPrice==null||finalPrice<0){fb.textContent='Revise cliente, quantidade, markup e preço final.';fb.dataset.type='error';return}
     btn.disabled=true;fb.textContent='Salvando…';
     try{
-      let supplierData={};if(productId&&productId!==item.product_id){const snap=await getProductSnapshot(productId);supplierData={supplier_id:snap.supplier?.supplier_id||null,supplier_catalog_item_id:snap.supplier?.supplier_catalog_item_id||null,supplier_sku:snap.supplier?.supplier_sku||null};}
+      const supplierData={}; // Preserva o fornecedor histórico da cotação, mesmo ao revisar o vínculo.
       const totalCost=base+freight,markupTotal=Number((totalCost*markup).toFixed(2));
       const {error:pError}=await supabase.from('sales_proposals').update({customer_name:root.querySelector('#editCustomer').value.trim(),customer_phone:root.querySelector('#editPhone').value.trim()||null,status:root.querySelector('#editStatus').value,notes:root.querySelector('#editNotes').value.trim()||null,updated_at:new Date().toISOString()}).eq('id',proposal.id);if(pError)throw pError;
       const {error:iError}=await supabase.from('sales_proposal_items').update({product_id:productId,description:root.querySelector('#editDescription').value.trim(),share_description:root.querySelector('#editDescription').value.trim(),quantity:qty,base_cost:base,freight_cost:freight,total_cost:totalCost,applied_markup:markup,line_total:markupTotal,unit_price:markupTotal/qty,market_reference_price:market,suggested_price:suggested,final_offer_price:finalPrice,image_url:root.querySelector('#editImage').value.trim()||null,...supplierData}).eq('id',item.id);if(iError)throw iError;
@@ -180,5 +236,5 @@ async function refreshList(successMessage=''){
 export async function initProposalsAdmin(){
   const list=document.getElementById('proposalsList'),search=document.getElementById('proposalSearch'),feedback=document.getElementById('proposalFeedback');await refreshList();
   search?.addEventListener('input',()=>{const term=search.value.trim().toLowerCase();let visible=0;list.querySelectorAll('.proposal-card').forEach(card=>{const show=!term||card.dataset.search.includes(term);card.hidden=!show;if(show)visible++});feedback.textContent=term?`${visible} proposta(s) encontrada(s).`:`${proposals.length} proposta(s) encontrada(s).`});
-  list.addEventListener('click',async event=>{const card=event.target.closest('.proposal-card'),button=event.target.closest('[data-action]');if(!card||!button)return;const proposal=proposals.find(p=>p.id===card.dataset.proposalId);if(!proposal)return;if(button.dataset.action==='edit')await openEdit(proposal);if(button.dataset.action==='share')await openShare(proposal)});
+  list.addEventListener('click',async event=>{const card=event.target.closest('.proposal-card'),button=event.target.closest('[data-action]');if(!card||!button)return;const proposal=proposals.find(p=>p.id===card.dataset.proposalId);if(!proposal)return;if(button.dataset.action==='edit')await openEdit(proposal);if(button.dataset.action==='link-product'){const item=proposal.sales_proposal_items?.find(i=>i.id===button.dataset.itemId);if(item)await openLinkProduct(proposal,item)}if(button.dataset.action==='share')await openShare(proposal)});
 }
