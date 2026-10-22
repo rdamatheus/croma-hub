@@ -14,15 +14,15 @@
     <div class="topline"><a class="back" href="/interno/">← Painel interno</a><div class="actions"><a class="alt" href="/interno/comercial/">Comercial</a><a href="/interno/comercial/#proposalSection">Nova proposta</a></div></div>
     <div class="page-head">
       <div><span class="internal-eyebrow">Comercial</span><h1>Propostas</h1><p>Cotações registradas com snapshot de custo, frete, markup utilizado, referência pesquisada de mercado e preço sugerido para negociação.</p></div>
-      <div class="search"><label for="proposalSearch">Localizar proposta</label><input id="proposalSearch" type="search" placeholder="Nome, telefone ou número"></div>
+      <div class="search"><label for="proposalSearch">Localizar proposta</label><input id="proposalSearch" type="search" placeholder="Nome, telefone ou número"><label for="proposalReviewFilter" style="display:block;margin-top:10px">Revisar pendências</label><select id="proposalReviewFilter" style="width:100%;padding:11px 12px;border:1px solid var(--croma-line);border-radius:11px;background:#fff;font:inherit"><option value="all">Todas as propostas</option><option value="product">Itens sem produto vinculado</option><option value="customer">Sem contato vinculado</option><option value="bling">Não sincronizadas com Bling</option></select></div>
     </div>
-    <div id="proposalFeedback" class="feedback" aria-live="polite"></div>
+    <p id="proposalAudit" class="notes" aria-live="polite">Carregando indicadores de revisão…</p><div id="proposalFeedback" class="feedback" aria-live="polite"></div>
     <section id="proposalsList" class="list"></section>
   </main>
   <div id="proposalModalRoot"></div>
   <script type="module">
     import { protectInternalPage } from '/js/interno-auth.js?v=20260916-1';
-    import { initProposalsAdmin } from '/js/proposals-admin.js?v=20261021-3';
+    import { initProposalsAdmin } from '/js/proposals-admin.js?v=20261021-4';
     import { initProposalBlingSync } from '/js/proposal-bling-sync.js?v=20261007-2';
     const session=await protectInternalPage({roles:['owner','manager']});
     if(!session) throw new Error('Acesso não autorizado.');
