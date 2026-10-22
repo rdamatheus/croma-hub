@@ -58,7 +58,7 @@ async function loadProposals(){
 }
 
 async function searchCustomers(term,currentId=''){
-  const clean=String(term||'').trim().replace(/[,%()]/g,' ').replace(/\\s+/g,' ').slice(0,80);
+  const clean=String(term||'').trim().replace(/[,%()]/g,' ').replace(/\s+/g,' ').slice(0,80);
   if(clean.length<3)return [];
   const {data,error}=await supabase.from('customer_profiles').select('id,nome,nome_fantasia,telefone,celular,bling_contact_id,ativo').eq('ativo',true).or(`nome.ilike.%${clean}%,nome_fantasia.ilike.%${clean}%,telefone.ilike.%${clean}%,celular.ilike.%${clean}%`).order('nome').limit(30);
   if(error)throw error;
@@ -285,13 +285,41 @@ async function openShare(proposal){
   root.querySelector('#openWhatsApp').onclick=()=>{const phone=whatsappPhone(proposal.customer_phone),text=encodeURIComponent(root.querySelector('#shareMessage').value),url=phone?`https://wa.me/${phone}?text=${text}`:`https://wa.me/?text=${text}`;window.open(url,'_blank','noopener')};
 }
 
+function proposalAudit(){
+  const items=proposals.flatMap(p=>p.sales_proposal_items||[]);
+  const withoutProduct=items.filter(i=>!i.product_id).length;
+  const withoutCustomer=proposals.filter(p=>!p.customer_id).length;
+  const notSynced=proposals.filter(p=>p.bling_sync_status!=='synced').length;
+  const host=document.getElementById('proposalAudit');
+  if(host)host.textContent=`Revisão: ${withoutProduct} de ${items.length} itens sem produto · ${withoutCustomer} de ${proposals.length} propostas sem contato · ${notSynced} propostas não sincronizadas com o Bling. Estes indicadores não significam que os registros sejam duplicados ou incorretos.`;
+}
+function applyProposalFilters(message=''){
+  const list=document.getElementById('proposalsList'),feedback=document.getElementById('proposalFeedback');
+  const term=(document.getElementById('proposalSearch')?.value||'').trim().toLowerCase();
+  const mode=document.getElementById('proposalReviewFilter')?.value||'all';
+  let visible=0;
+  list.querySelectorAll('.proposal-card').forEach(card=>{
+    const p=proposals.find(row=>row.id===card.dataset.proposalId);
+    if(!p)return;
+    const match=!term||card.dataset.search.includes(term);
+    const review=mode==='all'||(mode==='product'&&(p.sales_proposal_items||[]).some(i=>!i.product_id))||(mode==='customer'&&!p.customer_id)||(mode==='bling'&&p.bling_sync_status!=='synced');
+    card.hidden=!(match&&review);if(match&&review)visible++;
+  });
+  feedback.textContent=message||`${visible} proposta(s) exibida(s) de ${proposals.length}.`;
+  feedback.dataset.type=message?'success':'';
+}
 async function refreshList(successMessage=''){
   const list=document.getElementById('proposalsList'),feedback=document.getElementById('proposalFeedback');feedback.textContent='Carregando propostas…';feedback.dataset.type='';
-  try{await loadProposals();list.innerHTML=proposals.length?proposals.map(renderProposal).join(''):'<p class="empty">Nenhuma proposta cadastrada.</p>';feedback.textContent=successMessage||`${proposals.length} proposta(s) encontrada(s).`;feedback.dataset.type=successMessage?'success':''}catch(error){list.innerHTML='<p class="empty">Não foi possível carregar as propostas.</p>';feedback.textContent=error.message||'Falha ao carregar propostas.';feedback.dataset.type='error'}
+  try{
+    await loadProposals();
+    list.innerHTML=proposals.length?proposals.map(renderProposal).join(''):'<p class="empty">Nenhuma proposta cadastrada.</p>';
+    proposalAudit();applyProposalFilters(successMessage);
+  }catch(error){list.innerHTML='<p class="empty">Não foi possível carregar as propostas.</p>';feedback.textContent=error.message||'Falha ao carregar propostas.';feedback.dataset.type='error'}
 }
 
 export async function initProposalsAdmin(){
-  const list=document.getElementById('proposalsList'),search=document.getElementById('proposalSearch'),feedback=document.getElementById('proposalFeedback');await refreshList();
-  search?.addEventListener('input',()=>{const term=search.value.trim().toLowerCase();let visible=0;list.querySelectorAll('.proposal-card').forEach(card=>{const show=!term||card.dataset.search.includes(term);card.hidden=!show;if(show)visible++});feedback.textContent=term?`${visible} proposta(s) encontrada(s).`:`${proposals.length} proposta(s) encontrada(s).`});
+  const list=document.getElementById('proposalsList'),search=document.getElementById('proposalSearch'),filter=document.getElementById('proposalReviewFilter');await refreshList();
+  search?.addEventListener('input',()=>applyProposalFilters());
+  filter?.addEventListener('change',()=>applyProposalFilters());
   list.addEventListener('click',async event=>{const card=event.target.closest('.proposal-card'),button=event.target.closest('[data-action]');if(!card||!button)return;const proposal=proposals.find(p=>p.id===card.dataset.proposalId);if(!proposal)return;if(button.dataset.action==='edit')await openEdit(proposal);if(button.dataset.action==='link-customer')await openLinkCustomer(proposal);if(button.dataset.action==='link-product'){const item=proposal.sales_proposal_items?.find(i=>i.id===button.dataset.itemId);if(item)await openLinkProduct(proposal,item)}if(button.dataset.action==='edit-item'){const item=proposal.sales_proposal_items?.find(i=>i.id===button.dataset.itemId);if(item)await openEdit(proposal,item)}if(button.dataset.action==='share')await openShare(proposal)});
 }
