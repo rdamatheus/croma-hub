@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Finalizar compra | Croma</title>
   <style>
+    /* O resumo já está visível no checkout; o atalho flutuante cobre as ações no celular. */
+    body[data-checkout] .croma-cart-fab,body[data-checkout] .croma-cart-panel{display:none!important}
     body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f5fb;color:#29263b}.wrap{max-width:980px;margin:38px auto;padding:22px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center}.head a{color:#30297F;text-decoration:none;font-weight:900}.head-links{display:flex;gap:14px;flex-wrap:wrap}.steps{display:flex;gap:8px;margin:22px 0;flex-wrap:wrap}.step{padding:8px 11px;border-radius:999px;background:#e9e7f2;color:#69657a;font-weight:850}.step.active{background:#30297F;color:#fff}.panel{display:none}.panel.active{display:block}.card{background:#fff;border:1px solid #e7e5ee;border-radius:20px;padding:20px;margin:12px 0}.item{display:grid;grid-template-columns:1fr auto;gap:14px;border-bottom:1px solid #eeeaf4;padding:14px 0}.item:last-child{border-bottom:0}.muted{color:#716d80}.price,.total{font-weight:900;color:#211c5c}.total{display:flex;justify-content:space-between;font-size:1.15rem}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.btn{border:0;border-radius:11px;padding:12px 17px;font-weight:900;cursor:pointer}.btn:disabled{opacity:.62;cursor:wait}.primary{background:#30297F;color:#fff}.secondary{background:#fff;border:1px solid #d9d5e6;color:#30297F}.choice{display:grid;gap:10px}.choice label{border:1px solid #e2dfea;border-radius:14px;padding:14px;cursor:pointer}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-weight:800;color:#30297F;margin-bottom:5px}.field input,.field textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d9d6e5;border-radius:10px}.wide{grid-column:1/-1}.hidden{display:none!important}.msg{margin-top:12px;color:#a83a3a}.ok{color:#567d25}.empty-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.empty-actions a{display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:10px;text-decoration:none;font-weight:900}.empty-actions a:first-child{background:#30297F;color:#fff}.empty-actions a:last-child{border:1px solid #d9d5e6;color:#30297F;background:#fff}@media(max-width:650px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.item{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.actions{align-items:stretch}.actions .btn{flex:1}}
   </style>
   <link rel="stylesheet" href="/css/checkout-payment.css?v=20260913-1">
 </head>
-<body>
+<body data-checkout>
   <main class="wrap">
     <div class="head">
       <a href="/produtos/">← Continuar comprando</a>
