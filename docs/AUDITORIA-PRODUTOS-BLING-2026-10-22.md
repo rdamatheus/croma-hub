@@ -101,3 +101,18 @@ Somente 25 produtos do tipo `produto` estão com `controls_stock=true` no Croma 
 - Testes de leitura e interface autenticada antes de considerar a etapa concluída.
 
 **Limitação desta auditoria:** alguns cruzamentos SQL foram bloqueados por controles de segurança. Eles não foram considerados verificados. Não houve teste end-to-end com a API do Bling nem alterações nos registros do Supabase.
+
+## 7. Complemento da auditoria de 22/10/2026 — segurança das grades
+
+Na revisão do editor `js/interno-produtos-core-v3.js`, foi identificado que o salvamento comum de um produto excluía **todas as grades de preço** daquele produto e tentava inseri-las novamente, mesmo sem alterações nas faixas. Esse procedimento não é transacional e pode perder dados se a leitura ou inserção falhar.
+
+**Mitigação aplicada no código, sem alteração no banco:** `priceTiersDirty` indica alteração explícita das faixas; a rotina de exclusão/reinserção é ignorada ao salvar apenas nome, descrição, preço base ou outros campos. `priceTiersLoadOk` impede iniciar uma gravação com edição de faixas se a leitura delas tiver falhado. A versão do JS foi atualizada no HTML para evitar cache antigo.
+
+**Limitação ainda aberta:** quando uma grade é efetivamente editada, a operação continua sendo `DELETE` + `INSERT` sem transação. A política de leitura consultada para `product_price_tiers` restringe `SELECT` a `ativo=true`, podendo ocultar faixas inativas. É necessário substituir esse fluxo por gravação atômica, com verificação de permissões e testes reais, antes de expandir a precificação por quantidade.
+
+### Evidências complementares
+- A conferência de `erp_product_sync_state` encontrou o último check remoto registrado em 14/10/2026, não no dia desta auditoria. Não afirmar sincronização atual apenas pelo status local.
+- 2.138 objetos `product_details.specifications` contêm `bling_raw` e `bling_normalized_at`; esses campos são metadados de integração, não substitutos de atributos comerciais normalizados.
+- Somente 12 linhas de `product_details` têm largura positiva e 12 têm altura positiva, embora 2.142 tenham linhas de detalhes. Não interpretar medidas nulas/zero como dimensões finais de impressão.
+- Um produto com `bling_product_id` não possui `erp_entity_mappings` correspondente. Revisar isoladamente antes de qualquer criação de vínculo.
+- 6.523 valores de campos personalizados estão preservados como JSON strings; a maioria não tem rótulo legível em `item`. Não deduzir o significado de IDs externos.
