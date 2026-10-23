@@ -40,6 +40,8 @@ let groups=[];
 let variants=[];
 let priceTiers=[];
 let originalPriceTierIds=[];
+let priceTiersDirty=false;
+let priceTiersLoadOk=true;
 let selectedTierVariant='';
 let dirty=false;
 let uiPage=1;
@@ -311,6 +313,8 @@ async function loadProduct(id){
   const snapshot=readAux(5,null,'estoque do Bling');
   const childRows=readAux(6,[],'filhos do produto');
   priceTiers=readAux(7,[],'grades de preço por quantidade');
+  priceTiersLoadOk=results[7].status==='fulfilled'&&!results[7].value?.error;
+  priceTiersDirty=false;
   originalPriceTierIds=priceTiers.map(x=>x.id).filter(Boolean);
   let available=snapshot?.available_stock??null;
 
@@ -413,12 +417,12 @@ function syncTierInputs(){
 function addPriceTier(){
   const min=tiersForSelectedVariant().reduce((m,t)=>Math.max(m,Number(t.min_qty||0)),0)+1;
   priceTiers.push({_local:'tier_'+crypto.randomUUID(),product_id:currentProduct.id,variant_id:selectedTierVariant||null,min_qty:min,max_qty:null,quantity_rule:'free',price_basis:'unit',unit_price:Number(currentProduct.preco||0),ativo:true,label:null,source:'manual'});
-  setDirty();renderTierRows();
+  priceTiersDirty=true;setDirty();renderTierRows();
 }
 $('#addTier')?.addEventListener('click',addPriceTier);
-$('#tierRows')?.addEventListener('input',e=>{if(e.target.matches('[data-tier]')){syncTierInputs();setDirty();}});
-$('#tierRows')?.addEventListener('change',e=>{if(e.target.matches('[data-tier]')){syncTierInputs();setDirty();renderTierRows();}});
-$('#tierRows')?.addEventListener('click',e=>{const b=e.target.closest('[data-tier-del]');if(!b)return;syncTierInputs();priceTiers=priceTiers.filter(x=>tierKey(x)!==b.dataset.tierDel);setDirty();renderTierRows();});
+$('#tierRows')?.addEventListener('input',e=>{if(e.target.matches('[data-tier]')){syncTierInputs();priceTiersDirty=true;setDirty();}});
+$('#tierRows')?.addEventListener('change',e=>{if(e.target.matches('[data-tier]')){syncTierInputs();priceTiersDirty=true;setDirty();renderTierRows();}});
+$('#tierRows')?.addEventListener('click',e=>{const b=e.target.closest('[data-tier-del]');if(!b)return;syncTierInputs();priceTiers=priceTiers.filter(x=>tierKey(x)!==b.dataset.tierDel);priceTiersDirty=true;setDirty();renderTierRows();});
 $('#priceBaseMirror')?.addEventListener('input',()=>{const p=$('#preco');if(p&&p.value!==$('#priceBaseMirror').value)p.value=$('#priceBaseMirror').value;setDirty();});
 $('#preco')?.addEventListener('input',()=>{const p=$('#priceBaseMirror');if(p&&p.value!==$('#preco').value)p.value=$('#preco').value;setDirty();});
 
@@ -429,16 +433,21 @@ async function save(){
   try{
     const pp={sku:txt('sku'),nome:txt('nome'),slug:txt('slug'),catalog_category_id:val('category')||null,product_type:val('productType'),product_format:val('productFormat'),condition:val('condition')||null,product_line:txt('productLine'),unidade:txt('unidade')||'un',preco:Math.max(0,num('preco')||0),ativo:val('ativo')==='true',descricao:txt('descricao'),short_description:txt('shortDescription'),complementary_description:txt('complementaryDescription'),external_link:txt('externalLink'),video_link:txt('videoLink'),notes:txt('notes'),bling_product_id:num('blingProductId'),bling_parent_id:num('blingParentId'),bling_sku:txt('blingSku'),bling_sync_status:val('blingSyncStatus')};const {data,error}=await supabase.from('products').update(pp).eq('id',currentProduct.id).select('*').single();if(error)throw error;
     const dp={product_id:currentProduct.id,brand:txt('brand'),model:txt('model'),production_mode:val('productionMode')||null,expiration_date:val('expirationDate')||null,free_shipping:$('#freeShipping')?.checked||false,net_weight_kg:num('netWeight'),gross_weight_kg:num('grossWeight'),width_cm:num('widthCm'),height_cm:num('heightCm'),depth_cm:num('depthCm'),dimensions_unit:val('dimensionsUnit')||'cm',volumes:num('volumes'),items_per_box:num('itemsPerBox'),gtin:txt('gtin'),gtin_tax:txt('gtinTax'),origin:txt('origin'),ncm:txt('ncm'),cest:txt('cest'),item_type:txt('itemType'),approximate_tax_percent:num('approxTax'),tax_group:txt('taxGroup'),icms_st_retained_base:num('icmsBase'),icms_st_retained_value:num('icmsValue'),own_icms_substitute:num('ownIcms'),fixed_pis:num('fixedPis'),fixed_cofins:num('fixedCofins'),anp_code:txt('anpCode'),anp_description:txt('anpDescription'),glp_percent:num('glpPercent'),glgn_national_percent:num('glgnNational'),glgn_imported_percent:num('glgnImported'),starting_value:num('startingValue'),additional_fiscal_info:txt('additionalFiscalInfo'),updated_at:new Date().toISOString()};const {error:de}=await supabase.from('product_details').upsert(dp,{onConflict:'product_id'});if(de)throw de;
-    syncTierInputs();
-    const {error:td}=await supabase.from('product_price_tiers').delete().eq('product_id',currentProduct.id);if(td)throw td;
-    if(priceTiers.length){
-      const tierPayload=priceTiers.map(t=>{const x=normalizeTier({...t});return{product_id:currentProduct.id,variant_id:x.variant_id||null,min_qty:x.min_qty,max_qty:x.max_qty,quantity_rule:x.quantity_rule,price_basis:x.price_basis,unit_price:x.unit_price,ativo:x.ativo,label:x.label||null,source:x.source||'manual',notes:x.notes||null,updated_at:new Date().toISOString()};});
-      const {error:ti}=await supabase.from('product_price_tiers').insert(tierPayload);if(ti)throw ti;
+    // Editar dados do produto não deve apagar/recriar suas grades de preço.
+    // A gravação de grades ainda exige revisão transacional; executar apenas após edição explícita.
+    if(priceTiersDirty){
+      if(!priceTiersLoadOk)throw new Error('Não foi possível carregar todas as grades de preço. Reabra o produto antes de editá-las.');
+      syncTierInputs();
+      const {error:td}=await supabase.from('product_price_tiers').delete().eq('product_id',currentProduct.id);if(td)throw td;
+      if(priceTiers.length){
+        const tierPayload=priceTiers.map(t=>{const x=normalizeTier({...t});return{product_id:currentProduct.id,variant_id:x.variant_id||null,min_qty:x.min_qty,max_qty:x.max_qty,quantity_rule:x.quantity_rule,price_basis:x.price_basis,unit_price:x.unit_price,ativo:x.ativo,label:x.label||null,source:x.source||'manual',notes:x.notes||null,updated_at:new Date().toISOString()};});
+        const {error:ti}=await supabase.from('product_price_tiers').insert(tierPayload);if(ti)throw ti;
+      }
+      const {data:reloadedTiers,error:trl}=await supabase.from('product_price_tiers').select('*').eq('product_id',currentProduct.id).order('variant_id',{ascending:true,nullsFirst:true}).order('min_qty',{ascending:true});if(trl)throw trl;
+      priceTiers=reloadedTiers||[];originalPriceTierIds=priceTiers.map(x=>x.id).filter(Boolean);priceTiersDirty=false;
     }
-    const {data:reloadedTiers,error:trl}=await supabase.from('product_price_tiers').select('*').eq('product_id',currentProduct.id).order('variant_id',{ascending:true,nullsFirst:true}).order('min_qty',{ascending:true});if(trl)throw trl;
-    priceTiers=reloadedTiers||[];originalPriceTierIds=priceTiers.map(x=>x.id).filter(Boolean);
     currentProduct=data;details={...details,...dp};setDirty(false);renderTierRows();if(status){status.className='status ok';status.textContent='Item e grade de preços salvos com sucesso.';}
-  }catch(e){console.error(e);if(status){status.className='status bad';status.textContent='Não foi possível salvar o item.';}}
+  }catch(e){console.error(e);if(status){status.className='status bad';status.textContent=e?.message||'Não foi possível salvar o item.';}}
 }
 $('#save')?.addEventListener('click',save);
 
