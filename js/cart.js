@@ -1,5 +1,5 @@
 (() => {
-  if (window.CromaCart?.__version === '20260912-3') return;
+  if (window.CromaCart?.__version === '20261023-1') return;
 
   const CART_KEY = 'croma_cart_v2';
   const CART_TS_KEY = 'croma_cart_updated_v1';
@@ -9,7 +9,7 @@
 
   let supabase = null;
   let syncTimer = null;
-  let syncing = false;
+  let syncQueue = Promise.resolve();
   let hydrated = false;
 
   const money = value => Number(value || 0).toLocaleString('pt-BR', {
@@ -138,16 +138,15 @@
     };
   }
 
-  async function syncNow() {
-    if (!supabase || syncing) return false;
+  function syncNow() {
+    clearTimeout(syncTimer);
+    // Aguarda gravacoes anteriores antes de sincronizar o estado mais recente.
+    const task = syncQueue.catch(() => {}).then(async () => {
+      if (!supabase) return false;
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!data?.user) return false;
 
-    const { data, error: userError } = await supabase.auth.getUser();
-    if (userError) throw userError;
-    const user = data?.user;
-    if (!user) return false;
-
-    syncing = true;
-    try {
       const payload = remotePayload();
       const { error } = await supabase.rpc('sync_active_cart', {
         p_client_reference: cartRef(),
@@ -156,9 +155,9 @@
       });
       if (error) throw error;
       return true;
-    } finally {
-      syncing = false;
-    }
+    });
+    syncQueue = task;
+    return task;
   }
 
   async function hydrate() {
@@ -526,7 +525,7 @@
   }
 
   const api = {
-    __version: '20260912-3',
+    __version: '20261023-1',
     read,
     add,
     remove,
