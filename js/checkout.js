@@ -220,6 +220,17 @@ async function handleCardSubmit(formData,paymentTypeId){
     throw new Error(result.status_detail||'Pagamento não aprovado.');
   }catch(error){console.error(error);setStatus(error?.message||'Não foi possível processar o cartão. Tente novamente.','error');throw error}
 }
+
+function checkoutErrorMessage(error){
+  const detail=String(error?.message||'');
+  if(/^(Estoque de |Estoque insuficiente|Saldo de |Produto indisponível|Item do carrinho |Carrinho vazio|Há item |Não foi possível confirmar o estoque|Conta sem vínculo)/i.test(detail)
+    || /deve ser solicitado por orçamento|precisa ser configurado antes da compra|está sem preço válido para compra|ainda não possui vínculo com o Bling|não pode ser comprado pelo checkout/i.test(detail)){
+    return detail+' Seu carrinho foi mantido.';
+  }
+  if(error?.code==='23505')return 'O carrinho recebeu outra atualização. Aguarde um instante e tente novamente; seus itens foram mantidos.';
+  return 'Não foi possível registrar o pedido. Seu carrinho foi mantido. Tente novamente; se o problema continuar, entre em contato com a Croma.';
+}
+
 async function manualFinish(){
   if(!user||!activeCart.length||!validateDelivery())return;
   if(selectedDelivery().fulfillment==='entrega'){
@@ -242,7 +253,7 @@ async function manualFinish(){
     const url=`https://wa.me/553230253588?text=${encodeURIComponent(lines.join('\n'))}`;
     if(wa)wa.location.href=url;else location.href=url;
     setTimeout(()=>{location.href=`/meus-pedidos/?pedido=${encodeURIComponent(order.order_code)}`},700);
-  }catch(error){console.error(error);if(wa)wa.close();msg.className='msg';msg.textContent='Não foi possível concluir o pedido. Seu carrinho foi mantido; tente novamente.';finish.disabled=false}
+  }catch(error){console.error(error);if(wa)wa.close();msg.className='msg';msg.textContent=checkoutErrorMessage(error);finish.disabled=false}
 }
 
 to2.onclick=async()=>{if(!cart.length)return;if(!user){await requireUser(location.href);return}if(!customerId){location.href='/minha-conta/';return}go(2)};
