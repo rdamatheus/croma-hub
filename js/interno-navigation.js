@@ -73,8 +73,8 @@ export const INTERNAL_GROUPS=[
     {key:'vitrine-campanhas',label:'Vitrine & Campanhas',href:'/interno/vitrine-campanhas/',description:'Banners, destaques e campanhas do site público.',icon:ICONS.vitrine,roles:MANAGEMENT_ROLES},
     {key:'vitrine-aprovacoes',label:'Central de Aprovações',href:'/interno/vitrine-aprovacoes/',description:'Propostas, previews, comentários e decisões da vitrine.',icon:ICONS.aprovacoes,roles:MANAGEMENT_ROLES}
   ]},
-  {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:
-    {key:'observabilidade',label:'Central de Incidentes e Observabilidade',href:'/interno/observabilidade/',description:'Erros, conflitos do Bling, prioridades e fila de imagens pendentes.',icon:ICONS.observabilidade,roles:MANAGEMENT_ROLES},[
+  {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:[
+    {key:'observabilidade',label:'Central de Incidentes e Observabilidade',href:'/interno/observabilidade/',description:'Erros, conflitos do Bling, prioridades e fila de imagens pendentes.',icon:ICONS.observabilidade,roles:MANAGEMENT_ROLES},
     {key:'copiloto',label:'Copiloto Croma',href:'/interno/copiloto/',description:'Insights, decisões, roadmap, tarefas e memória operacional.',icon:ICONS.copiloto},
     {key:'pesquisa',label:'P&D e conhecimento',href:'/interno/pesquisa-desenvolvimento/',description:'Fichas técnicas, testes, materiais, problemas e soluções.',icon:ICONS.pesquisa},
     {key:'evolucao',label:'Evolução Croma Hub',href:'/interno/evolucao-croma-hub/',description:'Roadmap vivo, prioridades, entregas e melhorias do sistema.',icon:ICONS.evolucao},
