@@ -11,3 +11,7 @@ Validação: sintaxe JS; teste autenticado no banco com rollback cobrindo consul
 ## Verificação da publicação e navegação
 
 Na validação ao vivo, a página de detalhes já estava publicada, mas o carregamento era interrompido por um erro de sintaxe no array items do grupo Sistema em js/interno-navigation.js. A entrada existente de Observabilidade foi preservada e recolocada no array correto. Referências de cache do menu, camada visual, login e página de detalhes foram atualizadas. Testes de sintaxe, grupos, visibilidade por perfil e identificação do módulo Pedidos passaram. Após publicação, o navegador carregou o formulário de acesso interno e preservou o retorno para o pedido solicitado. A validação visual autenticada exige sessão da gerência.
+
+### Validação autenticada concluída
+
+Acesso real da gerência validado em 24/10/2026: lista de pedidos carregou seis registros e o link do pedido de teste abriu os detalhes. Conferidos cliente, item, total, reserva, pagamentos, vínculo e ações. Motivo vazio foi rejeitado na interface; a confirmação de cancelamento foi aberta e dispensada sem gravação. Consulta posterior confirmou pedido recebido, uma reserva ativa e zero ações internas, preservando os dados reais. Cópias antigas mantidas no cache do navegador foram eliminadas com recarga completa; novos módulos de lista e detalhes usam referências atualizadas. Nenhum envio ao Bling ou recebimento de pagamento foi executado nesta validação.
