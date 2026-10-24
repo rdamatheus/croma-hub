@@ -14,8 +14,6 @@ async function media(pid:string,ext:any,name:string){const u=txt(ext.imagemURL);
 // Regras gerais para preservar hierarquia e composições de qualquer cadastro Bling.
 function formatOf(x:any){const v=String(x?.formato??"").toUpperCase();if(v==="S")return"simple";if(v==="V")return"variation";if(v==="E")return"composition";throw new Error("Formato Bling desconhecido: revisão necessária.");}
 function parentOf(x:any){const n=Number(x?.variacao?.produtoPai?.id??x?.produtoPai?.id??x?.idProdutoPai??0);return Number.isFinite(n)&&n>0?n:null}
-function shapeOf(x:any){const e=x?.estrutura||{};return JSON.stringify(stable({formato:formatOf(x),pai:parentOf(x),variacao:x?.variacao?.nome??null,componentes:(e.componentes||[]).map((c:any)=>({id:Number(c?.produto?.id||0),quantidade:Number(c?.quantidade||0)})),tipoEstoque:e.tipoEstoque??null,lancamentoEstoque:e.lancamentoEstoque??null}))}
-function structuralDirty(fields:any){return Array.isArray(fields)&&fields.some((x:any)=>/^(estrutura|compos|component|product_format|parent_product_id|bling_parent_id|variac|stock_type|stock_posting)/i.test(String(x)))}
 async function reviewStructure(id:string,message:string,remoteChanged=false){const{error}=await db.from('erp_product_sync_state').upsert({product_id:id,sync_policy:'auto_bidirectional',outbound_state:'structural_review',remote_change_detected:remoteChanged,last_error:message,updated_at:new Date().toISOString()},{onConflict:'product_id'});if(error)throw error}
 async function compositionMatches(id:string,ext:any){
  const remote=(ext?.estrutura?.componentes||[]).map((c:any)=>({id:Number(c?.produto?.id||0),quantity:Number(c?.quantidade||0)})).sort((a:any,b:any)=>a.id-b.id);
@@ -128,7 +126,7 @@ async function syncIn(ext:any){
  return{ok:!review,review,created};
 }
 
-function outbound(p:any,remote:any,structure:any,dirty:string[]=[]){
+function outbound(p:any,remote:any,dirty:string[]=[]){
  const x=structuredClone(remote||{});
  for(const k of ['id','dataCriacao','dataAlteracao','loja'])delete x[k];
  x.nome=p.nome;x.codigo=p.bling_sku||p.sku;x.preco=Number(p.preco||0);
@@ -157,7 +155,7 @@ async function pushDirty(t:string){
     conflicts++;continue;
    }
    const desired=await structurePayload(p,remote||{});
-   const proposed=outbound(p,remote||{},null,ss?.dirty_fields||[]);
+   const proposed=outbound(p,remote||{},ss?.dirty_fields||[]);
    applyStructure(proposed,remote||{},desired);
    let eid=p.bling_product_id;
    if(eid)await api(t,`/produtos/${eid}`,'PUT',proposed);
