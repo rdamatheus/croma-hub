@@ -68,8 +68,9 @@
 
     const paymentList=payments||[];
     const hasBlockingPayment=paymentList.some(p=>['approved','processing','action_required'].includes(p.status)||(p.status==='created'&&p.provider_order_id));
-    const canCancel=['recebido','aguardando_pagamento'].includes(order.status)&&!hasBlockingPayment;
-    const canRetry=order.payment_method==='credito'&&order.status==='aguardando_pagamento'&&!hasBlockingPayment;
+    const canCancel=['recebido','aguardando_pagamento'].includes(order.status)&&!hasBlockingPayment&&!paymentsError;
+    const canRetry=order.payment_method==='credito'&&order.status==='aguardando_pagamento'&&!hasBlockingPayment&&!paymentsError;
+    const cancelRequestUrl='https://wa.me/553230253588?text='+encodeURIComponent(`Olá! Quero solicitar o cancelamento do pedido ${order.order_code}. Podem verificar a situação do pedido e do pagamento?`);
     const statusClass=['concluido','pronto','pago'].includes(order.status)?'ok':order.status==='cancelado'?'cancelled':'';
     const paymentMethod=order.payment_method==='pix'?'Pix':order.payment_method==='credito'?'Cartão de crédito':'Cartão de débito';
     const delivery=order.fulfillment==='entrega'?[order.delivery_street,order.delivery_number,order.delivery_complement,order.delivery_neighborhood,order.delivery_city&&order.delivery_state?`${order.delivery_city}/${order.delivery_state}`:order.delivery_city,order.delivery_zip&&`CEP ${order.delivery_zip}`].filter(Boolean).join(' · '):'Retirada na Croma';
@@ -88,8 +89,9 @@
         <div class="actions">
           ${canRetry?'<button class="btn primary" id="retryPayment">Tentar pagamento novamente</button>':''}
           ${canCancel?'<button class="btn danger" id="cancelOrder">Cancelar pedido</button>':''}
-          ${!canCancel&&order.status!=='cancelado'?'<a class="btn secondary" style="text-decoration:none" href="https://wa.me/553230253588" target="_blank" rel="noopener">Falar com a Croma</a>':''}
+          ${!canCancel&&order.status!=='cancelado'?'<a class="btn secondary" style="text-decoration:none" href="${esc(cancelRequestUrl)}" target="_blank" rel="noopener">Solicitar cancelamento</a>':''}
         </div>
+        ${order.status!=='cancelado'?`<p class="muted">${canCancel?'Você pode cancelar diretamente enquanto o pedido aguarda pagamento.':'O cancelamento deve ser solicitado à Croma para avaliação do pedido e do pagamento.'}</p>`:''}
         <div id="actionMessage" class="message" style="display:none"></div>
       </section>
 
