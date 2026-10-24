@@ -64,3 +64,17 @@ A identidade de cada cadastro é o ID Bling persistido, com SKU como identificad
 - API v3: https://developer.bling.com.br/referencia
 - Variação composta: https://ajuda.bling.com.br/hc/pt-br/articles/34016549651095-Como-cadastrar-produtos-com-varia%C3%A7%C3%A3o-composta-no-Bling
 - Variações com composição: https://ajuda.bling.com.br/hc/pt-br/articles/7121660067223-Como-cadastrar-varia%C3%A7%C3%B5es-com-composi%C3%A7%C3%A3o-kit
+
+
+## Implementação incremental — 2026-10-24
+
+A exceção hardcoded para IMPRESSÃO foi **removida** dos dois sincronizadores gerais, conforme orientação do usuário. A segurança agora é por **estrutura e alteração**, não por ID ou família comercial.
+
+| Função | Versão | Tratamento |
+|---|---:|---|
+| `bling-product-auto-sync` | 10 | Reconhece S/V/E, pai Bling aninhado; preserva formato e estrutura em alterações comuns; marca alterações estruturais não reconciliadas para revisão |
+| `bling-service-auto-sync` | 11 | Reconhece S/V/E, pai e composição; confere correspondência dos componentes; preserva formato e estrutura em alterações comuns; marca divergências para revisão |
+
+**Limite da etapa:** componentes, atributos de variação e relações alterados nos dois sentidos ainda exigem implementação de reconciliação; esta etapa não promete espelhamento bidirecional estrutural completo. Nenhum cadastro foi modificado durante o deploy. Família IMPRESSÃO permanece no fluxo normal, sem exceções especiais; alterações estruturais são tratadas com a mesma regra de qualquer outro produto.
+
+Validação: código implantado ACTIVE, GitHub idêntico, cinco registros IMPRESSÃO e suas composições preservados em SQL. Teste real de ida e volta com Bling pendente.
