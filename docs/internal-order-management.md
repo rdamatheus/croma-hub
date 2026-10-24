@@ -1,0 +1,9 @@
+# Gestão interna dos pedidos
+
+A lista /interno/pedidos/ abre /interno/pedidos/detalhes/?id=UUID. Equipe ativa pode consultar dados do cliente, itens e opções, recebimento, valores, pagamentos online, reservas, vínculo Bling e histórico das ações internas.
+
+Somente owner/manager ativos podem confirmar recebimento manual ou cancelar internamente. As operações passam por RPC, conferem auth.uid() e perfil no banco, bloqueiam a linha do pedido e gravam alteração e auditoria na mesma transação. Motivo/referência de 5 a 1000 caracteres é obrigatório. O histórico registra responsável, data, transição, valor, forma de pagamento e revisão financeira. A tabela order_activity_events não permite escrita direta aos clientes. As tabelas de pagamentos existentes permanecem exclusivas do Mercado Pago: o recebimento manual fica identificado no histórico operacional e no status pago, sem simular transação online.
+
+Confirmação manual: somente recebido/aguardando_pagamento, sem pagamento online aprovado/em andamento. Cancelamento: recebido/aguardando_pagamento/pago/em_analise; pedido pago exige declaração de revisão financeira; pagamento online em andamento impede a operação. Cancelamento libera reservas locais. Pedido vinculado ao Bling exige conciliação e fica bloqueado nesta ação até a etapa de integração. Nenhum estorno, criação ou cancelamento remoto é executado. Etapas de produção e posteriores exigem análise operacional fora destas ações.
+
+Validação: sintaxe JS; teste autenticado no banco com rollback cobrindo consulta, confirmação manual, identidade na auditoria, bloqueio financeiro, cancelamento, liberação de reserva e rejeição sem permissão. Advisors sem avisos de schema adicionais (permanece aviso de proteção de senhas vazadas). Nenhum pedido real foi alterado pelos testes. Validação visual autenticada no celular permanece necessária. A auditoria cobre as ações destas RPCs, não alterações legadas por outros caminhos.
