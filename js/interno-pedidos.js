@@ -1,5 +1,5 @@
 import { supabase } from './croma-supabase.js';
-import { protectInternalPage, signOutStaff } from './interno-auth.js';
+import { protectInternalPage, signOutStaff } from './interno-auth.js?v=20261024-1';
 const session=await protectInternalPage();if(!session)throw new Error('auth');
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
