@@ -67,11 +67,33 @@ async function loadImages(reset=false){
     if(mediaError)throw mediaError;
     const covered=new Set((images||[]).map(i=>i.product_id));
     const missing=(products||[]).filter(p=>!covered.has(p.id));
-    $('#imageRows').insertAdjacentHTML('beforeend',missing.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.sku||'—')}</td><td>${p.bling_product_id?'ID '+esc(p.bling_product_id):'Sem vínculo'}</td><td><a href="/interno/midias-produtos/?produto=${encodeURIComponent(p.id)}">Revisar imagens</a></td></tr>`).join(''));
+    $('#imageRows').insertAdjacentHTML('beforeend',missing.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.sku||'—')}</td><td>${p.bling_product_id?'ID '+esc(p.bling_product_id):'Sem vínculo'}</td><td><button type="button" data-image-search="${esc(p.id)}">Pesquisar referência</button> <a href="/interno/midias-produtos/?produto=${encodeURIComponent(p.id)}">Gerenciar galeria</a><div class="meta" data-image-result="${esc(p.id)}"></div></td></tr>`).join(''));
     imageOffset+=(products||[]).length;
     $('#imageStatus').textContent=`${$('#imageRows').children.length} produto(s) sem foto nos ${imageOffset} registros consultados. Total estimado na base: 1.399 (inclui inativos).`;
     $('#moreImages').disabled=(products||[]).length<200;
   }catch(e){$('#imageStatus').textContent='Falha ao consultar imagens: '+(e.message||e)}
 }
 $('#moreImages').addEventListener('click',()=>loadImages());
+$('#imageRows').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-image-search]');if(!button)return;
+  const productId=button.dataset.imageSearch;
+  const result=button.parentElement.querySelector('[data-image-result]');
+  button.disabled=true;result.textContent='Consultando Bling e fontes de referência…';
+  try{
+    // A função existente pode importar imediatamente uma foto já presente no Bling.
+    // Resultados externos ficam pendentes de avaliação; não são publicados automaticamente.
+    const {data,error}=await supabase.functions.invoke('product-image-enrich',{body:{action:'search_product',product_id:productId}});
+    if(error)throw error;
+    if(!data?.ok)throw new Error(data?.detail||data?.error||'Busca não concluída.');
+    const record=data.record;
+    if(!record?.candidate_image_url){result.textContent='Nenhuma referência encontrada. Tente cadastrar uma foto própria.';return}
+    const url=String(record.candidate_image_url);
+    const safeUrl=/^https:\/\//i.test(url)?url:null;
+    const source=record.source_type==='bling'?'Foto do Bling':record.source_type==='mercado_livre'?'Referência de anúncio externo':'Referência';
+    result.innerHTML='<strong>'+esc(source)+'</strong> · confiança estimada '+esc(record.confidence??'—')+'% · '+esc(record.status||'pendente')+
+      (safeUrl?' · <a href="'+esc(safeUrl)+'" target="_blank" rel="noopener noreferrer">Ver imagem de origem</a>':'')+
+      '<div>'+esc(record.source_type==='mercado_livre'?'Imagem de terceiro: conferir produto e autorização de uso antes de copiar ou publicar.':'Verifique a galeria para confirmar a importação.')+'</div>';
+  }catch(e){result.textContent='Falha na pesquisa: '+(e.message||e)}
+  finally{button.disabled=false}
+});
 await Promise.all([loadIncidents(),loadImages()]);
