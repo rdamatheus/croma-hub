@@ -59,3 +59,17 @@ Arquivo: `supabase/functions/bling-service-auto-sync/index.ts`.
 
 ### Escopo de segurança
 A proteção aplica-se às duas Edge Functions automáticas citadas. Outros fluxos manuais de alteração de cadastros ou integrações distintas não foram alterados; portanto, a proteção não é uma trava universal do banco ou do Bling.
+
+
+## Atualização — 2026-10-24: exceção específica retirada
+
+**Esta documentação registra o histórico e não descreve mais o bloqueio ativo.** Por decisão do usuário, os bloqueios específicos da família IMPRESSÃO foram removidos de ambos os sincronizadores e substituídos por verificações genéricas de integridade estrutural.
+
+- `bling-product-auto-sync`: versão 10, commit `46260529e590528ed19471ea00890413ec26a048`.
+- `bling-service-auto-sync`: versão 11, commit `2ed2f507ed734f958c8aaaf1f524b91e5e826c19`.
+- Não há mais IDs nem nomes de IMPRESSÃO codificados nas funções para tratamento especial.
+- Formatos S, V, E são reconhecidos; mudanças de preço/nome não devem converter silenciosamente pais ou composições em produtos simples.
+- Alterações estruturais ainda não reconciliadas entram no estado genérico `structural_review`, sem sobrescrita automática. Esse estado pode ocorrer com **qualquer** produto ou serviço.
+- Os cinco cadastros IMPRESSÃO mantiveram IDs, preços, vínculos, mídia e os dois componentes P&B A4 na verificação SQL após implantação.
+- **Ainda não há espelhamento estrutural bidirecional completo** de componentes e variações. A etapa seguinte é implementar reconciliação de estrutura com testes de ida e volta, antes de remover a revisão obrigatória de alterações estruturais.
+- Nenhuma execução autenticada ponta a ponta contra o Bling foi realizada nesta atualização; os testes foram de compilação/implantação, código e integridade SQL.
