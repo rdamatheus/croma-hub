@@ -87,6 +87,7 @@ async function structurePayload(p:any,remote:any,dirty:string[]){
   if(desired.nome!==undefined&&typeof desired.nome!=="string")throw new Error("Nome da variação inválido.");
   if(desired.ordem!==undefined&&(!Number.isSafeInteger(Number(desired.ordem))||Number(desired.ordem)<0))throw new Error("Ordem da variação inválida.");
  }
+ if(!remote?.id&&x.parentId!==null&&(!desired||!String(desired.nome||"").trim()))throw new Error("Nova variação exige metadata.bling_variation.nome para criação no Bling.");
  x.variation=desired||null;
  return x;
 }
