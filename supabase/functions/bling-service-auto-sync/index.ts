@@ -58,6 +58,7 @@ async function structurePayload(p:any,remote:any){
  if(out.variation!==null&&(typeof out.variation!=='object'||Array.isArray(out.variation)))throw new Error('Metadados da variação inválidos.');
  if(out.variation?.nome!==undefined&&typeof out.variation.nome!=='string')throw new Error('Nome da variação inválido.');
  if(out.variation?.ordem!==undefined&&(!Number.isSafeInteger(Number(out.variation.ordem))||Number(out.variation.ordem)<0))throw new Error('Ordem da variação inválida.');
+ if(!remote?.id&&out.parentId!==null&&(!out.variation||!String(out.variation.nome||'').trim()))throw new Error('Nova variação exige metadata.bling_variation.nome para criação no Bling.');
  return out;
 }
 function applyStructure(x:any,remote:any,d:any){
