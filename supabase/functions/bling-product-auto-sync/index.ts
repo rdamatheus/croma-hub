@@ -26,8 +26,6 @@ async function api(t:string,path:string,method="GET",body?:any){for(let a=0;a<4;
 // Regras estruturais gerais; nenhum cadastro é identificado por ID ou nome especial.
 function formatOf(x:any){const f=String(x?.formato??"").trim().toUpperCase();if(f==="S")return"simple";if(f==="V")return"variation";if(f==="E")return"composition";throw new Error("Formato Bling desconhecido: revisão necessária.")}
 function parentOf(x:any){const n=Number(x?.variacao?.produtoPai?.id??x?.produtoPai?.id??x?.idProdutoPai??0);return Number.isFinite(n)&&n>0?n:null}
-function shapeOf(x:any){const e=x?.estrutura||{};return JSON.stringify(stable({formato:formatOf(x),pai:parentOf(x),variacao:x?.variacao?.nome??null,componentes:(e.componentes||[]).map((c:any)=>({id:Number(c?.produto?.id||0),quantidade:Number(c?.quantidade||0)})),tipoEstoque:e.tipoEstoque??null,lancamentoEstoque:e.lancamentoEstoque??null}))}
-function structuralDirty(fields:any){return Array.isArray(fields)&&fields.some((x:any)=>/^(estrutura|compos|component|product_format|parent_product_id|bling_parent_id|variac|stock_type|stock_posting)/i.test(String(x)))}
 function unit(v:any){const x=String(v??"un").toLowerCase().trim(),m:any={un:"un",unid:"un",unidade:"un",m:"m",mt:"m",m2:"m2","m²":"m2",kg:"kg",cx:"cx",caixa:"cx",pct:"pct",kit:"kit"};return m[x]||"un"}
 function slug(v:string){return v.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,90)}
 async function uniqueSlug(base:string,id?:string){const root=slug(base)||`produto-${Date.now()}`;for(let i=0;i<30;i++){const s=i?`${root}-${i+1}`:root;let q=db.from("products").select("id").eq("slug",s).limit(1);if(id)q=q.neq("id",id);const{data}=await q;if(!data?.length)return s}return`${root}-${Date.now()}`}
@@ -58,7 +56,7 @@ async function missingComponents(ext:any):Promise<number[]>{
  const found=new Set((data||[]).map((x:any)=>Number(x.bling_product_id)));
  return ids.filter((id:number)=>!found.has(id));
 }
-async function structurePayload(p:any,remote:any,dirty:string[]){
+async function structurePayload(p:any,remote:any){
  const fmt=String(p.product_format||"simple"),map:any={simple:"S",variation:"V",composition:"E"};
  if(!map[fmt])throw new Error("Formato local não reconhecido.");
  const x:any={};x.formato=map[fmt];
@@ -166,7 +164,7 @@ async function inbound(ext:any){
  return{created:!local,review};
 }
 
-function outbound(p:any,d:any,remote:any,structure:any,dirty:string[]=[]){
+function outbound(p:any,d:any,remote:any,dirty:string[]=[]){
  const x=structuredClone(remote||{});
  for(const k of ["id","dataCriacao","dataAlteracao","loja"])delete x[k];
  x.nome=p.nome;x.codigo=p.bling_sku||p.sku||x.codigo;x.preco=Number(p.preco||0);x.unidade=p.unidade||x.unidade||"UN";
@@ -197,8 +195,8 @@ async function push(t:string,p:any){
    await saveState(p.id,st.baseline_payload||remote,{local_dirty:true,remote_change_detected:true,outbound_state:"conflict",last_error:"O Bling mudou antes do envio automático."});return{conflict:true}
   }
  }
- const desired=await structurePayload(p,remote||{},st?.dirty_fields||[]);
- const proposed=outbound(p,d||{},remote||{},null,st?.dirty_fields||[]);
+ const desired=await structurePayload(p,remote||{});
+ const proposed=outbound(p,d||{},remote||{},st?.dirty_fields||[]);
  applyStructure(proposed,remote||{},desired);
  let external=p.bling_product_id;
  if(external)await api(t,`/produtos/${external}`,"PUT",proposed);
