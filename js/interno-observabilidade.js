@@ -68,6 +68,8 @@ async function loadImages(reset=false){
     const covered=new Set((images||[]).map(i=>i.product_id));
     const missing=(products||[]).filter(p=>!covered.has(p.id));
     $('#imageRows').insertAdjacentHTML('beforeend',missing.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.sku||'—')}</td><td>${p.bling_product_id?'ID '+esc(p.bling_product_id):'Sem vínculo'}</td><td><button type="button" data-image-search="${esc(p.id)}">Pesquisar referência</button> <a href="/interno/midias-produtos/?produto=${encodeURIComponent(p.id)}">Gerenciar galeria</a><div class="meta" data-image-result="${esc(p.id)}"></div></td></tr>`).join(''));
+    $('#kpiMissing').textContent='1.399';
+    $('#kpiMissing').title='Total apurado na auditoria de 24/10/2026; a lista abaixo consulta os dados atuais.';
     imageOffset+=(products||[]).length;
     $('#imageStatus').textContent=`${$('#imageRows').children.length} produto(s) sem foto nos ${imageOffset} registros consultados. Total estimado na base: 1.399 (inclui inativos).`;
     $('#moreImages').disabled=(products||[]).length<200;
