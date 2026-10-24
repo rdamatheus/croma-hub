@@ -30,6 +30,7 @@ const ICONS={
   copiloto:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   pesquisa:'<path d="M9 2v6l-5 9a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 20 17l-5-9V2"/><path d="M7 13h10"/>',
   evolucao:'<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="m4 8 6-4 6 7 6-5"/>',
+  observabilidade:'<path d="M3 12h3l3-7 5 14 3-7h4"/><circle cx="12" cy="12" r="10"/>',
   bling:'<path d="M20 7h-9M14 17H5M17 4l3 3-3 3M8 14l-3 3 3 3"/>'
 };
 
@@ -72,7 +73,8 @@ export const INTERNAL_GROUPS=[
     {key:'vitrine-campanhas',label:'Vitrine & Campanhas',href:'/interno/vitrine-campanhas/',description:'Banners, destaques e campanhas do site público.',icon:ICONS.vitrine,roles:MANAGEMENT_ROLES},
     {key:'vitrine-aprovacoes',label:'Central de Aprovações',href:'/interno/vitrine-aprovacoes/',description:'Propostas, previews, comentários e decisões da vitrine.',icon:ICONS.aprovacoes,roles:MANAGEMENT_ROLES}
   ]},
-  {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:[
+  {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:
+    {key:'observabilidade',label:'Central de Incidentes e Observabilidade',href:'/interno/observabilidade/',description:'Erros, conflitos do Bling, prioridades e fila de imagens pendentes.',icon:ICONS.observabilidade,roles:MANAGEMENT_ROLES},[
     {key:'copiloto',label:'Copiloto Croma',href:'/interno/copiloto/',description:'Insights, decisões, roadmap, tarefas e memória operacional.',icon:ICONS.copiloto},
     {key:'pesquisa',label:'P&D e conhecimento',href:'/interno/pesquisa-desenvolvimento/',description:'Fichas técnicas, testes, materiais, problemas e soluções.',icon:ICONS.pesquisa},
     {key:'evolucao',label:'Evolução Croma Hub',href:'/interno/evolucao-croma-hub/',description:'Roadmap vivo, prioridades, entregas e melhorias do sistema.',icon:ICONS.evolucao},
