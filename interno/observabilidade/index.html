@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Central de Incidentes e Observabilidade | Croma Hub</title>
+<link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+<style>
+main{max-width:1260px;margin:auto;padding:28px 18px 100px}
+p{line-height:1.5}.muted{color:#6e6880}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}
+.card{background:#fff;border:1px solid #e6e0ee;border-radius:16px;padding:16px}.card strong{font-size:1.7rem;display:block;margin-top:6px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:18px 0}.field{display:grid;gap:5px;min-width:170px;flex:1}.field label{font-size:.76rem;font-weight:800}
+select,input,textarea{font:inherit;border:1px solid #d9d4e4;border-radius:9px;padding:10px;background:#fff;color:#29233c}
+button,.btn{font:inherit;cursor:pointer;border:1px solid #d6cde5;border-radius:10px;background:#fff;color:#4c277c;padding:10px 13px;font-weight:800;text-decoration:none}
+button.primary{background:#4c277c;color:#fff}.items{display:grid;gap:12px}.incident{background:#fff;border:1px solid #e5dfee;border-radius:15px;padding:17px}
+.head{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}.head h3{margin:0 0 5px;font-size:1rem}
+.pills{display:flex;gap:6px;flex-wrap:wrap}.pill{font-size:.7rem;border-radius:999px;background:#f1edf6;color:#433753;padding:5px 9px;font-weight:800}
+.pill.critical,.pill.high{background:#fff0ed;color:#9c3026}.pill.medium{background:#fff4dd;color:#805500}
+.meta{font-size:.77rem;color:#71697c}.incident p{margin:10px 0}.actions{display:flex;gap:9px;flex-wrap:wrap;align-items:end}
+.actions textarea{min-width:min(440px,100%);flex:1;min-height:45px}.actions select{min-width:150px}
+section{margin-top:22px}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}td,th{text-align:left;border-bottom:1px solid #e7e2ed;padding:11px;font-size:.86rem}
+a{color:#552c83}.notice{border-left:4px solid #bda8d5;padding:12px 15px;background:#f8f5fb;border-radius:8px}.status{min-height:22px;font-weight:700}
+@media(max-width:700px){.cards{grid-template-columns:repeat(2,1fr)}.actions{display:grid}.actions textarea{min-width:0;width:100%}}
+</style></head>
+<body hidden><header class="internal-header"><a href="/interno/">← Croma Interno</a><strong>Central de Incidentes e Observabilidade</strong></header>
+<main><span class="internal-eyebrow">Governança operacional</span><h1 class="internal-title">Central de Incidentes e Observabilidade</h1>
+<p class="internal-lead">Acompanhe conflitos, falhas de sincronização e oportunidades de melhoria. Os registros são rastreáveis; resolver uma ocorrência aqui não executa automaticamente uma correção no Bling.</p>
+<div class="cards"><div class="card"><small>Abertos / em análise</small><strong id="kpiOpen">—</strong></div><div class="card"><small>Alta prioridade</small><strong id="kpiHigh">—</strong></div><div class="card"><small>Conflitos Bling</small><strong id="kpiConflicts">—</strong></div><div class="card"><small>Produtos sem foto</small><strong id="kpiMissing">—</strong></div></div>
+<section><h2>Ocorrências monitoradas</h2><p class="notice">A coleta automática roda de hora em hora. Incidentes de baixo impacto ficam disponíveis para consulta, mas não geram ações automáticas. Não registre uma ocorrência como resolvida antes de conferir a causa.</p>
+<div class="toolbar"><div class="field"><label for="module">Módulo</label><select id="module"><option value="">Todos</option><option value="produtos">Produtos</option><option value="contatos">Contatos</option><option value="propostas">Propostas</option><option value="pedidos">Pedidos</option><option value="integracoes">Integrações</option></select></div>
+<div class="field"><label for="severity">Prioridade</label><select id="severity"><option value="">Todas</option><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select></div>
+<div class="field"><label for="state">Situação</label><select id="state"><option value="active">Abertas e em análise</option><option value="all">Todas</option><option value="resolved">Resolvidas</option><option value="ignored">Ignoradas</option></select></div>
+<button id="reload" type="button">Atualizar painel</button></div>
+<p class="status" id="incidentStatus" role="status">Carregando ocorrências…</p><div class="items" id="incidentItems"></div></section>
+<section><h2>Fila de enriquecimento de imagens</h2><p class="muted">Primeiro completar a imagem principal dos produtos sem foto; depois adicionar fotos complementares quando houver fontes verificáveis. Fotos reais, imagens ilustrativas e simulações devem ser identificadas separadamente. Nenhuma imagem sugerida será publicada automaticamente.</p>
+<p class="status" id="imageStatus" role="status">Carregando produtos…</p><div class="table-wrap"><table><thead><tr><th>Produto</th><th>SKU</th><th>Bling</th><th>Ação</th></tr></thead><tbody id="imageRows"></tbody></table></div>
+<div class="toolbar"><a class="btn" href="/interno/midias-produtos/">Gerenciar galeria de imagens</a><button id="moreImages" type="button">Carregar mais produtos sem foto</button></div></section>
+<p class="muted">Central em implantação: a coleta automática cobre inicialmente jobs de ERP e conflitos de sincronização. Fiscal, estoque, financeiro e validação semântica de imagens serão conectados por etapas após testes de segurança e consistência.</p>
+</main><script type="module" src="/js/interno-observabilidade.js?v=20261024-1"></script></body></html>
