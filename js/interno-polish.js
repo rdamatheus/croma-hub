@@ -1,4 +1,4 @@
-import { INTERNAL_GROUPS, activeModuleKey, iconSvg } from './interno-navigation.js?v=20261014-1';
+import { INTERNAL_GROUPS, activeModuleKey, iconSvg } from './interno-navigation.js?v=20261024-1';
 import './printing-material-tools.js?v=20261014-1';
 
 const STORAGE_COLLAPSED='croma_internal_sidebar_collapsed';
