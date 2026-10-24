@@ -1,5 +1,5 @@
 import {supabase} from './croma-supabase.js';
-import {protectInternalPage} from './interno-auth.js';
+import {protectInternalPage} from './interno-auth.js?v=20261024-1';
 const session=await protectInternalPage();if(!session)throw new Error('auth');
 const box=document.getElementById('detail'),feedback=document.getElementById('feedback');
 const orderId=new URLSearchParams(location.search).get('id');
