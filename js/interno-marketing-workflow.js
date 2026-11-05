@@ -29,7 +29,7 @@ function renderOverview(){
     ['Em produção',productions.filter(p=>!['pronto','publicado'].includes(p.stage)).length],
     ['Em revisão',productions.filter(p=>p.stage==='revisao').length],
     ['Prontos',productions.filter(p=>p.stage==='pronto').length],
-    ['Publicados (registrados)',posts.filter(p=>p.status==='Publicado').length]
+    ['Publicados (registrados)',posts.filter(p=>p.status==='Publicado').length+productions.filter(p=>p.stage==='publicado'&&!posts.some(x=>x.production_id===p.id)).length]
   ];
   $('mwOverviewMetrics').innerHTML=metrics.map(([title,count])=>`<div class="mw-metric"><span>${esc(title)}</span><strong>${count}</strong></div>`).join('');
   $('mwPipeline').innerHTML=PRODUCTION_STAGES.map(s=>`<span class="mw-tag">${esc(s.label)}: ${productions.filter(p=>p.stage===s.id).length}</span>`).join('');
@@ -104,7 +104,7 @@ function readForm(){
     stage:$('mwStage').value,goal:$('mwGoal').value.trim().slice(0,500),audience:$('mwAudience').value.trim().slice(0,300),
     brief:$('mwBrief').value.trim().slice(0,6000),script:$('mwScript').value.trim().slice(0,10000),
     notes:$('mwNotes').value.trim().slice(0,4000),asset_url:validURL(asset),edit_url:validURL(edit),
-    campaign_id:$('mwCampaign').value||null,source_name:source?.name||''
+    campaign_id:$('mwCampaign').value||null,source_name:source?.name||productions.find(p=>p.id===editing)?.source_name||''
   };
 }
 async function save(event){
