@@ -1,0 +1,52 @@
+/* Central de Marketing — Fase 1. Mantém os estilos legados das abas existentes. */
+.mw-intro{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin:18px 0}
+.mw-intro p{color:var(--croma-muted);max-width:660px;line-height:1.5;margin:6px 0 0}
+.mw-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mw-actions a{display:inline-flex;align-items:center;text-decoration:none}
+.mw-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0 18px}
+.mw-metric{padding:18px;border:1px solid var(--croma-line);background:#fff;border-radius:18px}
+.mw-metric span{font-size:.8rem;color:var(--croma-muted);font-weight:700}
+.mw-metric strong{display:block;color:var(--croma-deep);font-size:1.9rem;line-height:1.2;margin-top:6px}
+.mw-columns{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px}
+.mw-stack{display:grid;gap:10px}
+.mw-item{border:1px solid #e9e6f2;background:#fff;border-radius:14px;padding:13px}
+.mw-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mw-item strong{color:var(--croma-deep)}
+.mw-item p{line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.mw-item small,.mw-muted{color:var(--croma-muted)}
+.mw-tag{display:inline-flex;align-items:center;border-radius:100px;padding:4px 9px;font-size:.72rem;font-weight:800;color:#51458e;background:#efeff8}
+.mw-tag.is-done{background:#eef7e8;color:#537b23}
+.mw-tag.is-review{background:#fff2e0;color:#85540c}
+.mw-filter{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin:14px 0}
+.mw-filter .field{min-width:170px;flex:1}
+.mw-filter .field select{max-width:290px}
+.mw-form-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
+.mw-link{color:var(--croma-purple);font-weight:800;text-decoration:underline;text-underline-offset:2px;word-break:break-word}
+.mw-message{margin-top:10px;min-height:20px;font-size:.9rem;color:#487c31}
+.mw-message[aria-invalid="true"]{color:#ab3544}
+.mw-empty{color:var(--croma-muted);padding:15px 0;line-height:1.5}
+.mw-month-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 18px}
+.mw-month-header h3{margin:0;text-transform:capitalize}
+.mw-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.mw-calendar-header{text-align:center;font-weight:800;font-size:.78rem;padding:9px 2px;color:var(--croma-muted)}
+.mw-date{min-height:103px;background:#fff;border:1px solid #e9e7f1;border-radius:10px;padding:8px;min-width:0}
+.mw-date.is-other{background:#faf9fd;opacity:.62}
+.mw-date.is-today{border-color:var(--croma-purple);box-shadow:inset 0 0 0 1px var(--croma-purple)}
+.mw-date-number{font-size:.78rem;color:var(--croma-deep);font-weight:900}
+.mw-calendar-event{display:block;font-size:.68rem;line-height:1.3;margin-top:5px;padding:4px;border-radius:5px;background:#f1eff9;color:#38266f;overflow-wrap:anywhere}
+.mw-calendar-event small{display:block;color:#6e6884}
+.mw-agenda{display:grid;gap:8px;margin-top:12px}
+.mw-agenda-line{display:flex;gap:12px;align-items:flex-start;padding:10px;border:1px solid #e9e7f1;border-radius:12px}
+.mw-agenda-line time{min-width:75px;font-weight:800;font-size:.84rem;color:var(--croma-purple)}
+.mw-agenda-line div{min-width:0}
+.mw-agenda-line small{color:var(--croma-muted)}
+.mw-inline-help{font-size:.84rem;color:var(--croma-muted);margin:8px 0 0;line-height:1.5}
+.mw-link-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mw-link-tile{border:1px solid #eae8f1;border-radius:12px;padding:14px;background:white;min-width:0}
+.mw-link-tile strong{display:block;color:var(--croma-deep);margin:4px 0}
+.mw-link-tile small{color:var(--croma-muted);font-weight:700}
+.mw-link-tile a{display:block;margin-top:7px;font-size:.84rem}
+.mw-pipeline{display:flex;flex-wrap:wrap;gap:7px}
+.mw-pipeline .mw-tag{padding:7px 10px}
+@media(max-width:950px){.mw-columns{grid-template-columns:1fr}.mw-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mw-date{min-height:85px;padding:5px}}
+@media(max-width:600px){.mw-metrics,.mw-link-grid{grid-template-columns:1fr 1fr}.mw-calendar{gap:2px}.mw-date{min-height:65px;padding:3px;border-radius:6px}.mw-calendar-event{font-size:.59rem;padding:3px}.mw-calendar-header{font-size:.65rem}.mw-date-number{font-size:.7rem}.mw-calendar-event small{display:none}.mw-intro{gap:9px}.mw-link-grid{grid-template-columns:1fr}}
