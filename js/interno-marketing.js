@@ -14,13 +14,14 @@ function showIdea(v=0){if(!recent.length)return alert('Cadastre pelo menos um it
 $('generate').onclick=()=>showIdea(0);$('random').onclick=()=>showIdea(Math.floor(Math.random()*10)+1);$('copyCaption').onclick=async()=>{if(!currentIdea)return alert('Gere uma sugestão primeiro.');try{await navigator.clipboard.writeText(currentIdea.caption);alert('Legenda copiada.')}catch{alert('Não foi possível copiar automaticamente.')}};$('saveIdea').onclick=async()=>{if(!currentIdea)return alert('Gere uma sugestão primeiro.');ideas.unshift(currentIdea);await saveIdeas();$('pBrand').value=currentIdea.brand;$('pTitle').value=currentIdea.item+' — '+currentIdea.format;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='calendar'));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id==='calendar'));render()};$('pAdd').onclick=async()=>{if(!$('pTitle').value.trim())return alert('Informe o assunto da postagem.');posts.push({date:$('pDate').value||new Date().toISOString().slice(0,10),brand:$('pBrand').value,channel:$('pChannel').value,status:$('pStatus').value,title:$('pTitle').value.trim()});$('pTitle').value='';await savePosts();render()};
 window.addEventListener('croma:marketing-create-post',async event=>{
   const {production,resolve,reject}=event.detail||{};
+  const before=posts;
   try{
     const next=upsertProductionPost(posts,production);
     posts=next.posts;
     await savePosts();
     render();
     resolve?.({created:next.created});
-  }catch(error){reject?.(error)}
+  }catch(error){posts=before;render();reject?.(error)}
 });
 window.CromaMarketingPostBridgeReady=true;
 render();
