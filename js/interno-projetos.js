@@ -2,6 +2,7 @@ import './croma-brand.js';
 import './interno-polish.js?v=20260928-5';
 import { supabase } from './croma-supabase.js';
 import { protectInternalPage } from './interno-auth.js?v=20261004-1';
+import { initGovernance } from './interno-diretorio-mestre.js?v=20261108-1';
 
 const TYPE_LABEL={internal:'Interno',venture:'Negócio',client:'Cliente',external:'Externo'};
 const STATUS_LABEL={active:'Ativo',paused:'Pausado',planning:'Planejamento',archived:'Arquivado'};
@@ -68,6 +69,7 @@ async function load(){
   }
   messageEl.textContent='';
   render(data||[]);
+  await initGovernance(data||[], session);
 }
 
 const session=await protectInternalPage({roles:['owner','manager']});
