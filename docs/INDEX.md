@@ -6,6 +6,7 @@
 - [Governança, estados e responsabilidades](GOVERNANCA.md)
 - [Cadastro de projetos e frentes conhecidas](PROJETOS.md)
 - [Protocolo de trabalho dos agentes](AGENTES.md)
+- [Agente de Continuidade e situação de ativação](AGENTE-CONTINUIDADE.md)
 - [Migração e validação](MIGRACAO.md)
 - [Instruções curtas para agentes](../AGENTS.md)
 
@@ -15,7 +16,7 @@
 | --- | --- |
 | Projetos cadastrados | Supabase `public.managed_projects` |
 | Agenda e tarefas | Supabase `public.tasks` |
-| Diário de progresso, decisões e validações | Supabase `public.project_journal` (após migração) |
+| Diário de progresso, decisões e validações | Supabase `public.project_journal` (migração aplicada; interface em PR) |
 | Conhecimento de operação | Supabase `public.knowledge_entries` |
 | Evolução de sistema | Supabase `public.system_evolution_items` |
 | Aprovações comerciais | Supabase `public.site_approval_proposals` e versões |
