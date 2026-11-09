@@ -64,6 +64,7 @@ async function reload() {
   ]);
   if(seq!==requestSeq||projectId!==currentProject) return;
   if(taskResult.error||journalResult.error) {
+    tasks=[]; records=[]; render();
     message('Erro ao consultar o Diretório Mestre. Verifique as permissões e a migração.',true);
     console.error('Diretório Mestre',taskResult.error,journalResult.error);
     return;
