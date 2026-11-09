@@ -20,6 +20,31 @@
     .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}.actions a{display:inline-flex;align-items:center;text-decoration:none;border-radius:10px;padding:9px 11px;font-size:.8rem;font-weight:850;border:1px solid var(--croma-line);color:var(--croma-purple);background:#fff}.actions a.primary{background:var(--croma-purple);color:#fff;border-color:var(--croma-purple)}
     .empty{padding:28px;background:#fff;border:1px dashed var(--croma-line);border-radius:18px;color:var(--croma-muted)}
     @media(max-width:850px){.projects{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}.hero{display:block}.meta{grid-template-columns:1fr}}
+
+    .registry{margin-top:28px;padding-top:18px;border-top:1px solid var(--croma-line)}
+    .registry-head{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}
+    .registry-head h2{color:var(--croma-deep);margin:0 0 5px}.registry-head p{color:var(--croma-muted);margin:0}
+    .gov-select,.gov-input,.gov-textarea{border:1px solid var(--croma-line);border-radius:9px;padding:9px 11px;width:100%;background:#fff;color:var(--croma-ink);font:inherit}
+    .gov-textarea{min-height:75px;resize:vertical}
+    .gov-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+    .gov-stat,.gov-card{background:#fff;border:1px solid var(--croma-line);border-radius:16px;padding:16px}
+    .gov-stat small{display:block;color:var(--croma-muted)}.gov-stat strong{font-size:1.4rem;color:var(--croma-deep)}
+    .gov-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .gov-card h3{color:var(--croma-deep);margin:0 0 12px}
+    .gov-list{display:grid;gap:10px;max-height:470px;overflow:auto}
+    .gov-item{border:1px solid var(--croma-line);border-radius:12px;padding:12px;overflow-wrap:anywhere}
+    .gov-item-head{display:flex;justify-content:space-between;gap:7px;align-items:flex-start}
+    .gov-item p{margin:8px 0;color:var(--croma-muted);font-size:.88rem;line-height:1.4}
+    .gov-item small{display:block;margin:5px 0;color:var(--croma-muted)}
+    .gov-tag{border-radius:999px;background:#efeff8;padding:4px 7px;font-size:.7rem;color:var(--croma-purple);white-space:nowrap}
+    .gov-form{border-top:1px solid var(--croma-line);margin-top:15px;padding-top:14px;display:grid;gap:10px}
+    .gov-form label{font-size:.78rem;font-weight:800;color:var(--croma-deep);display:block}
+    .gov-form label input,.gov-form label select,.gov-form label textarea{margin-top:5px}
+    .gov-form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+    .gov-actions{margin-top:9px}.gov-empty{color:var(--croma-muted)}
+    .gov-message{min-height:1.2rem;color:var(--croma-muted)}.gov-message[data-error="true"]{color:#a82b2b}
+    .gov-note{color:var(--croma-muted);font-size:.8rem;margin:10px 0 0}
+    @media(max-width:850px){.gov-columns,.gov-metrics,.gov-form-row{grid-template-columns:1fr}}
   </style>
 </head>
 <body hidden>
@@ -42,7 +67,71 @@
 
     <section class="projects" id="projects"></section>
     <p id="message" class="internal-muted"></p>
+
+    <section class="registry" aria-label="Diretório Mestre">
+      <div class="registry-head">
+        <div>
+          <h2>Diretório Mestre</h2>
+          <p>Agenda por projeto, decisões, validações, bloqueios e histórico de trabalho.</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label for="governanceProject">Projeto</label>
+          <select id="governanceProject" class="gov-select" style="min-width:175px;width:auto"></select>
+          <button class="internal-btn secondary" id="gRefresh" type="button">Atualizar</button>
+        </div>
+      </div>
+      <div class="gov-metrics">
+        <div class="gov-stat"><small>Tarefas abertas (até 100 recentes)</small><strong id="gPending">—</strong></div>
+        <div class="gov-stat"><small>Bloqueios no histórico carregado</small><strong id="gBlocked">—</strong></div>
+        <div class="gov-stat"><small>Registros recentes</small><strong id="gJournal">—</strong></div>
+      </div>
+      <p id="governanceMessage" class="gov-message" role="status" aria-live="polite"></p>
+      <div class="gov-columns">
+        <div class="gov-card">
+          <h3>Agenda de tarefas</h3>
+          <div class="gov-list" id="governanceTasks"></div>
+          <form id="gTaskForm" class="gov-form">
+            <strong>Nova tarefa</strong>
+            <label>Título<input name="titulo" class="gov-input" maxlength="200" required></label>
+            <label>Descrição<textarea name="descricao" class="gov-textarea"></textarea></label>
+            <div class="gov-form-row">
+              <label>Prioridade<select name="prioridade" class="gov-select">
+                <option value="normal">Normal</option><option value="alta">Alta</option>
+                <option value="critica">Crítica</option><option value="baixa">Baixa</option>
+              </select></label>
+              <label>Prazo<input type="date" name="data_limite" class="gov-input"></label>
+            </div>
+            <button class="internal-btn" type="submit">Registrar tarefa</button>
+          </form>
+        </div>
+        <div class="gov-card">
+          <h3>Diário do projeto</h3>
+          <div class="gov-list" id="governanceJournal"></div>
+          <form id="gEventForm" class="gov-form">
+            <strong>Novo registro</strong>
+            <div class="gov-form-row">
+              <label>Tipo<select name="kind" id="gEventKind" class="gov-select">
+                <option value="nota">Nota</option><option value="progresso">Progresso</option>
+                <option value="decisao">Decisão</option><option value="bloqueio">Bloqueio</option>
+                <option value="validacao">Validação</option><option value="handoff">Transferência</option>
+              </select></label>
+              <label id="gDecisionState" hidden>Decisão<select name="state" class="gov-select">
+                <option value="proposto">Proposta</option><option value="aprovado">Aprovada explicitamente</option>
+                <option value="rejeitado">Rejeitada</option>
+              </select></label>
+            </div>
+            <label>Título<input name="title" class="gov-input" maxlength="200" required></label>
+            <label>Descrição ou evidência<textarea name="description" class="gov-textarea" required></textarea></label>
+            <label>Tarefa relacionada<select name="task_id" id="gEventTask" class="gov-select"><option value="">Sem tarefa vinculada</option></select></label>
+            <label>Referência da fonte / autorização<input name="source_ref" class="gov-input" placeholder="PR, URL, conversa ou identificador"></label>
+            <button class="internal-btn" type="submit">Registrar no diário</button>
+          </form>
+        </div>
+      </div>
+      <p class="gov-note">O diário é permanente: correções devem ser registradas como novos eventos. O Personal OS não é exibido aqui para preservar seu isolamento. Consulte também o <a href="https://github.com/rdamatheus/croma-hub/blob/main/docs/INDEX.md" target="_blank" rel="noopener noreferrer">manual do Diretório Mestre</a> quando a documentação estiver publicada na branch principal.</p>
+    </section>
+
   </main>
-  <script type="module" src="/js/interno-projetos.js?v=20261004-1"></script>
+  <script type="module" src="/js/interno-projetos.js?v=20261108-governanca"></script>
 </body>
 </html>
