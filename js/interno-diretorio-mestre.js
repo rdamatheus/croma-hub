@@ -1,4 +1,5 @@
 import { supabase } from './croma-supabase.js';
+import { analisarContinuidades } from './diretorio-mestre-analise.js';
 
 // Painel adicional no cadastro de projetos existente. Não substitui o Centro Operacional.
 const byId = (id) => document.getElementById(id);
@@ -39,6 +40,12 @@ function recordCard(r) {
     +'</article>';
 }
 function render() {
+  const analise=analisarContinuidades(tasks,records);
+  byId('gAgentCounts').textContent=analise.vencidas+' vencida(s) · '+analise.decisoesPendentes+' decisão(ões) proposta(s)';
+  byId('gAgentAlerts').innerHTML=analise.alertas.length
+    ?analise.alertas.map(a=>'<article class="gov-item gov-alert"><div class="gov-item-head"><strong>'+safe(a.titulo)+'</strong><span class="gov-tag">'+safe(a.gravidade)+'</span></div><p>'+safe(a.detalhe)+'</p></article>').join('')
+     +(analise.restantes?'<p class="gov-empty">Mais '+analise.restantes+' ocorrências. Confira as listas abaixo.</p>':'')
+    :'<p class="gov-empty">Nenhuma ocorrência crítica identificada nos registros carregados.</p>';
   byId('gPending').textContent=String(tasks.filter(t=>t.status==='pendente'||t.status==='em_andamento').length);
   byId('gBlocked').textContent=String(records.filter(r=>r.kind==='bloqueio').length);
   byId('gJournal').textContent=String(records.length);
@@ -59,7 +66,7 @@ async function reload() {
       .select('id,project_id,titulo,descricao,status,prioridade,data_limite,concluida_em,updated_at')
       .eq('project_id',projectId).order('updated_at',{ascending:false}).limit(100),
     supabase.from('project_journal')
-      .select('id,project_id,task_id,kind,state,title,description,source_ref,created_at')
+      .select('id,project_id,task_id,kind,state,title,description,source_ref,supersedes_id,created_at')
       .eq('project_id',projectId).order('created_at',{ascending:false}).limit(100)
   ]);
   if(seq!==requestSeq||projectId!==currentProject) return;
