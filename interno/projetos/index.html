@@ -44,6 +44,10 @@
     .gov-form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
     .gov-actions{margin-top:9px}.gov-empty{color:var(--croma-muted)}
     .gov-message{min-height:1.2rem;color:var(--croma-muted)}.gov-message[data-error="true"]{color:#a82b2b}
+    .gov-agent-panel{margin:0 0 14px}.gov-agent-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    .gov-agent-head h3{margin:0 0 5px;color:var(--croma-deep)}.gov-agent-head small{color:var(--croma-muted);white-space:nowrap}
+    .gov-agent-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px;margin-top:12px}
+    .gov-alert{background:#faf9ff}
     .gov-note{color:var(--croma-muted);font-size:.8rem;margin:10px 0 0}
     @media(max-width:850px){.gov-columns,.gov-metrics,.gov-form-row{grid-template-columns:1fr}}
   </style>
@@ -86,6 +90,14 @@
         <div class="gov-stat"><small>Bloqueios no histórico carregado</small><strong id="gBlocked">—</strong></div>
         <div class="gov-stat"><small>Registros recentes</small><strong id="gJournal">—</strong></div>
       </div>
+      <section class="gov-card gov-agent-panel" aria-label="Análise automática de continuidade">
+        <div class="gov-agent-head">
+          <div><h3>Análise automática de continuidade</h3>
+          <p class="gov-note">Análise dos registros carregados, atualizada ao abrir ou atualizar o painel. Não executa mudanças nem substitui validação humana.</p></div>
+          <small id="gAgentCounts" aria-live="polite">—</small>
+        </div>
+        <div class="gov-agent-list" id="gAgentAlerts"></div>
+      </section>
       <p id="governanceMessage" class="gov-message" role="status" aria-live="polite"></p>
       <div class="gov-columns">
         <div class="gov-card">
