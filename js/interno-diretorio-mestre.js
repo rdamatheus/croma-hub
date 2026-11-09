@@ -55,6 +55,13 @@ function render() {
   const previous=sel.value;
   sel.innerHTML='<option value="">Sem tarefa vinculada</option>'+tasks.map(t=>'<option value="'+safe(t.id)+'">'+safe(t.titulo)+'</option>').join('');
   if(tasks.some(t=>t.id===previous)) sel.value=previous;
+  const sup=byId('gSupersedes');
+  const selected=sup.value;
+  const supersededIds=new Set(records.map(r=>r.supersedes_id).filter(Boolean));
+  const options=records.filter(r=>r.kind==='decisao'&&!supersededIds.has(r.id));
+  sup.innerHTML='<option value="">Sem decisão anterior</option>'
+    +options.map(r=>'<option value="'+safe(r.id)+'">'+safe(r.title)+' ('+safe(r.state)+')</option>').join('');
+  if(options.some(r=>r.id===selected)) sup.value=selected;
 }
 async function reload() {
   const projectId=currentProject;
@@ -116,6 +123,7 @@ async function saveRecord(event) {
   }
   const row={
     project_id:currentProject,task_id:String(f.get('task_id')||'')||null,
+    supersedes_id:kind==='decisao'?(String(f.get('supersedes_id')||'')||null):null,
     kind,state,title,description,source_ref:source_ref||null,created_by:currentUser
   };
   message('Registrando evento…');
@@ -123,6 +131,7 @@ async function saveRecord(event) {
   if(error){message('Erro ao registrar evento: '+error.message,true);return;}
   form.reset();
   byId('gDecisionState').hidden=true;
+  byId('gSupersedesWrap').hidden=true;
   await reload();
 }
 async function changeTask(event) {
@@ -167,6 +176,7 @@ export async function initGovernance(projectRows,staffSession) {
     byId('gEventKind').addEventListener('change',(e)=>{
       const isDecision=e.target.value==='decisao';
       byId('gDecisionState').hidden=!isDecision;
+      byId('gSupersedesWrap').hidden=!isDecision;
     });
   }
   await reload();
