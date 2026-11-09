@@ -22,3 +22,10 @@ Nenhum projeto ou tarefa histórica foi criado automaticamente.
 
 ## Risco residual
 Conectores externos e chats só usarão o diretório quando configurados para ler as fontes. Não haverá sincronização bidirecional com conversas antigas nem execução automática por efeito da documentação.
+
+## Execução técnica de 08/11/2026
+- Aplicadas no projeto Supabase `xtlubocepsbqanrjabog` as migrações `director_master_project_journal_and_task_link` e `director_master_journal_foreign_key_indexes`.
+- Confirmados: três projetos preexistentes, tarefas e diário inicialmente vazios, RLS habilitado, tabela sem leitura anônima, permissão autenticada de leitura de tarefas.
+- Código da interface preparado **somente na branch** `feat/diretorio-mestre-governanca`; ainda depende de merge/publicação e teste de navegador autenticado.
+- O advisor de segurança indicou uma configuração anterior de proteção contra senhas vazadas desativada; não alterada por não pertencer ao escopo.
+- Importação de tarefas históricas e automações de acompanhamento permanecem pendentes de reconciliação/escopo próprios.
