@@ -13,3 +13,7 @@ O catálogo público usa a taxonomia canônica `Família → Categoria → Subca
 ## Integração
 
 A integração com o Bling mantém produtos, serviços, categorias e demais entidades sincronizados por workers dedicados. Itens internos, insumos, acabamentos e componentes de composição permanecem fora da vitrine pública até sua consolidação em estruturas comerciais.
+
+## Diretório Mestre e continuidade
+
+O ponto de entrada para agentes e chats é [AGENTS.md](AGENTS.md). O manual versionado está em [docs/INDEX.md](docs/INDEX.md). A agenda operacional e o diário ficam no Supabase, acessíveis somente por perfis autorizados na página interna de projetos após publicação da interface.
