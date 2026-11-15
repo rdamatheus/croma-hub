@@ -1,6 +1,6 @@
 # Propostas comerciais — Croma Hub
 
-## Objetivo
+**Fluxo ChatGPT, padrão de preço, registro e sincronização de propostas:** consulte [propostas-comerciais.md](./propostas-comerciais.md), que detalha o procedimento operacional atualizado. Este documento descreve a estrutura inicial e suas decisões históricas.\n\n## Objetivo
 
 O módulo de propostas registra cotações comerciais sem exigir que o contato já exista como cliente no cadastro principal. Uma proposta pode começar apenas com nome e telefone e receber `customer_id` posteriormente.
 
