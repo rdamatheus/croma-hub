@@ -202,7 +202,7 @@ function inputField(field, value, projects) {
     const date = new Date(value);
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     input.value = local.toISOString().slice(0, 16);
-  } else input.value = value === null || value === undefined ? '' : String(value);
+  } else input.value = value === null || value === undefined || value === '' ? (options ? options[0][0] : '') : String(value);
   container.append(label, input);
   return container;
 }
