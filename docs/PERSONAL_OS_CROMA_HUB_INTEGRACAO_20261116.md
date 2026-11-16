@@ -1,5 +1,5 @@
 # Personal OS integrado ao Croma Hub — migração e validação
-Data: 2026-11-16. Estado: branch isolada, sem deploy, restauração, importação ou alteração das automações.
+Data: 2026-11-16. Estado: branch isolada, sem deploy, restauração ou importação. Os prompts dos cinco agentes receberam somente a instrução de transição e rastreabilidade, preservando horários, permissões e estados.
 
 ## Fontes canônicas
 
@@ -53,6 +53,8 @@ Atualizar as AUTOMAÇÕES EXISTENTES depois que o módulo estiver funcional e pu
 Em todos: consultar fonte oficial e autorização, executar o permitido, validar persistência antes de marcar concluído; declarar não sincronizado se apenas houve proposta ou conversa. Nunca tratar memória/chat como gravação confirmada.
 Em 16/11: quatro agentes habilitados; Administração e Financeiro desabilitado. Não presumir autorização para reativá-lo.
 
+**Registro verificado nesta execução:** os cinco prompts existentes foram acrescidos da nota de transição para o PR #109. Quatro permaneceram habilitados e Administração permaneceu desabilitado. Nenhum prompt redireciona operações para a nova rota em produção enquanto a implantação e os testes autenticados estiverem pendentes.
+
 ## Segurança, compatibilidade e reversão
 - Dados pessoais protegidos por owner + workspace RLS; nenhuma credencial secreta em código público.
 - A autenticação do Croma Hub não prova existência de dados na conta antiga do Personal OS.
@@ -68,5 +70,6 @@ Em 16/11: quatro agentes habilitados; Administração e Financeiro desabilitado.
 - [ ] Negação de acesso de gerente/equipe/outra conta confirmada
 - [ ] PRs #105/#107 reconciliados
 - [ ] Dados antigos inventariados após aprovação
-- [ ] Agentes atualizados e validada a execução
+- [x] Prompts dos cinco agentes atualizados para reconhecer a transição; status preservados e relidos
+- [ ] Acesso operacional dos agentes à nova fonte e resultados validados depois da publicação
 - [ ] Publicação confirmada antes de informar reativação concluída
