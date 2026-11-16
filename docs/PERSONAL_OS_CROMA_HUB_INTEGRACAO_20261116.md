@@ -63,9 +63,9 @@ Em 16/11: quatro agentes habilitados; Administração e Financeiro desabilitado.
 - Branch e PR não são deploy. Sem merge, mudança de DNS, permissões, banco legado ou automações nesta etapa.
 
 ## Validação
-- [ ] Arquivos e sintaxe da branch verificados
-- [ ] RLS e grants inspecionados
-- [ ] Schema exposto na Data API confirmado
+- [x] Arquivos da branch relidos por SHA; sintaxe JS compilada e cinco testes estáticos passaram
+- [x] RLS, políticas de workspace e grants autenticados inspecionados por consultas somente leitura
+- [ ] Schema exposto na Data API confirmado em sessão autenticada (ainda não testado)
 - [ ] Fluxos autenticados do proprietário validados
 - [ ] Negação de acesso de gerente/equipe/outra conta confirmada
 - [ ] PRs #105/#107 reconciliados
