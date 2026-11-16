@@ -74,6 +74,7 @@ export const INTERNAL_GROUPS=[
     {key:'vitrine-aprovacoes',label:'Central de Aprovações',href:'/interno/vitrine-aprovacoes/',description:'Propostas, previews, comentários e decisões da vitrine.',icon:ICONS.aprovacoes,roles:MANAGEMENT_ROLES}
   ]},
   {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:[
+    {key:'personal-os',label:'Personal OS',href:'/interno/personal-os/',description:'Metas, projetos, tarefas, ideias e decisões pessoais com acesso privado.',icon:ICONS.copiloto,roles:OWNER_ROLE},
     {key:'observabilidade',label:'Central de Incidentes e Observabilidade',href:'/interno/observabilidade/',description:'Erros, conflitos do Bling, prioridades e fila de imagens pendentes.',icon:ICONS.observabilidade,roles:MANAGEMENT_ROLES},
     {key:'copiloto',label:'Copiloto Croma',href:'/interno/copiloto/',description:'Insights, decisões, roadmap, tarefas e memória operacional.',icon:ICONS.copiloto},
     {key:'pesquisa',label:'P&D e conhecimento',href:'/interno/pesquisa-desenvolvimento/',description:'Fichas técnicas, testes, materiais, problemas e soluções.',icon:ICONS.pesquisa},
