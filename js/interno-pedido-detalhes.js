@@ -7,7 +7,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const date=v=>new Date(v).toLocaleString('pt-BR');
 const labels={recebido:'Recebido',aguardando_pagamento:'Aguardando pagamento',pago:'Pago',cancelado:'Cancelado',em_analise:'Em análise',em_producao:'Em produção',pronto:'Pronto',enviado:'Enviado',concluido:'Concluído'};
-const methods={pix:'Pix',credito:'Crédito',debito:'Débito'};
+const methods={pix:'Pix',credito:'Crédito',debito:'Débito',dinheiro:'Dinheiro'};
 let current=null,busy=false;
 async function load(){
  const {data,error}=await supabase.rpc('internal_order_detail',{p_order_id:orderId});
