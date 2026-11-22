@@ -15,7 +15,7 @@
     .badge{display:inline-block;border-radius:100px;padding:7px 12px;background:#efeff8;color:var(--croma-purple);font-weight:850;font-size:.75rem;white-space:nowrap}
     .nav{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
     .nav a{color:var(--croma-purple);background:#fff;border:1px solid var(--croma-line);border-radius:10px;padding:9px 12px;font-weight:750;font-size:.81rem;text-decoration:none}
-    .layout[hidden]{display:none}.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.8fr);gap:16px}
+    .layout[hidden]{display:none}.layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.layout #visao,.layout #contexto,.layout #historico,.layout #referencias{grid-column:1 / -1}
     .stack{display:grid;gap:16px;align-content:start}
     .panel{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:20px;box-shadow:0 8px 30px #30297f09;min-width:0}
     .panel h2{font-size:1.1rem;margin:0 0 12px;color:var(--croma-deep)}
@@ -45,7 +45,7 @@
     .task strong{display:block}
     .task small{display:block;color:var(--croma-muted);margin:5px 0}
     .message{padding:14px;border-radius:12px;background:#f5f4fa;color:var(--croma-ink)}
-    @media(max-width:800px){.layout{grid-template-columns:1fr}.head{flex-direction:column}.page{padding:16px}.panel{padding:16px}.keyvalue{grid-template-columns:1fr}}
+    @media(max-width:800px){.layout{grid-template-columns:1fr}.layout #visao,.layout #contexto,.layout #historico,.layout #referencias{grid-column:auto}.head{flex-direction:column}.page{padding:16px}.panel{padding:16px}.keyvalue{grid-template-columns:1fr}}
   </style>
 </head>
 <body hidden>
@@ -66,37 +66,33 @@
     </nav>
     <p id="message" role="status" aria-live="polite"></p>
     <div class="layout" id="content" hidden>
-      <div class="stack">
-        <section class="panel" id="visao">
+      <section class="panel" id="visao">
           <h2>1. Visão geral</h2>
           <div class="keyvalue"><div><span>Objetivo</span><p id="objective"></p></div><div><span>Resultado esperado</span><p id="outcome"></p></div></div>
           <div class="divider"></div><h3>Situação atual</h3><p id="current-state"></p>
         </section>
-        <section class="panel" id="contexto">
+      <section class="panel" id="contexto">
           <h2>2. Contexto e diagnóstico</h2>
           <p id="context-summary"></p><h3>Problemas ou oportunidades</h3><div id="issues"></div>
           <h3>Diretrizes e restrições</h3><div id="constraints"></div>
         </section>
-        <section class="panel" id="historico">
-          <h2>5. Histórico de evolução</h2>
-          <p class="subtle">Registros cronológicos preservados: propostas, decisões, alterações e validações. Abra um item para ver os detalhes.</p>
-          <div id="journal"></div>
-        </section>
-      </div>
-      <div class="stack">
-        <section class="panel" id="decisoes">
+      <section class="panel" id="decisoes">
           <h2>3. Decisões aprovadas</h2>
           <div id="decisions"></div>
         </section>
-        <section class="panel" id="acoes">
+      <section class="panel" id="acoes">
           <h2>4. Plano de ação</h2>
           <h3>Próximos passos</h3><div id="next-steps"></div>
           <h3>Tarefas vinculadas</h3><div id="tasks"></div>
         </section>
-        <section class="panel" id="referencias">
+      <section class="panel" id="historico">
+          <h2>5. Histórico de evolução</h2>
+          <p class="subtle">Registros cronológicos preservados: propostas, decisões, alterações e validações. Abra um item para ver os detalhes.</p>
+          <div id="journal"></div>
+        </section>
+      <section class="panel" id="referencias">
           <h2>6. Referências e arquivos</h2><div id="references"></div>
         </section>
-      </div>
     </div>
   </main>
   <script type="module" src="/js/interno-projeto-detalhe.js?v=20261122-1"></script>
