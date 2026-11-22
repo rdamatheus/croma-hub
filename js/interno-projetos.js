@@ -35,7 +35,7 @@ function render(rows){
     const supabaseProject=row.metadata?.supabase_project||'—';
     return `<article class="project">
       <div class="project-head">
-        <div><h2>${esc(row.name)}</h2><p>${esc(row.description||'')}</p></div>
+        <div><h2><a class="project-open" href="/interno/projetos/detalhe/?slug=${encodeURIComponent(row.slug)}">${esc(row.name)}</a></h2><p>${esc(row.description||'')}</p></div>
         <span class="badge">${esc(STATUS_LABEL[row.status]||row.status)}</span>
       </div>
       <div class="meta">
@@ -45,7 +45,8 @@ function render(rows){
         <div><span>Identificador</span><b>${esc(row.slug)}</b></div>
       </div>
       <div class="actions">
-        ${link(row.admin_url,'Abrir painel',true)}
+        <a class="primary" href="/interno/projetos/detalhe/?slug=${encodeURIComponent(row.slug)}">Abrir projeto</a>
+        ${link(row.admin_url,'Abrir painel')}
         ${link(row.site_url,'Abrir site')}
         ${link(row.repository_url,'GitHub')}
       </div>
