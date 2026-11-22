@@ -44,3 +44,12 @@ Centralizar o estado atual, o histórico de raciocínio, as decisões, as tarefa
 
 ## Caso inicial: Melhoria da Loja Física Croma
 Criado em `managed_projects`, com histórico em `project_journal` e referências à pasta de fotos original. A etapa 6.1 de coleta do contexto foi aprovada. Propostas de alterações físicas, compra e produção de artes permanecem **não aprovadas**.
+
+## Apresentação da interface interna — revisão de 22/11/2026
+- A mesma página de detalhes é usada para todos os projetos: `/interno/projetos/detalhe/?slug=<slug>`.
+- A navegação contém seis seções: visão geral, diagnóstico, decisões, plano de ação, histórico e referências.
+- O topo resume a quantidade de registros, decisões vigentes aprovadas, propostas em análise e próximos passos **descritos** (não confundir com tarefas efetivas).
+- Decisões aprovadas, propostas e rejeitadas/substituídas aparecem em grupos independentes, mantendo o histórico íntegro.
+- O histórico é cronológico, expansível, agrupado por mês e filtrável por situação/tipo. Textos narrativos extensos são divididos apenas para exibição; nenhuma reclassificação ou alteração dos registros é feita no banco.
+- A visualização permanece somente para leitura e protegida pela autenticação existente de owner/manager. Falhas de consulta devem ser exibidas explicitamente, sem declarar falsamente que não há registros.
+- Validação executada: verificação dos arquivos no GitHub, sintaxe JS, existência de IDs esperados e teste funcional de renderização com dados simulados. **A publicação e o acesso autenticado em navegador real ainda precisam de conferência.**
