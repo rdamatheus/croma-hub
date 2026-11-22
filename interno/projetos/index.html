@@ -13,7 +13,7 @@
     .metric,.project{background:#fff;border:1px solid var(--croma-line);border-radius:18px;box-shadow:0 10px 30px #30297f08}
     .metric{padding:16px}.metric span{display:block;color:var(--croma-muted);font-size:.78rem}.metric strong{display:block;margin-top:5px;font-size:1.55rem;color:var(--croma-deep)}
     .projects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-    .project{padding:20px;display:flex;flex-direction:column;gap:14px}
+    .project{padding:20px;display:flex;flex-direction:column;gap:14px;position:relative;transition:box-shadow .18s,border-color .18s}.project:hover,.project:focus-within{border-color:var(--croma-purple);box-shadow:0 12px 36px #30297f20}.project-open{color:inherit;text-decoration:none}.project-open::after{content:"";position:absolute;inset:0}.project-open:focus-visible{outline:2px solid var(--croma-purple);outline-offset:4px}.actions{position:relative;z-index:1}
     .project-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.project h2{margin:0;color:var(--croma-deep);font-size:1.1rem}.project p{margin:5px 0 0;color:var(--croma-muted);line-height:1.45}
     .badge{display:inline-flex;border-radius:999px;padding:6px 9px;font-size:.68rem;font-weight:900;letter-spacing:.05em;text-transform:uppercase;background:#efeff8;color:var(--croma-purple);white-space:nowrap}
     .meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.meta div{background:#f8f7fb;border-radius:11px;padding:10px}.meta span{display:block;font-size:.66rem;text-transform:uppercase;font-weight:900;color:var(--croma-muted)}.meta b{display:block;margin-top:4px;font-size:.82rem;color:var(--croma-ink);overflow-wrap:anywhere}
@@ -27,9 +27,9 @@
     <div class="hero">
       <div>
         <a href="/interno/">← Painel interno</a>
-        <span class="internal-eyebrow" style="display:block;margin-top:14px">Portfólio técnico</span>
+        <span class="internal-eyebrow" style="display:block;margin-top:14px">Central de acompanhamento</span>
         <h1>Projetos</h1>
-        <p>Central dos sistemas administrados pela mesma infraestrutura. Os bancos continuam isolados por schema, permissões e domínio de negócio.</p>
+        <p>Projetos, decisões, tarefas e histórico em um só lugar. Clique em um projeto para consultar os detalhes.</p>
       </div>
       <button class="internal-btn secondary" id="refresh" type="button">Atualizar</button>
     </div>
@@ -43,6 +43,6 @@
     <section class="projects" id="projects"></section>
     <p id="message" class="internal-muted"></p>
   </main>
-  <script type="module" src="/js/interno-projetos.js?v=20261004-1"></script>
+  <script type="module" src="/js/interno-projetos.js?v=20261122-1"></script>
 </body>
 </html>
