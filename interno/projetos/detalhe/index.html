@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detalhes do projeto | Croma Hub</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <style>
+    .page{max-width:1180px;margin:auto;padding:24px}
+    .crumb{display:inline-block;margin-bottom:15px;color:var(--croma-purple);font-weight:800;text-decoration:none}
+    .head{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .head h1{margin:5px 0 7px;color:var(--croma-deep);line-height:1.15}
+    .head p{color:var(--croma-muted);margin:0;max-width:780px;line-height:1.55}
+    .eyebrow{text-transform:uppercase;letter-spacing:.09em;font-size:.72rem;font-weight:900;color:var(--croma-purple)}
+    .badge{display:inline-block;border-radius:100px;padding:7px 12px;background:#efeff8;color:var(--croma-purple);font-weight:850;font-size:.75rem;white-space:nowrap}
+    .nav{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+    .nav a{color:var(--croma-purple);background:#fff;border:1px solid var(--croma-line);border-radius:10px;padding:9px 12px;font-weight:750;font-size:.81rem;text-decoration:none}
+    .layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.8fr);gap:16px}
+    .stack{display:grid;gap:16px;align-content:start}
+    .panel{background:#fff;border:1px solid var(--croma-line);border-radius:18px;padding:20px;box-shadow:0 8px 30px #30297f09;min-width:0}
+    .panel h2{font-size:1.1rem;margin:0 0 12px;color:var(--croma-deep)}
+    .panel h3{font-size:.86rem;margin:16px 0 6px;color:var(--croma-deep)}
+    .panel p{color:var(--croma-ink);line-height:1.6;margin:6px 0;white-space:pre-line}
+    .panel ul{padding-left:20px;line-height:1.55;margin:8px 0}
+    .panel li{margin-bottom:7px;overflow-wrap:anywhere}
+    .subtle{color:var(--croma-muted)!important}
+    .divider{height:1px;background:var(--croma-line);margin:15px 0}
+    .keyvalue{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .keyvalue span{display:block;font-size:.68rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--croma-muted)}
+    .keyvalue strong{display:block;margin-top:4px;font-size:.86rem;color:var(--croma-deep)}
+    .decision{padding:12px 0;border-bottom:1px solid var(--croma-line)}
+    .decision:last-child{border-bottom:0}
+    .decision strong{display:block;margin-bottom:5px;line-height:1.4}
+    .decision a{font-size:.78rem;color:var(--croma-purple);font-weight:750}
+    .entry{border:1px solid var(--croma-line);border-radius:12px;margin-top:10px;scroll-margin-top:15px}
+    .entry summary{cursor:pointer;padding:12px 14px;list-style-position:inside;line-height:1.45;font-weight:800;color:var(--croma-deep)}
+    .entry[open] summary{border-bottom:1px solid var(--croma-line)}
+    .entry-body{padding:12px 14px}
+    .entry-body p{margin:0 0 10px}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--croma-muted);font-size:.75rem;margin:6px 0}
+    .meta span{background:#f5f4fa;border-radius:7px;padding:4px 7px}
+    .ref{display:block;color:var(--croma-purple);font-weight:750;text-decoration:none;overflow-wrap:anywhere;margin:8px 0}
+    .task{padding:11px 0;border-bottom:1px solid var(--croma-line)}
+    .task:last-child{border:0}
+    .task strong{display:block}
+    .task small{display:block;color:var(--croma-muted);margin:5px 0}
+    .message{padding:14px;border-radius:12px;background:#f5f4fa;color:var(--croma-ink)}
+    @media(max-width:800px){.layout{grid-template-columns:1fr}.head{flex-direction:column}.page{padding:16px}.panel{padding:16px}.keyvalue{grid-template-columns:1fr}}
+  </style>
+</head>
+<body hidden>
+  <main class="page">
+    <a class="crumb" href="/interno/projetos/">← Todos os projetos</a>
+    <div class="head">
+      <div>
+        <span class="eyebrow">Croma Hub / Projeto Vivo</span>
+        <h1 id="project-name">Projeto</h1>
+        <p id="project-intro">Carregando informações…</p>
+      </div>
+      <span class="badge" id="project-status">—</span>
+    </div>
+    <nav class="nav" aria-label="Seções do projeto">
+      <a href="#visao">Visão geral</a><a href="#contexto">Contexto</a>
+      <a href="#decisoes">Decisões</a><a href="#acoes">Plano de ação</a>
+      <a href="#historico">Histórico</a><a href="#referencias">Referências</a>
+    </nav>
+    <p id="message" role="status" aria-live="polite"></p>
+    <div class="layout" id="content" hidden>
+      <div class="stack">
+        <section class="panel" id="visao">
+          <h2>1. Visão geral</h2>
+          <div class="keyvalue"><div><span>Objetivo</span><p id="objective"></p></div><div><span>Resultado esperado</span><p id="outcome"></p></div></div>
+          <div class="divider"></div><h3>Situação atual</h3><p id="current-state"></p>
+        </section>
+        <section class="panel" id="contexto">
+          <h2>2. Contexto e diagnóstico</h2>
+          <p id="context-summary"></p><h3>Problemas ou oportunidades</h3><div id="issues"></div>
+          <h3>Diretrizes e restrições</h3><div id="constraints"></div>
+        </section>
+        <section class="panel" id="historico">
+          <h2>5. Histórico de evolução</h2>
+          <p class="subtle">Registros cronológicos preservados: propostas, decisões, alterações e validações. Abra um item para ver os detalhes.</p>
+          <div id="journal"></div>
+        </section>
+      </div>
+      <div class="stack">
+        <section class="panel" id="decisoes">
+          <h2>3. Decisões aprovadas</h2>
+          <div id="decisions"></div>
+        </section>
+        <section class="panel" id="acoes">
+          <h2>4. Plano de ação</h2>
+          <h3>Próximos passos</h3><div id="next-steps"></div>
+          <h3>Tarefas vinculadas</h3><div id="tasks"></div>
+        </section>
+        <section class="panel" id="referencias">
+          <h2>6. Referências e arquivos</h2><div id="references"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="/js/interno-projeto-detalhe.js?v=20261122-1"></script>
+</body>
+</html>
