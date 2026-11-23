@@ -29,6 +29,8 @@
     .card-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
     .panel{min-width:0;background:#fff;border:1px solid var(--croma-line);border-radius:17px;padding:19px}
     .panel.wide{grid-column:1/-1}
+    .execution-context{margin-top:14px}
+    .execution-context[hidden]{display:none}
     .panel h3{margin:0 0 11px;color:var(--croma-deep);font-size:.95rem}
     .panel p{line-height:1.6;margin:0 0 9px;overflow-wrap:anywhere}
     .panel p:last-child{margin-bottom:0}
@@ -120,6 +122,14 @@
           <article class="panel"><h3>Resultado esperado</h3><div id="outcome"></div></article>
           <article class="panel"><h3>Situação atual</h3><div id="current-state"></div></article>
         </div>
+        <article class="panel execution-context" id="execution-context" hidden>
+          <h3>Execução vinculada ao pedido / OS</h3>
+          <div class="card-grid three">
+            <div><h3>Vínculos comerciais</h3><div id="execution-links"></div></div>
+            <div><h3>Entregas e etapas</h3><div id="execution-deliverables"></div></div>
+            <div><h3>Conferências pendentes</h3><div id="execution-pending"></div></div>
+          </div>
+        </article>
       </section>
       <section class="section" id="contexto">
         <div class="section-header"><span class="section-no">02</span><div><h2>Contexto e diagnóstico</h2><p>Fatos, oportunidades e limites documentados — sem confundir hipóteses com decisões.</p></div></div>
@@ -166,6 +176,6 @@
     </div>
     <p id="message" role="status" aria-live="polite" class="feedback"></p>
   </main>
-  <script type="module" src="/js/interno-projeto-detalhe.js?v=20261122-2"></script>
+  <script type="module" src="/js/interno-projeto-detalhe.js?v=20261122-unificado-1"></script>
 </body>
 </html>
