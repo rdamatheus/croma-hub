@@ -118,6 +118,40 @@ function renderTasks(tasks,failed){
     if(task.descricao)el('p',task.descricao,box);
   }
 }
+// Uma única visão de projeto: o complemento operacional é opcional e nunca altera a OS.
+function renderExecution(project){
+  const raw=project.metadata?.execution;
+  const data=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+  const visible=project.project_type==='client'||Object.keys(data).length>0;
+  $('#execution-context').hidden=!visible;
+  if(!visible)return;
+  const links=clear('#execution-links');
+  if(typeof data.customer_name==='string'&&data.customer_name.trim())
+    el('p','Cliente: '+data.customer_name.trim(),links);
+  const order=data.order_ref&&typeof data.order_ref==='object'&&!Array.isArray(data.order_ref)?data.order_ref:{};
+  if(order.number||order.system)el('p','OS: '+[order.system||'Bling',order.number].filter(Boolean).join(' · '),links);
+  const orderUrl=safeUrl(order.url);
+  if(orderUrl){
+    const a=el('a','Consultar OS na origem',links,'reference');
+    a.href=orderUrl;a.target='_blank';a.rel='noopener noreferrer';
+  }
+  if(!links.childElementCount)message(links,'OS e cliente ainda não vinculados.');
+  const target=clear('#execution-deliverables');
+  const deliverables=Array.isArray(data.deliverables)?data.deliverables.filter(x=>x&&typeof x.name==='string'&&x.name.trim()):[];
+  if(!deliverables.length)message(target,'Entregas ainda não especificadas.');
+  for(const item of deliverables){
+    const card=el('div',null,target,'task');
+    el('strong',item.name,card);
+    const info=[
+      item.quantity!=null?[String(item.quantity),item.unit].filter(Boolean).join(' '):'',
+      item.specification,
+      item.supplier?'Fornecedor: '+item.supplier:'',
+      item.stage?'Situação: '+item.stage:''
+    ].filter(v=>typeof v==='string'&&v.trim());
+    if(info.length)el('small',info.join(' · '),card);
+  }
+  bulletList('#execution-pending',data.pending_checks,'Nenhuma conferência informada.');
+}
 function renderReferences(project){
   const target=clear('#references'),seen=new Set();
   const links=[...(Array.isArray(project.metadata?.references)?project.metadata.references:[]),
@@ -145,6 +179,7 @@ function renderProject(project,entries,tasks,tasksFailed,historyFailed){
   bulletList('#issues',brief.issues,'Problemas e oportunidades ainda serão identificados.');
   bulletList('#constraints',brief.constraints,'Nenhuma restrição adicional registrada.');
   bulletList('#next-steps',brief.next_steps,'Próximos passos ainda não definidos.',true);
+  renderExecution(project);
   const {superseded,live}=validDecisions(entries);
   const approved=live.filter(x=>x.state==='aprovado');
   const proposed=live.filter(x=>x.state==='proposto');
@@ -174,7 +209,7 @@ async function load(){
   if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)){$('#message').textContent='Identificador de projeto inválido.';return;}
   $('#message').textContent='Carregando projeto e histórico…';
   const {data:project,error}=await supabase.from('managed_projects')
-    .select('id,slug,name,description,status,metadata,admin_url,site_url,repository_url')
+    .select('id,slug,name,description,project_type,status,metadata,admin_url,site_url,repository_url')
     .eq('slug',slug).maybeSingle();
   if(error||!project){$('#message').textContent='Projeto não encontrado ou acesso não autorizado.';return;}
   const [jr,ts]=await Promise.all([
