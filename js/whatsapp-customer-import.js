@@ -8,10 +8,54 @@ const gallery=createGallery(labels);
 let contacts=[],selected=[],draft=null,busy=false,attempt=null,history={messages:[],files:[]},historyVersion=0;
 const node=(tag,value)=>{const el=document.createElement(tag);if(value!=null)el.textContent=value;return el;};
 const status=(msg,error=false)=>{$('status').textContent=msg;$('status').classList.toggle('error',error);};
-const name=c=>[c.nome,c.celular||c.telefone].filter(Boolean).join(' — ');
+const name=c=>[c.nome,c.nome_fantasia&&c.nome_fantasia!==c.nome?c.nome_fantasia:null,c.celular||c.telefone,c.bling_contact_id?'Bling #'+c.bling_contact_id:null].filter(Boolean).join(' — ');
 const phone=v=>String(v||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');
 const chosen=()=>contacts.find(c=>c.id===$('customer').value);
 const size=n=>(n/1048576).toFixed(2)+' MiB';
+const PAGE=30;
+let directoryPage=0,directoryTotal=0,directoryVersion=0,directoryTimer,importTimer,searchVersion=0,importOpen=false,importSearching=false,directoryLoading=false;
+const count=n=>Number(n||0).toLocaleString('pt-BR');
+function showImport(open){
+ importOpen=open;$('importContact').hidden=!open;$('importFiles').hidden=!open;
+ if(open)$('importContact').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function directoryQuery(q,only,sort,offset,limit){
+ const {data,error}=await supabase.rpc('whatsapp_customer_directory',{p_query:q,p_history_only:only,p_sort:sort,p_offset:offset,p_limit:limit});
+ if(error)throw error;return data||[];
+}
+function directoryControls(){
+ const locked=busy||!!attempt;
+ for(const id of ['directoryQuery','directorySort','newImport','hideImport','importForCustomer'])$(id).disabled=locked;
+ $('directoryPrev').disabled=locked||directoryLoading||directoryPage===0;
+ $('directoryNext').disabled=locked||directoryLoading||(directoryPage+1)*PAGE>=directoryTotal;
+ for(const el of $('directoryList').querySelectorAll('button'))el.disabled=locked;
+}
+async function loadDirectory(){
+ const v=++directoryVersion;directoryLoading=true;directoryControls();$('directoryStatus').textContent='Buscando clientes…';$('directoryList').replaceChildren();
+ try{
+  const rows=await directoryQuery($('directoryQuery').value.trim(),true,$('directorySort').value,directoryPage*PAGE,PAGE);
+  if(v!==directoryVersion)return;
+  if(!rows.length&&directoryPage>0){directoryPage=0;return await loadDirectory();}
+  directoryTotal=Number(rows[0]?.total_count||0);
+  $('directoryStatus').textContent=count(directoryTotal)+' cliente(s) com histórico'+(!rows.length?' · nenhum resultado para a busca.':'');
+  $('directoryPage').textContent=directoryTotal?'Página '+(directoryPage+1)+' de '+Math.ceil(directoryTotal/PAGE):'';
+  for(const row of rows){
+   const b=node('button');b.type='button';b.className='directory-item';b.dataset.customer=row.id;b.setAttribute('aria-current',String(chosen()?.id===row.id));
+   const avatar=node('span',String(row.nome||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase());avatar.className='directory-avatar';
+   const info=node('span');info.className='directory-info';info.append(node('strong',row.nome||'Contato sem nome'));
+   const extra=[row.nome_fantasia&&row.nome_fantasia!==row.nome?row.nome_fantasia:null,row.celular||row.telefone,row.bling_contact_id?'Bling #'+row.bling_contact_id:null,row.ativo===false?'Inativo':null].filter(Boolean).join(' · ');
+   if(extra)info.append(node('small',extra));
+   const when=row.last_import?new Date(row.last_import).toLocaleDateString('pt-BR'):'—';
+   info.append(node('small',count(row.message_count)+' mensagens · '+count(row.file_count)+' arquivos · Última importação: '+when));
+   b.append(avatar,info,node('span','›'));
+   b.onclick=async()=>{if(busy||attempt)return;searchVersion++;importSearching=false;clearTimeout(importTimer);setContacts([row]);$('customer').value=row.id;customerChanged();showImport(false);await loadHistory();if(chosen()?.id===row.id)$('historyCard').scrollIntoView({behavior:'smooth',block:'start'});};
+   $('directoryList').append(b);
+  }
+ }catch(e){if(v===directoryVersion){directoryTotal=0;$('directoryPage').textContent='';$('directoryStatus').textContent='Não foi possível carregar os clientes: '+e.message;}}
+ finally{if(v===directoryVersion){directoryLoading=false;directoryControls();}}
+}
+function queueDirectory(){directoryPage=0;directoryVersion++;clearTimeout(directoryTimer);directoryLoading=true;directoryControls();$('directoryList').replaceChildren();$('directoryStatus').textContent='Buscando clientes…';directoryTimer=setTimeout(loadDirectory,250);}
+
 function showProgress(percent,stage,detail=''){
  $('importProgress').hidden=false;$('progressBar').value=percent;$('progressPercent').textContent=percent+'%';
  $('progressStage').textContent=stage;$('progressDetail').textContent=detail;
@@ -19,29 +63,35 @@ function showProgress(percent,stage,detail=''){
 function controls(){
  for(const id of ['search','customer','files','folder','confirm'])$(id).disabled=busy||(!!attempt&&id!=='confirm')||(id==='confirm'&&(!draft||!chosen()));
  $('prepare').disabled=busy||!!attempt||!selected.length;
- $('save').disabled=busy||!draft||!chosen()||!$('confirm').checked;
+ $('save').disabled=busy||importSearching||!draft||!chosen()||!$('confirm').checked;
  $('history').disabled=busy||!chosen();
  $('searchForm').querySelector('button').disabled=busy||!!attempt;
+ directoryControls();
 }
 function setContacts(rows){
  contacts=rows||[];$('customer').replaceChildren(new Option('Selecione um cliente',''));
  for(const c of contacts)$('customer').add(new Option(name(c),c.id));
 }
-async function searchContacts(value){
- const q=value.trim();if(q.length<2)throw Error('Digite pelo menos dois caracteres.');
- let query=supabase.from('customer_profiles').select('id,nome,telefone,celular,ativo').eq('ativo',true).limit(50);
- if(/^[+\d\s().-]+$/.test(q)){
-  const digits=phone(q);if(digits.length<4)throw Error('Digite ao menos quatro dígitos.');
-  const pattern='%'+digits.split('').join('%')+'%';
-  query=query.or('telefone.ilike.'+pattern+',celular.ilike.'+pattern);
- }else query=query.ilike('nome','%'+q.replace(/[%_\\]/g,'\\$&')+'%');
- const {data,error}=await query.order('nome');if(error)throw error;setContacts(data);
- const d=phone(q),exact=contacts.filter(c=>d.length>=10&&[c.telefone,c.celular].some(x=>phone(x)===d));
- if(exact.length===1){$('customer').value=exact[0].id;customerChanged();}
- if(!contacts.length)status('Nenhum cliente encontrado. Confira nome e telefone.');
+async function searchContacts(value,autoPhone=false){
+ const q=value.trim(),version=++searchVersion;
+ if(q.length<2){setContacts([]);customerChanged();return;}
+ const data=await directoryQuery(q,false,'name',0,100);
+ if(version!==searchVersion)return;
+ setContacts(data);const d=phone(q);
+ const exact=autoPhone?contacts.filter(c=>d.length>=10&&[c.telefone,c.celular].some(x=>phone(x)===d)):[];
+ if(exact.length===1&&Number(data[0]?.total_count||0)<=data.length)$('customer').value=exact[0].id;
+ customerChanged();
+ status(!contacts.length?'Nenhum contato encontrado. Confira os dados.':count(data[0].total_count)+' contato(s) encontrado(s).'+(Number(data[0].total_count)>data.length?' Refine a busca para ver os demais.':' Selecione o contato.'));
+}
+async function runImportSearch(){
+ if(busy||attempt)return;
+ importSearching=true;controls();
+ try{await searchContacts($('search').value);}catch(e){status(e.message,true);}
+ finally{importSearching=false;controls();}
 }
 function customerChanged(){
  historyVersion++;history={messages:[],files:[]};gallery.reset();$('historyCard').hidden=true;$('confirm').checked=false;$('selected').textContent=chosen()?name(chosen()):'';
+ for(const b of $('directoryList').querySelectorAll('button'))b.setAttribute('aria-current',String(b.dataset.customer===chosen()?.id));
  controls();
 }
 function resetDraft(files){
@@ -65,7 +115,7 @@ async function prepareFiles(){
  try{
   draft=await prepare(selected);renderPreview();
   const number=String(draft.chat.phone||'');if(phone(number).length>=10&&!chosen()){
-   $('search').value=number;await searchContacts(number);
+   $('search').value=number;await searchContacts(number,true);
   }
   showProgress(5,'Arquivos organizados','Aguardando confirmação do cliente.');status('Confira os arquivos e confirme o cliente antes de salvar.');
  }catch(e){draft=null;showProgress(0,'Falha na preparação',e.message);status(e.message,true);}finally{busy=false;controls();}
@@ -84,7 +134,7 @@ async function knownFiles(customerId){
  }return new Set(result.map(f=>f.content_sha256).filter(Boolean));
 }
 async function save(){
- const c=chosen();if(!c||!draft||!$('confirm').checked||busy)return;
+ const c=chosen();if(!c||!draft||!$('confirm').checked||busy||importSearching)return;
  if(attempt&&attempt.customer!==c.id){status('Existe uma importação anterior a confirmar. Retorne ao cliente original antes de tentar de novo.',true);return;}
  if(!attempt)attempt={id:crypto.randomUUID(),customer:c.id,uploaded:new Map(),sent:false};
  busy=true;controls();
@@ -120,7 +170,7 @@ async function save(){
   const cleanup=unused.length?await supabase.storage.from(STORAGE_BUCKET).remove(unused):{};
   status(data.replayed?'Importação anterior confirmada.':data.messages+' novas mensagens e '+data.files+' novos arquivos registrados.'+(cleanup.error?' Alguns objetos duplicados aguardam limpeza.':''));
   showProgress(100,'Importação concluída',data.replayed?'Importação anterior confirmada.':data.messages+' mensagens e '+data.files+' novos arquivos registrados.');
-  attempt=null;draft=null;selected=[];$('confirm').checked=false;$('files').value='';$('folder').value='';$('preview').replaceChildren();await loadHistory();
+  attempt=null;draft=null;selected=[];$('confirm').checked=false;$('files').value='';$('folder').value='';$('preview').replaceChildren();await loadHistory();await loadDirectory();
  }catch(e){showProgress(Number($('progressBar').value),'Importação interrompida','Tente novamente nesta mesma tela.');status('Importação não confirmada: '+e.message+'. Tente novamente com os mesmos arquivos e contato; não será criado um novo lote nesta tela.',true);}
  finally{busy=false;controls();}
 }
@@ -149,14 +199,23 @@ function renderHistory(){
  gallery.render(filter);
 }
 if(session){
- $('searchForm').addEventListener('submit',async e=>{e.preventDefault();if(attempt){status('Conclua a importação em aberto antes de trocar o contato.',true);return;}busy=true;controls();try{await searchContacts($('search').value);customerChanged();}catch(e){status(e.message,true);}finally{busy=false;controls();}});
+ $('directoryQuery').addEventListener('input',queueDirectory);
+ $('directorySort').addEventListener('change',()=>{clearTimeout(directoryTimer);directoryPage=0;loadDirectory();});
+ $('directoryPrev').onclick=()=>{if(directoryPage>0){directoryPage--;loadDirectory();}};
+ $('directoryNext').onclick=()=>{if((directoryPage+1)*PAGE<directoryTotal){directoryPage++;loadDirectory();}};
+ $('newImport').onclick=()=>{showImport(true);$('search').focus();};
+ $('hideImport').onclick=()=>showImport(false);
+ $('importForCustomer').onclick=()=>showImport(true);
+ $('searchForm').addEventListener('submit',e=>{e.preventDefault();clearTimeout(importTimer);runImportSearch();});
+ $('search').addEventListener('input',()=>{if(busy||attempt)return;searchVersion++;clearTimeout(importTimer);importSearching=true;setContacts([]);customerChanged();importTimer=setTimeout(runImportSearch,250);});
  $('customer').addEventListener('change',customerChanged);
  for(const id of ['files','folder'])$(id).addEventListener('change',e=>{if(attempt){status('Conclua a importação em aberto antes de trocar os arquivos.',true);return;}resetDraft([...e.target.files]);});
  $('prepare').addEventListener('click',prepareFiles);$('confirm').addEventListener('change',controls);$('save').addEventListener('click',save);$('history').addEventListener('click',loadHistory);$('filter').addEventListener('input',renderHistory);
  controls();
+ await loadDirectory();
  const customerId=new URLSearchParams(location.search).get('cliente');
  if(customerId&&/^[0-9a-f-]{36}$/i.test(customerId)){
-  const {data,error}=await supabase.from('customer_profiles').select('id,nome,telefone,celular,ativo').eq('id',customerId).maybeSingle();
-  if(data&&!error){setContacts([data]);$('customer').value=data.id;customerChanged();await loadHistory();}
+  const {data,error}=await supabase.from('customer_profiles').select('id,nome,nome_fantasia,telefone,celular,ativo,bling_contact_id').eq('id',customerId).maybeSingle();
+  if(data&&!error){setContacts([data]);$('customer').value=data.id;customerChanged();await loadHistory();if(!history.messages.length&&!history.files.length)showImport(true);}
  }
 }
