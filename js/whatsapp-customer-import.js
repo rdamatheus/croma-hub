@@ -11,11 +11,11 @@ const phone=v=>String(v||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');
 const chosen=()=>contacts.find(c=>c.id===$('customer').value);
 const size=n=>(n/1048576).toFixed(2)+' MiB';
 function controls(){
- for(const id of ['search','customer','files','folder','confirm'])$(id).disabled=busy||(id==='confirm'&&(!draft||!chosen()));
- $('prepare').disabled=busy||!selected.length;
+ for(const id of ['search','customer','files','folder','confirm'])$(id).disabled=busy||(!!attempt&&id!=='confirm')||(id==='confirm'&&(!draft||!chosen()));
+ $('prepare').disabled=busy||!!attempt||!selected.length;
  $('save').disabled=busy||!draft||!chosen()||!$('confirm').checked;
  $('history').disabled=busy||!chosen();
- $('searchForm').querySelector('button').disabled=busy;
+ $('searchForm').querySelector('button').disabled=busy||!!attempt;
 }
 function setContacts(rows){
  contacts=rows||[];$('customer').replaceChildren(new Option('Selecione um cliente',''));
