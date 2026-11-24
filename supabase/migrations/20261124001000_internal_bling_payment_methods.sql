@@ -1,0 +1,3 @@
+alter table public.orders add column payment_due_date date, add column bling_payment_label text;
+alter table public.orders drop constraint orders_payment_method_check, add constraint orders_payment_method_check check(payment_method in ('pix','credito','debito','dinheiro','crediario') or payment_method ~ '^bling:[1-9][0-9]{0,15}$');
+create policy orders_internal_payment_insert on public.orders as restrictive for insert to authenticated with check ((payment_method in ('pix','credito','debito','dinheiro') and payment_due_date is null and bling_payment_label is null) or (select app_private.is_staff()));

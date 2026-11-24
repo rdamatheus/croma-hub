@@ -11,6 +11,32 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 const brl = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const statusLabels = {recebido:'Recebido',em_analise:'Em análise',aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_producao:'Em produção',pronto:'Pronto',enviado:'Enviado',concluido:'Concluído',cancelado:'Cancelado'};
+const baseMethods={pix:'Pix',credito:'Cartão de crédito',debito:'Cartão de débito',dinheiro:'Dinheiro',crediario:'Crediário'};
+let receiptMethods={...baseMethods};
+async function paymentFields(order={}) {
+ let warning='';
+ if(canManage) {
+   try {
+     const {data,error}=await supabase.functions.invoke('croma-order-outbound',{body:{action:'receipt_forms'}});
+     if(error||!Array.isArray(data?.forms)) throw new Error();
+     receiptMethods={...baseMethods};
+     for(const form of data.forms) {
+       if(Number.isSafeInteger(Number(form.id)) && form.descricao) receiptMethods['bling:'+form.id]=form.descricao;
+     }
+   } catch {warning='<p>Formas do Bling indisponíveis. Exibindo as formas já conhecidas.</p>';}
+ }
+ const key=order.payment_method||'pix';
+ const available={...receiptMethods,[key]:receiptMethods[key]||order.bling_payment_label||key};
+ return select('payment_method','Pagamento',Object.entries(available).map(([v,l])=>[v,esc(l)]),key)
+   +field('payment_due_date','Vencimento do crediário ou da parcela a receber','date',order.payment_due_date||'')+warning;
+}
+function paymentData(data) {
+ const key=data.payment_method;
+ const linked=key.startsWith('bling:');
+ const deferred=key==='crediario'||linked;
+ if(deferred && data.status==='aguardando_pagamento' && !data.payment_due_date) throw new Error('Informe o vencimento da parcela.');
+ return {payment_method:key,payment_due_date:deferred?(data.payment_due_date||null):null,bling_payment_label:linked?(receiptMethods[key]||current?.bling_payment_label||key):null};
+}
 const syncLabels = {nao_sincronizado:'Não sincronizado',pendente:'Pendente',sincronizando:'Sincronizando',sincronizado:'Sincronizado',erro:'Erro',conflito:'Conflito'};
 
 let clientes=[],enderecos=[],pedidos=[],produtos=[],custos=[],mode=null,current=null;
@@ -88,7 +114,7 @@ function renderClientes(){
 function renderPedidos(){
   const q=$('#qPedidos').value.toLowerCase();
   const list=pedidos.filter(o=>[o.order_code,o.status,o.customer_profiles?.nome].join(' ').toLowerCase().includes(q));
-  $('#pedidosBody').innerHTML=list.length?list.map(o=>`<tr><td><strong>${esc(o.order_code)}</strong><br><span class="muted">${new Date(o.created_at).toLocaleString('pt-BR')}</span></td><td>${esc(o.customer_profiles?.nome||'—')}</td><td><span class="pill">${esc(statusLabels[o.status]||o.status)}</span></td><td>${o.fulfillment==='entrega'?'Entrega':'Retirada'}</td><td>${o.payment_method==='pix'?'Pix':o.payment_method==='credito'?'Crédito':'Débito'}</td><td>${brl(o.total)}</td><td><div class="actions"><button class="btn light" data-order-view="${o.id}">Detalhes</button><button class="btn light" data-order-edit="${o.id}">Editar</button>${canManage?`<button class="btn bad" data-order-del="${o.id}">Excluir</button>`:''}</div></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Nenhum pedido encontrado.</td></tr>';
+  $('#pedidosBody').innerHTML=list.length?list.map(o=>`<tr><td><strong>${esc(o.order_code)}</strong><br><span class="muted">${new Date(o.created_at).toLocaleString('pt-BR')}</span></td><td>${esc(o.customer_profiles?.nome||'—')}</td><td><span class="pill">${esc(statusLabels[o.status]||o.status)}</span></td><td>${o.fulfillment==='entrega'?'Entrega':'Retirada'}</td><td>${esc(o.bling_payment_label||baseMethods[o.payment_method]||o.payment_method)}</td><td>${brl(o.total)}</td><td><div class="actions"><button class="btn light" data-order-view="${o.id}">Detalhes</button><button class="btn light" data-order-edit="${o.id}">Editar</button>${canManage?`<button class="btn bad" data-order-del="${o.id}">Excluir</button>`:''}</div></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Nenhum pedido encontrado.</td></tr>';
 }
 
 function renderProdutos(){
@@ -116,7 +142,7 @@ async function openProductEditor(p=null){
 
 $('#novoCliente').onclick=()=>openModal('Novo contato',contactFields({ativo:true,tipo_pessoa:'F',situacao:'A'},{}),'client-create');
 $('#novoProduto').onclick=()=>openProductEditor();
-$('#novoPedido').onclick=()=>openModal('Novo pedido',`<div class="field wide"><label>Cliente / contato</label><select name="customer_id">${clientes.filter(c=>c.ativo).map(c=>`<option value="${c.id}">${esc(c.nome)} — ${esc(c.email||c.cpf||'')}</option>`).join('')}</select></div>`+select('status','Status',Object.entries(statusLabels),'recebido')+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],'retirada')+select('payment_method','Pagamento',[['pix','Pix'],['credito','Cartão de crédito'],['debito','Cartão de débito']],'pix')+field('total','Total','number','0',false,'step="0.01" min="0"')+textarea('notes','Observações'),'order-create');
+$('#novoPedido').onclick=async()=>openModal('Novo pedido',`<div class="field wide"><label>Cliente / contato</label><select name="customer_id">${clientes.filter(c=>c.ativo).map(c=>`<option value="${c.id}">${esc(c.nome)} — ${esc(c.email||c.cpf||'')}</option>`).join('')}</select></div>`+select('status','Status',Object.entries(statusLabels),'recebido')+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],'retirada')+(await paymentFields())+field('total','Total','number','0',false,'step="0.01" min="0"')+textarea('notes','Observações'),'order-create');
 
 $('#syncContatos')?.addEventListener('click',async()=>{
   const btn=$('#syncContatos'),msg=$('#syncContatosMsg');btn.disabled=true;msg.textContent='Buscando e reconciliando os contatos do Bling…';
@@ -130,7 +156,7 @@ document.body.addEventListener('click',async e=>{
   if(b.dataset.productEdit){const p=produtos.find(x=>x.id===b.dataset.productEdit);await openProductEditor(p)}
   if(b.dataset.productSiteToggle){const p=produtos.find(x=>x.id===b.dataset.productSiteToggle);if(!p)return;const next=!p.published_on_site;const{error}=await supabase.from('products').update({published_on_site:next,updated_at:new Date().toISOString()}).eq('id',p.id);if(error)alert(error.message);await reloadAll()}
   if(b.dataset.productDel&&confirm('Excluir este produto?')){await supabase.from('products').delete().eq('id',b.dataset.productDel);await reloadAll()}
-  if(b.dataset.orderEdit){const o=pedidos.find(x=>x.id===b.dataset.orderEdit);openModal('Editar pedido',select('status','Status',Object.entries(statusLabels),o.status)+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],o.fulfillment)+select('payment_method','Pagamento',[['pix','Pix'],['credito','Cartão de crédito'],['debito','Cartão de débito']],o.payment_method)+field('total','Total','number',o.total,false,'step="0.01" min="0"')+textarea('notes','Observações',o.notes||''),'order-edit',o)}
+  if(b.dataset.orderEdit){const o=pedidos.find(x=>x.id===b.dataset.orderEdit);openModal('Editar pedido',select('status','Status',Object.entries(statusLabels),o.status)+select('fulfillment','Recebimento',[['retirada','Retirada'],['entrega','Entrega']],o.fulfillment)+(await paymentFields(o))+field('total','Total','number',o.total,false,'step="0.01" min="0"')+textarea('notes','Observações',o.notes||''),'order-edit',o)}
   if(b.dataset.orderDel&&confirm('Excluir este pedido e seus itens?')){await supabase.from('orders').delete().eq('id',b.dataset.orderDel);await reloadAll()}
   if(b.dataset.orderView){const o=pedidos.find(x=>x.id===b.dataset.orderView);const items=(o.order_items||[]).map(i=>`<div class="detail-line"><strong>${i.quantity}× ${esc(i.product_name)}</strong><span>${brl(i.total)}</span></div>`).join('')||'<p class="muted">Sem itens.</p>';const files=(o.order_files||[]).map(f=>`<button class="btn light" data-file="${esc(f.storage_path)}" data-name="${esc(f.original_name)}">Abrir ${esc(f.original_name)}</button>`).join('');openModal(`Pedido ${o.order_code}`,`<div class="wide">${items}<div class="actions" style="margin-top:12px">${files}</div></div>`,'view',o)}
   if(b.dataset.file){const{data,error}=await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(b.dataset.file,120);if(error)return alert('Não foi possível abrir o arquivo.');window.open(data.signedUrl,'_blank','noopener')}
@@ -153,9 +179,9 @@ $('#modalForm').addEventListener('submit',async e=>{
         if(d.supplier_catalog_item_id)await persistSupplierSelection(supabase,productId,d);
       }
     }else if(mode==='order-create'){
-      const total=Number(d.total||0);const{error}=await supabase.from('orders').insert({customer_id:d.customer_id,status:d.status,fulfillment:d.fulfillment,payment_method:d.payment_method,subtotal:total,delivery_fee:0,total,notes:d.notes||null,delivery_address:d.fulfillment==='entrega'?{}:null});if(error)throw error;
+      const total=Number(d.total||0);const{error}=await supabase.from('orders').insert({customer_id:d.customer_id,status:d.status,fulfillment:d.fulfillment,...paymentData(d),subtotal:total,delivery_fee:0,total,notes:d.notes||null,delivery_address:d.fulfillment==='entrega'?{}:null});if(error)throw error;
     }else if(mode==='order-edit'){
-      const total=Number(d.total||0);const{error}=await supabase.from('orders').update({status:d.status,fulfillment:d.fulfillment,payment_method:d.payment_method,subtotal:total,total,notes:d.notes||null,delivery_address:d.fulfillment==='entrega'?(current.delivery_address||{}):null}).eq('id',current.id);if(error)throw error;
+      const total=Number(d.total||0);const{error}=await supabase.from('orders').update({status:d.status,fulfillment:d.fulfillment,...paymentData(d),subtotal:total,total,notes:d.notes||null,delivery_address:d.fulfillment==='entrega'?(current.delivery_address||{}):null}).eq('id',current.id);if(error)throw error;
     }
     $('#dlg').close();await reloadAll();
   }catch(error){console.error(error);$('#modalMsg').textContent=error?.message||'Não foi possível salvar.'}
