@@ -463,6 +463,7 @@ async function loadAtendimentos(){
   const { data, error } = await supabase
     .from('lab_whatsapp_atendimentos')
     .select('id,created_by,contact_name,contact_phone,message_count,status,category,priority,workflow_status,created_at,lab_whatsapp_anexos(count)')
+    .is('customer_id',null)
     .order('created_at',{ascending:false})
     .limit(50);
   if(error){
