@@ -32,3 +32,23 @@ test('rejeita caminho malicioso e ZIP inválido',async()=>{
  await assert.rejects(m.unzip(zip('../fora.txt','x')),/Caminho inválido/);
  await assert.rejects(m.unzip(new File(['erro'],'teste.zip')),/ZIP inválido/);
 });
+
+test('download ZIP preserva bytes, categorias e nomes com acentos sem colisão',async()=>{
+ const original=new Uint8Array([0,1,2,255]);
+ const blob=await m.buildDownloadZip([{name:'arte café.cdr',blob:new Blob([original])},{name:'arte café.cdr',blob:new Blob(['segunda'])},{name:'../foto.jpg',blob:new Blob(['imagem'])}]);
+ const extracted=await m.unzip(new File([blob],'download.zip'));
+ assert.deepEqual(extracted.map(e=>e.path),['producao/arte café.cdr','producao/arte café (2).cdr','imagem/foto.jpg']);
+ assert.deepEqual(new Uint8Array(await extracted[0].file.arrayBuffer()),original);
+ assert.equal(await extracted[1].file.text(),'segunda');
+});
+test('progresso de upload considera bytes e reserva confirmação final',()=>{
+ assert.equal(m.uploadProgress(100,0,0),5);
+ assert.equal(m.uploadProgress(100,20,30),50);
+ assert.equal(m.uploadProgress(100,100,0),95);
+ assert.equal(m.uploadProgress(100,0,150),95);
+ assert.equal(m.uploadProgress(0,0,0,1,2),50);
+});
+test('download ZIP rejeita seleção vazia e nomes inseguros',async()=>{
+ await assert.rejects(m.buildDownloadZip([]),/Selecione/);
+ assert.equal(m.safeZipName('../..',new Set()),'arquivo');
+});

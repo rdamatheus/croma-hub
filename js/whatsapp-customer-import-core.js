@@ -114,3 +114,33 @@ export async function prepare(selected){
  }
  return {chat,rows,files:[...new Map(files.map(f=>[f.hash,f])).values()],recognized:chats.length===1};
 }
+
+ 
+// ZIP sem compressão: preserva os bytes originais, nomes UTF-8 e evita bibliotecas externas.
+export function safeZipName(name,used){
+ const base=basename(name).replace(/[\x00-\x1f<>:"|?*]/g,'_').replace(/^[. ]+|[. ]+$/g,'').slice(0,180)||'arquivo';
+ const dot=base.lastIndexOf('.'),stem=dot>0?base.slice(0,dot):base,suffix=dot>0?base.slice(dot):'';
+ let candidate=base,n=2;
+ while(used.has(candidate.toLowerCase()))candidate=stem+' ('+(n++)+')'+suffix;
+ used.add(candidate.toLowerCase());return candidate;
+}
+export function uploadProgress(total,done,active=0,confirmed=0,count=0){
+ const ratio=total>0?(done+active)/total:count?confirmed/count:0;
+ return Math.max(0,Math.min(95,Math.floor(5+90*Math.max(0,Math.min(1,ratio)))));
+}
+export async function buildDownloadZip(entries){
+ if(!entries.length||entries.length>LIMITS.entries)throw Error('Selecione de 1 a 2.000 arquivos.');
+ const total=entries.reduce((sum,e)=>sum+e.blob.size,0);
+ if(total>LIMITS.total)throw Error('O ZIP de download deve ter até 200 MiB. Selecione menos arquivos.');
+ const chunks=[],directory=[],used=new Set(),enc=new TextEncoder();let offset=0,dirSize=0;
+ const header=n=>new Uint8Array(n),view=b=>new DataView(b.buffer);
+ for(const entry of entries){
+  const group=category(entry.name),name=group+'/'+safeZipName(entry.name,used),filename=enc.encode(name);
+  const bytes=new Uint8Array(await entry.blob.arrayBuffer()),length=bytes.length,crc=crc32(bytes);
+  const local=header(30),l=view(local);l.setUint32(0,0x04034b50,true);l.setUint16(4,20,true);l.setUint16(6,0x800,true);l.setUint16(12,33,true);l.setUint32(14,crc,true);l.setUint32(18,length,true);l.setUint32(22,length,true);l.setUint16(26,filename.length,true);
+  const central=header(46),c=view(central);c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x800,true);c.setUint16(14,33,true);c.setUint32(16,crc,true);c.setUint32(20,length,true);c.setUint32(24,length,true);c.setUint16(28,filename.length,true);c.setUint32(42,offset,true);
+  chunks.push(local,filename,entry.blob);directory.push(central,filename);offset+=local.length+filename.length+length;dirSize+=central.length+filename.length;
+ }
+ const end=header(22),e=view(end);e.setUint32(0,0x06054b50,true);e.setUint16(8,entries.length,true);e.setUint16(10,entries.length,true);e.setUint32(12,dirSize,true);e.setUint32(16,offset,true);
+ return new Blob([...chunks,...directory,end],{type:'application/zip'});
+}

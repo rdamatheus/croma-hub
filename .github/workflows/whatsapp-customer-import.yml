@@ -18,3 +18,5 @@ jobs:
           node-version: '22'
       - run: node --test tests/whatsapp-customer-import.test.mjs
       - run: node --input-type=module --check < js/whatsapp-customer-import.js
+
+      - run: node --input-type=module --check < js/whatsapp-customer-import-gallery.js
