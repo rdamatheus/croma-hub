@@ -68,14 +68,21 @@ export function normalizeDate(d){
  if(!m)return String(d||'');return (m[3].length===2?'20'+m[3]:m[3])+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
 }
 export function parseTxt(text){
- const lines=String(text).replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').split(/\r?\n/);const messages=[];
+ const lines=String(text).replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').split(/\r?\n/);const messages=[];const chat={};const croma=lines[0]?.trim()==='ATENDIMENTO DO WHATSAPP';
  for(const line of lines){
+  if(croma){
+   const hdr=line.match(/^\[([^\]]*)\]\s+(.*?)\s+—\s+(ENVIADA|RECEBIDA|INDEFINIDA)$/i);
+   if(hdr){const stamp=hdr[1].match(/^(\S+)\s+(\S+)$/);messages.push({date:normalizeDate(stamp?.[1]||''),time:stamp?.[2]||'',author:hdr[2],direction:hdr[3].toLowerCase(),text:'',fileNames:''});continue;}
+   if(!messages.length){if(line.startsWith('Contato: '))chat.name=line.slice(9);if(line.startsWith('Telefone: '))chat.phone=line.slice(10);continue;}
+   const current=messages[messages.length-1],attachment=line.match(/^\[Arquivo: (.*)\]$/);if(attachment){current.fileNames=attachment[1];continue;}
+   current.text+=(current.text?'\n':'')+line;continue;
+  }
   const m=line.match(/^\[?(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?)\]?(?:\s*[-–]\s*|\s+)(.*)$/);
   if(m){const a=m[3].match(/^([^:]{1,150}):\s?(.*)$/);messages.push({date:normalizeDate(m[1]),time:m[2],author:a?.[1]||'',text:a?.[2]??m[3],direction:'indefinida'});}
   else if(messages.length)messages[messages.length-1].text+='\n'+line;
  }
  if(!messages.length)throw Error('TXT não reconhecido como exportação do WhatsApp.');
- return {chat:{},messages};
+ return {chat,messages};
 }
 export function parseJson(text){
  const p=JSON.parse(text);if(!Array.isArray(p?.messages))throw Error('JSON sem lista de mensagens.');
