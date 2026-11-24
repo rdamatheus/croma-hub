@@ -67,7 +67,8 @@ export function createGallery(labels){
     if(type==='text'){const pre=node('pre',await data.slice(0,262144).text());if(version!==previewVersion||!dialog.open)return;stage.replaceChildren(pre);if(data.size>262144)stage.append(node('p','Prévia limitada a 256 KiB. Baixe para ler o conteúdo completo.'));return;}
     previewUrl=URL.createObjectURL(new Blob([data],{type:'application/pdf'}));
     const frame=node('iframe');frame.title='Prévia do PDF';frame.sandbox='';frame.src=previewUrl;
-    stage.replaceChildren(frame,node('p','Se o visualizador de PDF do navegador não abrir, use Baixar original.'));return;
+    const open=btn('Abrir PDF em nova aba',()=>{if(previewUrl)window.open(previewUrl,'_blank','noopener,noreferrer');});
+    stage.replaceChildren(frame,open,node('p','Se o visualizador incorporado não abrir, use a nova aba ou Baixar original.'));return;
    }
    const url=await signed(f);if(version!==previewVersion||generation!==customer||!dialog.open)return;
    const media=node(type==='image'?'img':type);media.src=url;
@@ -78,9 +79,9 @@ export function createGallery(labels){
  }
  function render(filter=''){
   observer?.disconnect();box.replaceChildren();const version=generation;
-  if(typeof IntersectionObserver!=='undefined')observer=new IntersectionObserver(entries=>{
+  if(typeof IntersectionObserver!=='undefined')observer=new IntersectionObserver((entries,currentObserver)=>{
    for(const entry of entries)if(entry.isIntersecting){
-    const img=entry.target;observer.unobserve(img);
+    const img=entry.target;currentObserver.unobserve(img);
     const f=all.find(x=>x.id===img.dataset.id);
     if(f)signed(f).then(url=>{if(generation===version&&img.isConnected)img.src=url;}).catch(()=>{});
    }
@@ -90,7 +91,7 @@ export function createGallery(labels){
    if(!files.length)continue;
    const group=node('details');group.open=true;const heading=node('summary',label+' ('+files.length+')');group.append(heading);
    const groupLabel=node('label');groupLabel.className='group-select';const groupCheck=node('input');groupCheck.type='checkbox';groupCheck.dataset.group=key;
-   groupCheck.onchange=()=>{for(const f of files)groupCheck.checked?selection.add(f.id):selection.delete(f.id);sync();};groupLabel.append(groupCheck,document.createTextNode(' Selecionar categoria'));group.append(groupLabel);
+   groupCheck.onchange=()=>{for(const f of files)groupCheck.checked?selection.add(f.id):selection.delete(f.id);sync();};groupLabel.append(groupCheck,document.createTextNode(' Selecionar arquivos visíveis da categoria'));group.append(groupLabel);
    const grid=node('div');grid.className='file-grid';
    for(const f of files){
     const card=node('article');card.className='file-card';const check=node('input');check.type='checkbox';check.dataset.file=f.id;check.setAttribute('aria-label','Selecionar '+f.file_name);
