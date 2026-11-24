@@ -52,3 +52,15 @@ test('download ZIP rejeita seleção vazia e nomes inseguros',async()=>{
  await assert.rejects(m.buildDownloadZip([]),/Selecione/);
  assert.equal(m.safeZipName('../..',new Set()),'arquivo');
 });
+
+test('diretório e importador compartilham a mesma interface e controles',async()=>{
+ const html=await readFile(new URL('../interno/whatsapp-lab/clientes/index.html',import.meta.url),'utf8');
+ const js=await readFile(new URL('../js/whatsapp-customer-import.js',import.meta.url),'utf8');
+ const ids=[...js.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]);
+ for(const id of new Set(ids))assert.ok(html.includes('id="'+id+'"'),'Controle ausente: '+id);
+ assert.match(html,/id="importContact" hidden/);
+ assert.match(html,/id="importFiles" hidden/);
+ assert.match(js,/rpc\('whatsapp_customer_directory'/);
+ assert.match(js,/if\(version!==searchVersion\)return/);
+ assert.match(js,/await loadHistory\(\);await loadDirectory\(\)/);
+});
