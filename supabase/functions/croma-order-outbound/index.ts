@@ -120,45 +120,50 @@ async function sendReceivable(ctx:any, saleDate?:string) {
  * O lançamento financeiro no Bling deve ser conferido separadamente. */
 async function sendReceivedPix(ctx:any, saleDate?:string, approvedJob?:any) {
   const o=ctx.o;
+  const methods:Record<string,{label:string;types:number[]}>= {pix:{label:"pix",types:[17,20]},dinheiro:{label:"dinheiro",types:[1]},credito:{label:"c.crédito",types:[3]},debito:{label:"c.débito",types:[4]}};
+  const expectedMethod=methods[o.payment_method];
+  if(!expectedMethod)throw new Error("Forma interna não suportada.");
+  const normalizeLabel=(v:any)=>String(v||"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   if (!["pago","em_analise","em_producao","pronto","enviado","concluido"].includes(o.status))
-    throw new Error("Confirme o recebimento do Pix antes de enviar o pedido.");
+    throw new Error("Pedido não está em etapa definitiva de venda.");
   const [{data:events,error:ee},{data:payments,error:pe}]=await Promise.all([
     db.from("order_activity_events").select("amount,payment_method,financial_review").eq("order_id",o.id).eq("action","manual_payment_confirmed"),
     db.from("payments").select("status").eq("order_id",o.id)
   ]);
   if (ee) throw ee; if (pe) throw pe;
   if (payments?.length) throw new Error("Pedido com registro de pagamento online: concilie pelo fluxo original.");
-  const validEvent=events?.length===1 && events[0].payment_method==="pix" && round(events[0].amount)===round(o.total) && events[0].financial_review===true;
+  const validEvent=events?.length===1 && events[0].payment_method===o.payment_method && round(events[0].amount)===round(o.total) && events[0].financial_review===true;
   // A tarefa de integração é gravada apenas por serviço autorizado; não infere recebimento de observações.
   const validJob=approvedJob?.source==="operator_confirmed_chat" && approvedJob.order_id===o.id &&
-    approvedJob.payment_method==="pix" && approvedJob.payment_confirmed===true &&
+    approvedJob.payment_method===o.payment_method && approvedJob.payment_confirmed===true &&
     Number.isInteger(approvedJob.amount_cents) && approvedJob.amount_cents===Math.round(Number(o.total)*100) &&
     typeof approvedJob.confirmation_ref==="string" && approvedJob.confirmation_ref.length>=10;
   if (!validEvent && (!validJob || events?.length))
-    throw new Error("Falta confirmação rastreável do Pix integral recebido.");
+    throw new Error("Venda interna sem origem autorizada ou confirmação rastreável.");
   const contactId=Number(ctx.c.bling_contact_id);
   if (!(contactId>0) || ctx.c.bling_sync_status!=="sincronizado") throw new Error("Sincronize o contato antes de enviar.");
   if(!Number.isFinite(Number(o.total)) || Number(o.total)<=0)throw new Error("Total inválido.");
   const date=saleDate || new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date(o.created_at));
+  // Regra comercial: usar a modalidade ativa já cadastrada. O destino financeiro
+  // não determina se a venda interna foi recebida. Não lançar contas nem gerar Pix.
   const all:any[]=[];
   for(let page=1;page<=20;page++){
-    const rows=await api("/formas-pagamentos","GET",null,{"tiposPagamentos[]":"20",situacao:"1",pagina:String(page),limite:"100"});
-    if(!Array.isArray(rows))throw new Error("Não foi possível consultar formas Pix.");
+    const rows=await api("/formas-pagamentos","GET",null,{situacao:"1",pagina:String(page),limite:"100"});
+    if(!Array.isArray(rows))throw new Error("Não foi possível consultar formas de pagamento.");
     all.push(...rows);
     if(rows.length<100)break;
-    if(page===20)throw new Error("Consulta de formas Pix incompleta.");
+    if(page===20)throw new Error("Consulta de formas incompleta.");
   }
   const eligible=[];
-  for(const f of all.filter(f=>Number(f.id)>0&&Number(f.situacao)===1&&Number(f.tipoPagamento)===20)){
+  for(const f of all.filter(f=>Number(f.id)>0&&Number(f.situacao)===1&&normalizeLabel(f.descricao)===normalizeLabel(expectedMethod.label)&&expectedMethod.types.includes(Number(f.tipoPagamento)))){
     const detail=await api("/formas-pagamentos/"+f.id);
-    // Não utilizar Pix dinâmico nem forma destinada a cobrança a prazo.
-    if(Number(detail?.tipoPagamento)===20&&Number(detail?.situacao)===1&&Number(detail?.destino)===2&&[2,3].includes(Number(detail?.finalidade))) eligible.push(detail);
+    if(Number(detail?.id)===Number(f.id)&&Number(detail?.situacao)===1&&normalizeLabel(detail.descricao)===normalizeLabel(expectedMethod.label)&&expectedMethod.types.includes(Number(detail.tipoPagamento))&&[2,3].includes(Number(detail.finalidade))) eligible.push(detail);
   }
-  if(eligible.length!==1)throw new Error("Forma Pix estático ativa, à vista (Caixas e Bancos), ausente ou ambígua. Confira a configuração no Bling. Nenhum pedido foi enviado.");
+  if(eligible.length!==1)throw new Error("Forma de pagamento existente ausente ou ambígua: "+expectedMethod.label+". Nenhum pedido foi enviado.");
   const formId=Number(eligible[0].id);
   const body:any=orderBody(ctx,contactId);
   body.data=date; body.numeroLoja=o.order_code;
-  body.parcelas=[{dataVencimento:date,valor:round(o.total),formaPagamento:{id:formId},observacoes:"Pix já recebido fora do Bling; não emitir nova cobrança."}];
+  body.parcelas=[{dataVencimento:date,valor:round(o.total),formaPagamento:{id:formId},observacoes:"Venda interna recebida; não emitir nova cobrança."}];
   let ext=Number(ctx.m?.external_id||String(o.checkout_reference||"").match(/^bling:(\d+)$/)?.[1]||0);
   let created=false;
   if(!ext){
@@ -196,7 +201,7 @@ async function sendReceivedPix(ctx:any, saleDate?:string, approvedJob?:any) {
   if(!remote?.numero||Number(remote.contato?.id)!==contactId||String(remote.numeroLoja)!==o.order_code||round(remote.total)!==round(o.total)||JSON.stringify(actualItems)!==JSON.stringify(expectedItems)||remote.parcelas?.length!==1||Number(parcel?.formaPagamento?.id)!==formId||round(parcel.valor)!==round(o.total)||parcel.dataVencimento!==date)
     throw new Error("Pedido localizado, mas dados divergem. Não criar outro; conferir no Bling.");
   const now=new Date().toISOString();
-  const mapping={provider:"bling",entity_type:"order",local_id:o.id,external_id:String(ext),sync_status:"synced",last_synced_at:now,metadata:{...(ctx.m?.metadata||{}),remote_order_number:remote.numero,remote_validated:true,remote_total:round(remote.total),payment_form_id:formId,payment_method:"pix",financial_status:"pending_verification",source:"croma_received_pix_v1"}};
+  const mapping={provider:"bling",entity_type:"order",local_id:o.id,external_id:String(ext),sync_status:"synced",last_synced_at:now,metadata:{...(ctx.m?.metadata||{}),remote_order_number:remote.numero,remote_validated:true,remote_total:round(remote.total),payment_form_id:formId,payment_method:o.payment_method,commercial_payment_status:"received",financial_status:"pending_verification",source:"croma_internal_received_v2"}};
   const {data:linked,error:linkError}=await db.from("erp_entity_mappings").select("id,local_id").eq("provider","bling").eq("entity_type","order").eq("external_id",String(ext)).maybeSingle();
   if(linkError)throw linkError;
   if(linked&&linked.local_id!==o.id)throw new Error("Pedido Bling já vinculado a outro pedido local.");
@@ -245,7 +250,7 @@ async function dispatchApprovedOrder(jobId:string) {
     .eq("direction","croma_to_bling").eq("status","queued").maybeSingle();
   if(error||!j)throw new Error("Tarefa de envio indisponível.");
   const a=j.request_summary||{};
-  if(a.source!=="operator_confirmed_chat"||a.payment_confirmed!==true||a.payment_method!=="pix"||
+  if(a.source!=="operator_confirmed_chat"||a.payment_confirmed!==true||!["pix","dinheiro","credito","debito"].includes(a.payment_method)||
     !/^[0-9a-f-]{36}$/i.test(String(a.order_id||""))||!/^\d{4}-\d{2}-\d{2}$/.test(String(a.sale_date||""))||
     !Number.isInteger(a.amount_cents)||a.amount_cents<=0||
     typeof a.confirmation_ref!=="string"||a.confirmation_ref.length<10)
@@ -255,7 +260,7 @@ async function dispatchApprovedOrder(jobId:string) {
   if(claim.error||!claim.data)throw new Error("Tarefa já em processamento.");
   try{
     const ctx=await load(a.order_id);
-    if(ctx.o.payment_method!=="pix"||Math.round(Number(ctx.o.total)*100)!==a.amount_cents)
+    if(ctx.o.payment_method!==a.payment_method||Math.round(Number(ctx.o.total)*100)!==a.amount_cents)
       throw new Error("Pedido diverge da aprovação.");
     const result=await sendReceivedPix(ctx,a.sale_date,a);
     const done=await db.from("erp_sync_jobs").update({status:"completed",finished_at:new Date().toISOString(),
