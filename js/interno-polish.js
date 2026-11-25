@@ -34,7 +34,7 @@ function buildSidebar(){
     const open=groupState[group.id]!==false;
     const links=group.items.map(item=>{
       const roles=(item.roles||[]).join(',');
-      return `<a href="${item.href}" data-module-key="${item.key}" data-roles="${roles}" class="${item.key===activeKey?'active':''}"${roles?' hidden':''} title="${item.label}">${iconSvg(item.icon)}<span>${item.label}</span></a>`;
+      return `<a href="${item.href}" data-module-key="${item.key}"${item.key==='projetos'?' data-projects-link="1"':''} data-roles="${roles}" class="${item.key===activeKey?'active':''}"${roles?' hidden':''} title="${item.label}">${iconSvg(item.icon)}<span>${item.label}</span></a>`;
     }).join('');
     return `<details class="croma-nav-section" data-group="${group.id}"${open?' open':''}><summary><span>${group.label}</span><i aria-hidden="true">⌄</i></summary><div class="croma-nav-links">${links}</div></details>`;
   }).join('');
