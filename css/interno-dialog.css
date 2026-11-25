@@ -1,0 +1,12 @@
+/* Padrão compartilhado: dialog nativo para ações pontuais e consultas. */
+.internal-dialog{border:1px solid var(--croma-line,#ded9eb);border-radius:18px;background:#fff;color:inherit;padding:0;width:min(860px,calc(100% - 24px));max-height:calc(100dvh - 24px);overflow:auto;box-shadow:0 20px 60px #211c5c40;overscroll-behavior:contain}
+.internal-dialog[open]{display:block}
+.internal-dialog::backdrop{background:#211c5c75}
+.internal-dialog-wide{width:min(1120px,calc(100% - 24px))}
+.internal-dialog-header{position:sticky;top:0;z-index:2;background:#fff;border-bottom:1px solid var(--croma-line,#ded9eb);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.internal-dialog-header h2{margin:0;font-size:1.25rem;color:var(--croma-deep,#30297f)}
+.internal-dialog-body,.internal-dialog>form{padding:16px 20px;min-width:0}
+.internal-dialog-body>.card{margin:0 0 12px}
+.internal-dialog :focus-visible{outline:2px solid var(--croma-deep,#30297f);outline-offset:2px}
+html:has(.internal-dialog[open]){overflow:hidden}
+@media(max-width:600px){.internal-dialog-header,.internal-dialog-body,.internal-dialog>form{padding:12px}.internal-dialog{max-height:calc(100dvh - 16px);width:calc(100% - 16px)}}
