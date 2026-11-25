@@ -4,6 +4,7 @@ on:
     paths:
       - 'js/whatsapp-customer-import*.js'
       - 'tests/whatsapp-customer-import.test.mjs'
+      - 'supabase/functions/whatsapp-lab-processar/**'
       - '.github/workflows/whatsapp-customer-import.yml'
   workflow_dispatch:
 permissions:
@@ -16,6 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: npm install --no-save --ignore-scripts --no-audit --no-fund unpdf@1.4.0
       - run: node --test tests/whatsapp-customer-import.test.mjs
       - run: node --input-type=module --check < js/whatsapp-customer-import.js
 

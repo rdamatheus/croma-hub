@@ -84,6 +84,19 @@ async function analyzeFile(openaiKey: string, bytes: Uint8Array, attachment: any
 }
 
 
+// Local, sem envio do arquivo a um serviço de IA. Texto nativo não interpreta imagens.
+async function nativePdfText(bytes: Uint8Array): Promise<string> {
+  const {getDocumentProxy,extractText}=await import("npm:unpdf@1.4.0");
+  const doc=await getDocumentProxy(bytes.slice(),{isEvalSupported:false,disableFontFace:true,stopAtErrors:true});
+  try {
+    if(doc.numPages<1||doc.numPages>40)return "";
+    const result=await extractText(doc,{mergePages:false});
+    if(!Array.isArray(result.text)||result.text.length!==doc.numPages)return "";
+    const pages=result.text.map((v:string)=>v.trim());
+    if(pages.some((v:string)=>v.replace(/[^\p{L}\p{N}]/gu,"").length<20||v.includes("\uFFFD")))return "";
+    return "[Texto incorporado ao PDF; elementos visuais não interpretados.]\n\n"+pages.map((v:string,i:number)=>"Página "+(i+1)+"\n"+v).join("\n\n");
+  }finally{await doc.destroy();}
+}
 async function processOfficialAttachment(req: Request, user: any, profile: any, input: any) {
   const id = String(input.attachment_id || "");
   if (!UUID.test(id)) return json({error:"Arquivo inválido."},400);
@@ -109,9 +122,7 @@ async function processOfficialAttachment(req: Request, user: any, profile: any, 
   const audio=f.kind==="audio" && ["mp3","m4a","wav","ogg","opus","flac","webm","mp4"].includes(ext);
   if(!plain&&!image&&!pdf&&!office&&!audio) return json({error:"Formato não compatível com leitura assistida. O original continua disponível."},422);
   if(!Number.isSafeInteger(Number(f.size_bytes)) || Number(f.size_bytes)<=0 || Number(f.size_bytes)>(plain?1048576:audio?20*1048576:10*1048576)) return json({error:"Arquivo fora do limite de leitura desta versão."},422);
-  if(!plain && input.confirm_ai!==true) return json({error:"Confirme o processamento com IA."},400);
-  const key=Deno.env.get("OPENAI_API_KEY");
-  if(!plain&&!key) return json({error:"Serviço de leitura com IA não configurado."},503);
+  if(!plain&&!pdf&&input.confirm_ai!==true) return json({status:"needs_ai",id});
   const lease=crypto.randomUUID(), now=new Date().toISOString(), stale=new Date(Date.now()-5*60*1000).toISOString();
   const {data:claim,error:claimError}=await scoped.from("lab_whatsapp_anexos").update({processing_status:"processando",processing_started_at:now,processing_token:lease,processing_error:null})
     .eq("id",id).or("processing_status.in.(pendente,erro),and(processing_status.eq.processando,processing_started_at.lt."+stale+"),and(processing_status.eq.processando,processing_started_at.is.null)")
@@ -127,7 +138,18 @@ async function processOfficialAttachment(req: Request, user: any, profile: any, 
     let value="";
     if(plain){
       value=new TextDecoder("utf-8",{fatal:true}).decode(bytes).trim();
-    }else if(audio){
+    }else if(pdf){
+      try{value=await nativePdfText(bytes);}catch{value="";}
+    }
+    if(!value&&!plain&&input.confirm_ai!==true){
+      const {data:released,error:releaseError}=await scoped.from("lab_whatsapp_anexos").update({processing_status:"pendente",processing_token:null,processing_error:"Texto incorporado insuficiente; leitura assistida opcional."}).eq("id",id).eq("processing_token",lease).select("id").maybeSingle();
+      if(releaseError||!released)throw new Error("Não foi possível confirmar a pendência.");
+      return json({id,status:"needs_ai"});
+    }
+    if(!value&&!plain){
+    const key=Deno.env.get("OPENAI_API_KEY");
+    if(!key)throw new Error("Serviço de leitura com IA não configurado.");
+    if(audio){
       const form=new FormData();
       form.append("file",new File([bytes],ext==="opus"?f.file_name.replace(/\.opus$/i,".ogg"):f.file_name,{type:ext==="opus"?"audio/ogg":f.mime_type||"application/octet-stream"}));
       form.append("model","gpt-transcribe");form.append("prompt","Transcreva o atendimento em português brasileiro, preservando medidas, nomes e valores.");
@@ -142,6 +164,7 @@ async function processOfficialAttachment(req: Request, user: any, profile: any, 
       const raw=await res.json();
       if(!res.ok||raw.status!=="completed"||(raw.output||[]).some((x:any)=>(x.content||[]).some((c:any)=>c.type==="refusal")))throw new Error("Leitura com IA não concluída (HTTP "+res.status+").");
       value=outputText(raw).trim();
+    }
     }
     if(!value||value.length>1000000)throw new Error("Conteúdo vazio ou acima do limite de gravação.");
     const {data:saved,error:writeError}=await scoped.from("lab_whatsapp_anexos").update({processing_status:"concluido",processing_token:null,processing_error:null,[audio?"transcription":"extracted_text"]:value}).eq("id",id).eq("processing_token",lease).select("id,processing_status").maybeSingle();
