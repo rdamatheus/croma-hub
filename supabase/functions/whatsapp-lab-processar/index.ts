@@ -100,7 +100,7 @@ async function processOfficialAttachment(req: Request, user: any, profile: any, 
   const prefix="whatsapp-lab/"+f.created_by+"/"+batch.id+"/";
   const tail=String(f.storage_path||"").startsWith(prefix)?String(f.storage_path).slice(prefix.length):"";
   if(!/^(imagem|audio|video|pdf|documento|producao|outro)\/[a-f0-9]{64}-[a-zA-Z0-9._-]+$/.test(tail)) return json({error:"Caminho do arquivo incompatível com o histórico."},422);
-  if(f.processing_status==="concluido" && String(f.transcription||f.extracted_text||"").trim()) return json({status:"concluido",id,reused:true});
+  if(f.processing_status==="concluido") return String(f.transcription||f.extracted_text||"").trim()?json({status:"concluido",id,reused:true}):json({error:"Leitura registrada sem conteúdo. Requer revisão."},409);
   const ext=String(f.file_name).split(".").pop()?.toLowerCase()||"";
   const plain=f.kind==="documento" && ["txt","csv","json"].includes(ext);
   const image=f.kind==="imagem" && ["png","jpg","jpeg","webp","gif"].includes(ext);
@@ -114,7 +114,7 @@ async function processOfficialAttachment(req: Request, user: any, profile: any, 
   if(!plain&&!key) return json({error:"Serviço de leitura com IA não configurado."},503);
   const lease=crypto.randomUUID(), now=new Date().toISOString(), stale=new Date(Date.now()-5*60*1000).toISOString();
   const {data:claim,error:claimError}=await scoped.from("lab_whatsapp_anexos").update({processing_status:"processando",processing_started_at:now,processing_token:lease,processing_error:null})
-    .eq("id",id).or("processing_status.in.(pendente,erro,concluido),and(processing_status.eq.processando,processing_started_at.lt."+stale+"),and(processing_status.eq.processando,processing_started_at.is.null)")
+    .eq("id",id).or("processing_status.in.(pendente,erro),and(processing_status.eq.processando,processing_started_at.lt."+stale+"),and(processing_status.eq.processando,processing_started_at.is.null)")
     .select("id").maybeSingle();
   if(claimError) return json({error:"Não foi possível iniciar a leitura."},500);
   if(!claim) return json({error:"Arquivo já está em processamento. Atualize após alguns minutos."},409);
@@ -122,6 +122,8 @@ async function processOfficialAttachment(req: Request, user: any, profile: any, 
     const {data:blob,error:downloadError}=await scoped.storage.from("croma-arquivos").download(f.storage_path);
     if(downloadError||!blob||blob.size!==Number(f.size_bytes)) throw new Error("Download não confirmado.");
     const bytes=new Uint8Array(await blob.arrayBuffer());
+    const digest=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes))).map(x=>x.toString(16).padStart(2,"0")).join("");
+    if(digest!==f.content_sha256 || !tail.includes("/"+digest+"-")) throw new Error("Integridade do arquivo não confirmada.");
     let value="";
     if(plain){
       value=new TextDecoder("utf-8",{fatal:true}).decode(bytes).trim();
