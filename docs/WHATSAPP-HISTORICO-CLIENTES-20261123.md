@@ -33,3 +33,6 @@ Objetivo: importar conversas e documentos de clientes pelo módulo de WhatsApp o
 - Modal reutiliza os controles, autorização, prévias e RPCs existentes. Fechamento por botão ou Escape solicita descarte de arquivos não importados e é impedido durante operação ou reenvio não confirmado. Após cancelamento, restaura o contato anterior quando aberto a partir de histórico. Cadastro efetivamente criado, vínculo ou importação bem-sucedida não são revertidos por fechar janela.
 - CSS compartilhado em css/interno-dialog.css, responsivo; títulos e mensagens reduzidos, preservando limites, confirmação, progresso, erros e proteção de dados. Sem alteração de banco, ERP ou regras comerciais.
 - CI valida sintaxe, parser e controles de interface; teste autenticado no navegador com ZIP fictício permanece obrigatório para homologação. Reversão: reverter PR de interface, sem perda de histórico.
+
+## Estados de importação e leitura
+- A preparação separa arquivos do ZIP; a confirmação de importação significa persistência de mensagens e arquivos, não leitura de seu conteúdo. O histórico indica os estados de processamento persistidos por anexo. A leitura automatizada de anexos oficiais e o acesso binário autorizado pelo ChatGPT ainda precisam de implementação e homologação específicas. Não repetir a importação para tentar ler arquivos já salvos.
