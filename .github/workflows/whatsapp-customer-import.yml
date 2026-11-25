@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'js/whatsapp-customer-import*.js'
+      - 'js/interno-navigation.js'
+      - 'js/interno-projects-link.js'
+      - 'js/interno-auth.js'
+      - 'js/interno-polish.js'
+      - 'interno/index.html'
       - 'tests/whatsapp-customer-import.test.mjs'
       - 'supabase/functions/whatsapp-lab-processar/**'
       - '.github/workflows/whatsapp-customer-import.yml'

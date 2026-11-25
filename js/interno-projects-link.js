@@ -11,6 +11,8 @@ function ensureProjectsLink(role=document.body.dataset.staffRole||''){
   const group=sidebar.querySelector('[data-group="sistema"] .croma-nav-links');
   if(!group)return false;
 
+  // A navegação central atual já contém Projetos. Manter apenas o fallback para versões antigas em cache.
+  if(group.querySelector('[data-module-key="projetos"]'))return true;
   const existing=group.querySelector('[data-projects-link]');
   const allowed=ALLOWED_ROLES.has(role);
   if(existing){
