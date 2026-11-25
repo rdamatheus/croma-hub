@@ -107,3 +107,12 @@ test('modais nativos, fechamento protegido e ausência de deslocamento automáti
  assert.match(js,/\$\('importDialog'\)\.addEventListener\('cancel',e=>\{e\.preventDefault\(\);closeImport\(\);\}\)/);
  assert.match(css,/\.internal-dialog::backdrop/);
 });
+
+test('importação não afirma leitura do conteúdo dos anexos',async()=>{
+ const js=await readFile(new URL('../js/whatsapp-customer-import.js',import.meta.url),'utf8');
+ const html=await readFile(new URL('../interno/whatsapp-lab/clientes/index.html',import.meta.url),'utf8');
+ assert.match(js,/Arquivos e mensagens salvos/);
+ assert.match(js,/A leitura do conteúdo dos anexos é uma etapa separada/);
+ assert.match(js,/processing_status==='concluido'/);
+ assert.match(html,/id="contentStatus"/);
+});
