@@ -33,7 +33,8 @@ begin
  else
   if v_order.status not in ('recebido','aguardando_pagamento','pago','em_analise') then raise exception 'A etapa atual exige análise operacional antes do cancelamento.'; end if;
   if exists(select 1 from public.erp_entity_mappings m where m.local_id=p_order_id and m.provider='bling' and m.entity_type='order') then raise exception 'Pedido vinculado ao Bling: concilie o cancelamento nos dois sistemas antes de prosseguir.'; end if;
-  if (v_order.status='pago' or exists(select 1 from public.payments p where p.order_id=p_order_id and p.status='approved')) and not coalesce(p_financial_review,false) then raise exception 'Confirme o tratamento financeiro do pedido pago. Esta ação não executa estorno.'; end if;
+  if v_order.checkout_reference like 'bling-pendente:%' or v_order.checkout_reference like 'bling:%' then raise exception 'Envio ao Bling em andamento ou já registrado; concilie antes do cancelamento.'; end if;
+  if (v_order.status='pago' or exists(select 1 from public.order_activity_events e where e.order_id=p_order_id and e.action='manual_payment_confirmed') or exists(select 1 from public.payments p where p.order_id=p_order_id and p.status='approved')) and not coalesce(p_financial_review,false) then raise exception 'Confirme o tratamento financeiro do pedido pago. Esta ação não executa estorno.'; end if;
   v_next:='cancelado';
  end if;
  update public.orders o set status=v_next,updated_at=now() where o.id=p_order_id;
