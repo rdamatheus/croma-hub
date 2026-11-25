@@ -132,6 +132,7 @@ async function sendReceivedPix(ctx:any, saleDate?:string) {
     throw new Error("Falta uma confirmação gerencial única do Pix integral recebido.");
   const contactId=Number(ctx.c.bling_contact_id);
   if (!(contactId>0) || ctx.c.bling_sync_status!=="sincronizado") throw new Error("Sincronize o contato antes de enviar.");
+  if(!Number.isFinite(Number(o.total)) || Number(o.total)<=0)throw new Error("Total inválido.");
   const date=saleDate || new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date(o.created_at));
   const all:any[]=[];
   for(let page=1;page<=20;page++){
@@ -190,8 +191,11 @@ async function sendReceivedPix(ctx:any, saleDate?:string) {
     throw new Error("Pedido localizado, mas dados divergem. Não criar outro; conferir no Bling.");
   const now=new Date().toISOString();
   const mapping={provider:"bling",entity_type:"order",local_id:o.id,external_id:String(ext),sync_status:"synced",last_synced_at:now,metadata:{...(ctx.m?.metadata||{}),remote_order_number:remote.numero,remote_validated:true,remote_total:round(remote.total),payment_form_id:formId,payment_method:"pix",financial_status:"pending_verification",source:"croma_received_pix_v1"}};
-  const {error}=await db.from("erp_entity_mappings").upsert(mapping,{onConflict:"provider,entity_type,external_id"});
-  if(error)throw error;
+  const {data:linked,error:linkError}=await db.from("erp_entity_mappings").select("id,local_id").eq("provider","bling").eq("entity_type","order").eq("external_id",String(ext)).maybeSingle();
+  if(linkError)throw linkError;
+  if(linked&&linked.local_id!==o.id)throw new Error("Pedido Bling já vinculado a outro pedido local.");
+  const saved=linked?await db.from("erp_entity_mappings").update(mapping).eq("id",linked.id).eq("local_id",o.id).select("id").single():await db.from("erp_entity_mappings").insert(mapping).select("id").single();
+  if(saved.error||!saved.data)throw new Error("Vínculo não confirmado; não reenviar.");
   return {created,external_id:ext,number:remote.numero,item_count:remote.itens.length,total:round(remote.total),financial_status:"pending_verification"};
 }
 
