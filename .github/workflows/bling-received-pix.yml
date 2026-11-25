@@ -1,0 +1,21 @@
+name: Testes Pix externo
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/croma-order-outbound/**'
+      - 'supabase/migrations/20261125032000_confirm_manual_pix_preserve_status.sql'
+      - 'js/interno-pedido-detalhes.js'
+      - 'tests/bling-received-pix.test.mjs'
+      - '.github/workflows/bling-received-pix.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/bling-received-pix.test.mjs
+      - run: node --input-type=module --check < js/interno-pedido-detalhes.js
