@@ -44,7 +44,7 @@ export const INTERNAL_GROUPS=[
     {key:'comercial',label:'Comercial',href:'/interno/comercial/',description:'Oportunidades, retornos, prospecção e acompanhamento comercial.',icon:ICONS.comercial},
     {key:'propostas',label:'Propostas',href:'/interno/propostas/',description:'Cotações e propostas comerciais vinculadas à operação.',icon:ICONS.propostas},
     {key:'nfse',label:'NFS-e',href:'/interno/nfse/',description:'Faturamento, documentos fiscais e acompanhamento da emissão.',icon:ICONS.nfse,roles:OWNER_ROLE},
-    {key:'whatsapp',label:'Laboratório WhatsApp',href:'/interno/whatsapp-lab/',description:'Conversa, mídia e testes para atendimento assistido.',icon:ICONS.whatsapp}
+    {key:'whatsapp-historico',label:'Histórico WhatsApp',href:'/interno/whatsapp-lab/clientes/',description:'Conversas e arquivos de clientes; importar e consultar.',icon:ICONS.whatsapp}
   ]},
   {id:'produtos',label:'Produtos, compras e produção',description:'Cadastro mestre, custos, fornecedores, materiais e ferramentas de produção.',tag:'Operação',items:[
     {key:'produtos',label:'Produtos',href:'/interno/produtos/',description:'Cadastro mestre único de produtos e serviços.',icon:ICONS.produtos,roles:MANAGEMENT_ROLES},
@@ -75,6 +75,8 @@ export const INTERNAL_GROUPS=[
   ]},
   {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:[
     {key:'observabilidade',label:'Central de Incidentes e Observabilidade',href:'/interno/observabilidade/',description:'Erros, conflitos do Bling, prioridades e fila de imagens pendentes.',icon:ICONS.observabilidade,roles:MANAGEMENT_ROLES},
+    {key:'projetos',label:'Projetos',href:'/interno/projetos/',description:'Projetos, decisões, histórico e próximos passos.',icon:ICONS.portfolio,roles:MANAGEMENT_ROLES},
+    {key:'whatsapp',label:'Laboratório WhatsApp',href:'/interno/whatsapp-lab/',description:'Testes de atendimento assistido, separados do histórico oficial.',icon:ICONS.whatsapp},
     {key:'copiloto',label:'Copiloto Croma',href:'/interno/copiloto/',description:'Insights, decisões, roadmap, tarefas e memória operacional.',icon:ICONS.copiloto},
     {key:'pesquisa',label:'P&D e conhecimento',href:'/interno/pesquisa-desenvolvimento/',description:'Fichas técnicas, testes, materiais, problemas e soluções.',icon:ICONS.pesquisa},
     {key:'evolucao',label:'Evolução Croma Hub',href:'/interno/evolucao-croma-hub/',description:'Roadmap vivo, prioridades, entregas e melhorias do sistema.',icon:ICONS.evolucao},
