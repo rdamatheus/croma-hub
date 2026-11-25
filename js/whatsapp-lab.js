@@ -464,6 +464,7 @@ async function loadAtendimentos(){
     .from('lab_whatsapp_atendimentos')
     .select('id,created_by,contact_name,contact_phone,message_count,status,category,priority,workflow_status,created_at,lab_whatsapp_anexos(count)')
     .is('customer_id',null)
+    .neq('source','whatsapp_pendente')
     .order('created_at',{ascending:false})
     .limit(50);
   if(error){
@@ -565,7 +566,7 @@ async function showDetail(id){
   elements.messageList.innerHTML = '';
   elements.attachmentList.innerHTML = '';
   const [atendimentoResult,messagesResult,attachmentsResult,historyResult] = await Promise.all([
-    supabase.from('lab_whatsapp_atendimentos').select('*').eq('id',id).single(),
+    supabase.from('lab_whatsapp_atendimentos').select('*').eq('id',id).is('customer_id',null).neq('source','whatsapp_pendente').single(),
     supabase.from('lab_whatsapp_mensagens').select('*').eq('atendimento_id',id).order('sequence'),
     supabase.from('lab_whatsapp_anexos').select('*').eq('atendimento_id',id).order('created_at'),
     supabase.from('lab_whatsapp_analises').select('id,status,result,error,created_at,finished_at').eq('atendimento_id',id).order('created_at',{ascending:false}).limit(10)
@@ -633,7 +634,7 @@ async function saveReview(event){
       category:elements.reviewCategory.value || null,priority:elements.reviewPriority.value,
       workflow_status:elements.reviewWorkflow.value,responsible_id:elements.reviewResponsible.value || null,
       updated_at:new Date().toISOString()
-    }).eq('id',atendimento.id).select('id').maybeSingle();
+    }).eq('id',atendimento.id).is('customer_id',null).neq('source','whatsapp_pendente').select('id').maybeSingle();
     if(error) throw error;
     if(!data) throw new Error('A revisão não foi autorizada pelo servidor.');
     await loadAtendimentos();
@@ -662,6 +663,8 @@ async function openAttachment(id,attachments){
 
 async function deleteAtendimento(id,name){
   if(!confirm(`Excluir ${name} e os anexos deste laboratório? Esta ação não afeta pedidos ou clientes oficiais.`)) return;
+  const check=await supabase.from('lab_whatsapp_atendimentos').select('id').eq('id',id).is('customer_id',null).neq('source','whatsapp_pendente').maybeSingle();
+  if(check.error||!check.data){setStatus('Registro não pertence ao laboratório de testes.',true);return;}
   const { data: attachments, error: listError } = await supabase.from('lab_whatsapp_anexos').select('storage_path').eq('atendimento_id',id);
   if(listError){
     setStatus(`Não foi possível conferir os anexos: ${listError.message}`,true);
@@ -675,7 +678,7 @@ async function deleteAtendimento(id,name){
       return;
     }
   }
-  const { error } = await supabase.from('lab_whatsapp_atendimentos').delete().eq('id',id);
+  const { error } = await supabase.from('lab_whatsapp_atendimentos').delete().eq('id',id).is('customer_id',null).neq('source','whatsapp_pendente');
   if(error){
     setStatus(`Os arquivos foram removidos, mas o registro não: ${error.message}`,true);
     return;
