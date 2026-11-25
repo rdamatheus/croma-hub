@@ -131,7 +131,7 @@ test('leitura oficial: separada do laboratório, RLS, integridade, recuperação
   const file={id,atendimento_id:batch,created_by:owner,kind:'documento',file_name:'teste.txt',size_bytes:bytes.length,content_sha256:digest,storage_path:'whatsapp-lab/'+owner+'/'+batch+'/documento/'+digest+'-teste.txt',processing_status:'pendente',...overrides};
   const writes=[];
   const client={from(table){let patch=null,lease=null;return {select(){return this},eq(k,v){if(k==='processing_token')lease=v;return this},or(){return this},update(p){patch=p;return this},async maybeSingle(){if(table==='lab_whatsapp_atendimentos')return {data:{id:batch,created_by:owner,source:options.source||'whatsapp_cliente'}};if(!patch)return {data:{...file}};if(options.conflict&&patch.processing_status==='processando')return {data:null};if(lease&&lease!==file.processing_token)return {data:null};writes.push(patch);Object.assign(file,patch);return {data:{id,processing_status:file.processing_status}};}}},storage:{from(){return {download:async()=>({data:new Blob([options.bytes||bytes])})}}}};
-  const run=new Function('createClient','Deno','UUID','json','MODEL','bytesToBase64','outputText',pure+';return processOfficialAttachment')(()=>client,{env:{get:()=>''}},/^[0-9a-f-]{36}$/i,(data,status=200)=>({data,status}),'test',()=>'',()=> '');
+  const run=new Function('createClient','Deno','UUID','json','MODEL','bytesToBase64','outputText','nativePdfText',pure+';return processOfficialAttachment')(()=>client,{env:{get:()=>''}},/^[0-9a-f-]{36}$/i,(data,status=200)=>({data,status}),'test',()=>'',()=> '',async()=>options.nativePdf||'');
   return {file,writes,call:(user=owner,role='equipe')=>run({headers:{get:()=> 'Bearer test'}},{id:user},{role},{attachment_id:id})};
  }
  const a=setup();assert.equal((await a.call()).data.status,'concluido');assert.equal(a.file.extracted_text,bytes.toString());assert.equal(a.writes.length,2);
@@ -141,6 +141,27 @@ test('leitura oficial: separada do laboratório, RLS, integridade, recuperação
  const race=setup({}, {conflict:true});assert.equal((await race.call()).status,409);
  const corrupt=setup({}, {bytes:Buffer.alloc(bytes.length,65)});assert.equal((await corrupt.call()).data.status,'erro');assert.equal(corrupt.file.extracted_text,undefined);
  const unsupported=setup({kind:'outro',file_name:'arte.cdr'});assert.equal((await unsupported.call()).status,422);
- assert.match(js,/action:'process_official_attachment'/);assert.match(js,/data\?\.status!=='concluido'/);
+ const pdfFile={kind:'pdf',file_name:'teste.pdf',storage_path:'whatsapp-lab/'+owner+'/'+batch+'/pdf/'+digest+'-teste.pdf'};
+ const pdf=setup(pdfFile,{nativePdf:'Texto nativo de comprovante'});assert.equal((await pdf.call()).data.status,'concluido');assert.equal(pdf.file.extracted_text,'Texto nativo de comprovante');
+ const scanned=setup(pdfFile);assert.equal((await scanned.call()).data.status,'needs_ai');assert.equal(scanned.file.processing_status,'pendente');assert.equal(scanned.file.extracted_text,undefined);
+ const photo=setup({kind:'imagem',file_name:'teste.png'});assert.equal((await photo.call()).data.status,'needs_ai');assert.equal(photo.writes.length,0);
+ assert.match(js,/action:'process_official_attachment'/);assert.match(js,/confirm_ai:confirmAi/);assert.match(js,/readNativeAfterImport\(accepted\)/);
  assert.match(gallery,/Ver leitura/);assert.match(s,/store:false/);
+});
+
+test('PDF real com texto incorporado e página vazia, sem IA',async()=>{
+ const {stripTypeScriptTypes}=await import('node:module');
+ const unpdf=await import('unpdf');
+ const src=await readFile(new URL('../supabase/functions/whatsapp-lab-processar/index.ts',import.meta.url),'utf8');
+ const handler=src.slice(src.indexOf('async function nativePdfText'),src.indexOf('async function processOfficialAttachment')).replace('await import("npm:unpdf@1.4.0")','modules');
+ const run=new Function('modules',stripTypeScriptTypes(handler)+';return nativePdfText')(unpdf);
+ function makePdf(text){
+  const stream=text?'BT /F1 12 Tf 30 100 Td ('+text+') Tj ET':'';
+  const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>','<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream'];
+  let pdf='%PDF-1.4\n',offsets=[0];for(let i=0;i<objects.length;i++){offsets.push(pdf.length);pdf+=(i+1)+' 0 obj\n'+objects[i]+'\nendobj\n';}const xref=pdf.length;
+  pdf+='xref\n0 '+offsets.length+'\n0000000000 65535 f \n'+offsets.slice(1).map(v=>String(v).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+offsets.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n';
+  return new Uint8Array(Buffer.from(pdf));
+ }
+ assert.match(await run(makePdf('Comprovante ficticio valor 450 reais')),/Comprovante ficticio valor 450 reais/);
+ assert.equal(await run(makePdf('')),'');
 });
