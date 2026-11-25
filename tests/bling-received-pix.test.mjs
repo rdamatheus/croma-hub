@@ -10,7 +10,7 @@ function setup(opts={}){
  const form={id:12,descricao:'PIX',tipoPagamento:17,situacao:1,destino:1,finalidade:2,...opts.form};
  const items=[{produto:{id:13},quantidade:200,valor:2.25}];
  const db={from(table){let patch,mode;const chain={select(){return this},eq(){return this},is(){return this},update(p){patch=p;mode='update';return this},insert(p){patch=p;mode='insert';return this},then(resolve){return Promise.resolve(table==='payments'?{data:opts.payments||[]}:table==='order_activity_events'?{data:opts.events??[{amount:450,payment_method:'pix',financial_review:true}]}:(writes.push({table,patch}),{data:{id:o.id}})).then(resolve)},async maybeSingle(){if(table==='erp_entity_mappings')return {data:opts.link||null};if(opts.race)return {data:null};writes.push({table,patch});return {data:{id:o.id}}},async single(){writes.push({table,patch});return {data:{id:'mapping'}}}};return chain}};
- const api=async(path,method='GET',body,query)=>{calls.push({path,method,query,body});if(path==='/formas-pagamentos')return opts.forms||[form];if(path==='/formas-pagamentos/12')return form;if(path==='/pedidos/vendas'&&method==='GET')return query['numerosLojas[]']?(opts.existing||[]):(opts.duplicate||[]);if(path==='/pedidos/vendas'&&method==='POST'){if(opts.failPost)throw Error('network');remote={...body,numero:99,total:450};return {id:88}};if(path==='/pedidos/vendas/88')return remote;throw Error(path)};
+ const api=async(path,method='GET',body,query)=>{calls.push({path,method,query,body});if(path==='/formas-pagamentos')return opts.forms||[form];if(path==='/formas-pagamentos/12')return form;if(path==='/pedidos/vendas'&&method==='GET')return query['numerosLojas[]']?(opts.existing||[]):(opts.duplicate||[]);if(path==='/pedidos/vendas'&&method==='POST'){if(opts.failPost)throw Error('network');remote={...body,numero:99,total:Number(o.total)};return {id:88}};if(path==='/pedidos/vendas/88')return remote;throw Error(path)};
  const round=(n,p=2)=>Math.round(Number(n)*10**p)/10**p;
  const run=new Function('db','api','round','orderBody',pure+';return sendReceivedPix')(db,api,round,()=>({itens:items,contato:{id:9}}));
  return {o,calls,writes,run:()=>run({o,c:{bling_contact_id:9,bling_sync_status:'sincronizado',...opts.customer},items,m:opts.mapping},'2026-11-24',opts.approvedJob)};
@@ -39,3 +39,31 @@ test('fila interna aceita crediário somente a receber e com vencimento',()=>{as
 for(const patch of [{source:'checkout'},{payment_confirmed:false},{sale_date:'2026-02-31'},{amount_cents:0},{order_id:'bad'},{confirmation_ref:'short'}])test('fila bloqueia '+JSON.stringify(patch),()=>{assert.equal(jobValidator({...internalJob,payment_method:'pix',...patch}),false)});
 test('origem definitiva reutiliza o envio de recebido sem segunda confirmação',async()=>{const a=setup({events:[],approvedJob:{...approvedJob,source:'internal_sale_finalized'}});assert.equal((await a.run()).external_id,88);assert.equal(a.calls.filter(c=>c.method==='POST').length,1)});
 test('crediário usa fluxo a receber e não sobrescreve vínculo de outro pedido',()=>{const receivable=src.slice(src.indexOf('async function sendReceivable'),src.indexOf('async function sendReceivedPix'));assert.match(receivable,/commercial_payment_status:"receivable"/);assert.match(receivable,/linked.local_id!==o.id/);assert.match(receivable,/remote.numeroLoja/);assert.match(receivable,/JSON.stringify\(expectedItems\)!==JSON.stringify\(actualItems\)/);assert.match(src,/ctx.o.payment_due_date!==a.due_date/);assert.match(src,/await sendReceivable\(ctx,a.sale_date\)/);assert.doesNotMatch(receivable,/\.upsert\(mapping/)});
+
+
+test('dinheiro recebido em duas parcelas e aprovado na origem: soma e envia uma unica vez',async()=>{
+ const approved={...approvedJob,source:'internal_sale_finalized',payment_method:'dinheiro',amount_cents:60000};
+ const entries=[{amount:500,payment_method:'dinheiro',financial_review:false},{amount:100,payment_method:'dinheiro',financial_review:false}];
+ const a=setup({order:{payment_method:'dinheiro',total:600},events:entries,approvedJob:approved,form:{descricao:'Dinheiro',tipoPagamento:1}});
+ const x=await a.run();
+ assert.equal(x.external_id,88);assert.equal(x.total,600);
+ assert.equal(a.calls.filter(c=>c.method==='POST').length,1);
+ assert.equal(a.calls.find(c=>c.method==='POST').body.parcelas[0].valor,600);
+ assert.ok(a.calls.every(c=>!c.path.includes('contas')&&!c.path.includes('/contatos')));
+});
+for(const [name,events] of [
+ ['soma parcial', [{amount:500,payment_method:'dinheiro',financial_review:false},{amount:90,payment_method:'dinheiro',financial_review:false}]],
+ ['modalidade divergente', [{amount:500,payment_method:'dinheiro',financial_review:false},{amount:100,payment_method:'pix',financial_review:false}]],
+ ['recebimento negativo', [{amount:700,payment_method:'dinheiro',financial_review:false},{amount:-100,payment_method:'dinheiro',financial_review:false}]]
+])test(name+' bloqueia despacho aprovado e nao cria pedido',async()=>{
+ const a=setup({order:{payment_method:'dinheiro',total:600},events,approvedJob:{...approvedJob,source:'internal_sale_finalized',payment_method:'dinheiro',amount_cents:60000},form:{descricao:'Dinheiro',tipoPagamento:1}});
+ await assert.rejects(a.run());assert.equal(a.calls.filter(c=>c.method==='POST').length,0);
+});
+test('sem aprovacao da origem duas parcelas nao revisadas nao autorizam envio',async()=>{
+ const a=setup({order:{payment_method:'dinheiro',total:600},events:[{amount:500,payment_method:'dinheiro',financial_review:false},{amount:100,payment_method:'dinheiro',financial_review:false}],form:{descricao:'Dinheiro',tipoPagamento:1}});
+ await assert.rejects(a.run());assert.equal(a.calls.filter(c=>c.method==='POST').length,0);
+});
+test('duas parcelas revisadas pela gestao mantem compatibilidade do fluxo manual',async()=>{
+ const a=setup({order:{payment_method:'dinheiro',total:600},events:[{amount:500,payment_method:'dinheiro',financial_review:true},{amount:100,payment_method:'dinheiro',financial_review:true}],form:{descricao:'Dinheiro',tipoPagamento:1}});
+ assert.equal((await a.run()).total,600);
+});
