@@ -58,8 +58,8 @@ test('diretório e importador compartilham a mesma interface e controles',async(
  const js=await readFile(new URL('../js/whatsapp-customer-import.js',import.meta.url),'utf8');
  const ids=[...js.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]);
  for(const id of new Set(ids))assert.ok(html.includes('id="'+id+'"'),'Controle ausente: '+id);
- assert.match(html,/id="importContact" hidden/);
- assert.match(html,/id="importFiles" hidden/);
+ assert.match(html,/<dialog id="importDialog" class="internal-dialog" aria-labelledby="importTitle"/);
+ assert.match(html,/<dialog id="historyCard" class="internal-dialog internal-dialog-wide" aria-labelledby="historyTitle"/);
  assert.match(js,/rpc\('whatsapp_customer_directory'/);
  assert.match(js,/if\(version!==searchVersion\)return/);
  assert.match(js,/await loadHistory\(\);await loadDirectory\(\)/);
@@ -91,4 +91,19 @@ test('conversa sem identificação e arquivo isolado podem ser preparados',async
  assert.equal(missing.chat.phone,undefined);
  const file=await m.prepare([new File(['arte'],'arquivo.cdr')]);
  assert.equal(file.rows.length,0);assert.equal(file.files.length,1);
+});
+
+test('modais nativos, fechamento protegido e ausência de deslocamento automático',async()=>{
+ const html=await readFile(new URL('../interno/whatsapp-lab/clientes/index.html',import.meta.url),'utf8');
+ const js=await readFile(new URL('../js/whatsapp-customer-import.js',import.meta.url),'utf8');
+ const css=await readFile(new URL('../css/interno-dialog.css',import.meta.url),'utf8');
+ assert.match(html,/<dialog id="importDialog"[^>]*>[\s\S]*id="importFiles"[\s\S]*id="importContact"[\s\S]*<\/dialog>/);
+ assert.match(html,/id="hideImport"[^>]*autofocus/);
+ assert.match(html,/id="closeHistory"[^>]*autofocus/);
+ assert.doesNotMatch(html,/O histórico oficial não se mistura aos testes/);
+ assert.doesNotMatch(js,/scrollIntoView/);
+ assert.match(js,/dialog\.showModal\(\)/);
+ assert.match(js,/async function closeImport\(\)\{\s*if\(busy\|\|attempt\)return;\s*if\(!discardDraft\(\)\)return;/);
+ assert.match(js,/\$\('importDialog'\)\.addEventListener\('cancel',e=>\{e\.preventDefault\(\);closeImport\(\);\}\)/);
+ assert.match(css,/\.internal-dialog::backdrop/);
 });
