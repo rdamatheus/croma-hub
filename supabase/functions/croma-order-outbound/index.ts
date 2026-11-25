@@ -118,7 +118,7 @@ async function sendReceivable(ctx:any, saleDate?:string) {
 /** Pix externo recebido: a confirmação gerencial é independente da produção.
  * Não cria cobrança, não altera o contato, nem lança contas automaticamente.
  * O lançamento financeiro no Bling deve ser conferido separadamente. */
-async function sendReceivedPix(ctx:any, saleDate?:string) {
+async function sendReceivedPix(ctx:any, saleDate?:string, approvedJob?:any) {
   const o=ctx.o;
   if (!["pago","em_analise","em_producao","pronto","enviado","concluido"].includes(o.status))
     throw new Error("Confirme o recebimento do Pix antes de enviar o pedido.");
@@ -128,8 +128,14 @@ async function sendReceivedPix(ctx:any, saleDate?:string) {
   ]);
   if (ee) throw ee; if (pe) throw pe;
   if (payments?.length) throw new Error("Pedido com registro de pagamento online: concilie pelo fluxo original.");
-  if (events?.length!==1 || events[0].payment_method!=="pix" || round(events[0].amount)!==round(o.total) || events[0].financial_review!==true)
-    throw new Error("Falta uma confirmação gerencial única do Pix integral recebido.");
+  const validEvent=events?.length===1 && events[0].payment_method==="pix" && round(events[0].amount)===round(o.total) && events[0].financial_review===true;
+  // A tarefa de integração é gravada apenas por serviço autorizado; não infere recebimento de observações.
+  const validJob=approvedJob?.source==="operator_confirmed_chat" && approvedJob.order_id===o.id &&
+    approvedJob.payment_method==="pix" && approvedJob.payment_confirmed===true &&
+    Number.isInteger(approvedJob.amount_cents) && approvedJob.amount_cents===Math.round(Number(o.total)*100) &&
+    typeof approvedJob.confirmation_ref==="string" && approvedJob.confirmation_ref.length>=10;
+  if (!validEvent && (!validJob || events?.length))
+    throw new Error("Falta confirmação rastreável do Pix integral recebido.");
   const contactId=Number(ctx.c.bling_contact_id);
   if (!(contactId>0) || ctx.c.bling_sync_status!=="sincronizado") throw new Error("Sincronize o contato antes de enviar.");
   if(!Number.isFinite(Number(o.total)) || Number(o.total)<=0)throw new Error("Total inválido.");
@@ -229,6 +235,40 @@ async function syncOrder(orderId:string, options:{preserve_customer:boolean;sale
   await db.from("orders").update({checkout_reference:"bling:"+ext,updated_at:now}).eq("id",orderId);
   return {created,external_id:ext,number:remote?.numero,total:actual,discount:remote?.desconto,contact_id:contactId,item_count:remote.itens.length};
 }
+
+// Despacho administrativo em fila existente. A credencial de cron já é utilizada
+// pelos trabalhadores Bling. Não autoriza ações gerais nem fabrica sessão humana.
+async function dispatchApprovedOrder(jobId:string) {
+  if(!/^[0-9a-f-]{36}$/i.test(jobId))throw new Error("job_id inválido.");
+  const {data:j,error}=await db.from("erp_sync_jobs").select("*").eq("id",jobId)
+    .eq("provider","bling").eq("entity_type","order").eq("operation","create")
+    .eq("direction","croma_to_bling").eq("status","queued").maybeSingle();
+  if(error||!j)throw new Error("Tarefa de envio indisponível.");
+  const a=j.request_summary||{};
+  if(a.source!=="operator_confirmed_chat"||a.payment_confirmed!==true||a.payment_method!=="pix"||
+    !/^[0-9a-f-]{36}$/i.test(String(a.order_id||""))||!/^\d{4}-\d{2}-\d{2}$/.test(String(a.sale_date||""))||
+    !Number.isInteger(a.amount_cents)||a.amount_cents<=0||
+    typeof a.confirmation_ref!=="string"||a.confirmation_ref.length<10)
+    throw new Error("Tarefa sem aprovação estruturada.");
+  const claim=await db.from("erp_sync_jobs").update({status:"running",started_at:new Date().toISOString()})
+    .eq("id",jobId).eq("status","queued").select("id").maybeSingle();
+  if(claim.error||!claim.data)throw new Error("Tarefa já em processamento.");
+  try{
+    const ctx=await load(a.order_id);
+    if(ctx.o.payment_method!=="pix"||Math.round(Number(ctx.o.total)*100)!==a.amount_cents)
+      throw new Error("Pedido diverge da aprovação.");
+    const result=await sendReceivedPix(ctx,a.sale_date,a);
+    const done=await db.from("erp_sync_jobs").update({status:"completed",finished_at:new Date().toISOString(),
+      processed_count:1,success_count:1,result_summary:result}).eq("id",jobId).eq("status","running").select("id").single();
+    if(done.error||!done.data)throw new Error("Pedido enviado; tarefa sem confirmação de encerramento. Não reenviar.");
+    return result;
+  }catch(e){
+    await db.from("erp_sync_jobs").update({status:"failed",finished_at:new Date().toISOString(),processed_count:1,error_count:1,
+      error_message:e instanceof Error?e.message:String(e)}).eq("id",jobId).eq("status","running");
+    throw e;
+  }
+}
+
 Deno.serve(async(req)=>{
   const origin=req.headers.get("Origin")||"";
   const allowed=new Set(["https://www.cromapel.com.br","https://cromapel.com.br","https://www.cromahub.com.br","https://cromahub.com.br"]);
@@ -239,6 +279,16 @@ Deno.serve(async(req)=>{
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
   const response=(payload:any,status=200)=>new Response(JSON.stringify(payload),{status,headers:{...cors,"Content-Type":"application/json"}});
   if(req.method!=="POST")return response({error:"method_not_allowed"},405);
+  const cron=req.headers.get("x-croma-cron")||"";
+  if(cron){
+    try{
+      const expected=await readSecret("erp_bling_cron_secret");
+      if(!expected||cron!==expected)return response({error:"unauthorized"},401);
+      const input=await req.json();
+      if(input.action!=="dispatch_approved_order")return response({error:"forbidden"},403);
+      return response({ok:true,...await dispatchApprovedOrder(String(input.job_id||""))});
+    }catch(e){return response({ok:false,error:e instanceof Error?e.message:String(e)},500)}
+  }
   // Compatibilidade: aceita a chave operacional existente; a interface de gestão usa JWT autenticado.
   if(!OUTBOUND_KEY || req.headers.get("x-croma-outbound-key")!==OUTBOUND_KEY){
     const auth=(req.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"").trim();
