@@ -64,3 +64,31 @@ test('diretório e importador compartilham a mesma interface e controles',async(
  assert.match(js,/if\(version!==searchVersion\)return/);
  assert.match(js,/await loadHistory\(\);await loadDirectory\(\)/);
 });
+
+test('importação oficial de contato novo preserva o fluxo de vínculo e o isolamento de testes',async()=>{
+ const html=await readFile(new URL('../interno/whatsapp-lab/clientes/index.html',import.meta.url),'utf8');
+ const js=await readFile(new URL('../js/whatsapp-customer-import.js',import.meta.url),'utf8');
+ const lab=await readFile(new URL('../js/whatsapp-lab.js',import.meta.url),'utf8');
+ const sql=await readFile(new URL('../supabase/migrations/20261124221800_whatsapp_pending_history.sql',import.meta.url),'utf8');
+ assert.ok(html.indexOf('id="importFiles"')<html.indexOf('id="importContact"'));
+ for(const id of ['pendingList','saveUnlinked','linkPending','createContactDialog','pendingMatches'])assert.ok(html.includes('id="'+id+'"'));
+ assert.match(js,/rpc\('import_whatsapp_pending'/);
+ assert.match(js,/rpc\('link_whatsapp_pending'/);
+ assert.match(js,/rpc\('whatsapp_contact_candidates'/);
+ assert.match(js,/functions\.invoke\('admin-update-customer'/);
+ assert.match(js,/if\(found\.length\)/);
+ assert.match(lab,/\.is\('customer_id',null\)\s*\.neq\('source','whatsapp_pendente'\)/);
+ assert.match(sql,/security invoker/);
+ assert.match(sql,/raw_chat->>'pending_group'/);
+ assert.match(sql,/import_fingerprint=m.fingerprint/);
+ assert.match(sql,/lf.content_sha256=f.hash/);
+ assert.match(sql,/revoke all on function public.import_whatsapp_pending/);
+ assert.match(sql,/Há conteúdo repetido no cadastro de destino/);
+});
+test('conversa sem identificação e arquivo isolado podem ser preparados',async()=>{
+ const missing=await m.prepare([new File([txt],'conversa.txt')]);
+ assert.equal(missing.rows.length,2);
+ assert.equal(missing.chat.phone,undefined);
+ const file=await m.prepare([new File(['arte'],'arquivo.cdr')]);
+ assert.equal(file.rows.length,0);assert.equal(file.files.length,1);
+});
