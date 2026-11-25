@@ -1,7 +1,7 @@
 import {supabase,STORAGE_BUCKET} from './croma-supabase.js';
 import {protectInternalPage} from './interno-auth.js';
 import {prepare,contentType,uploadProgress} from './whatsapp-customer-import-core.js?v=20261123-2';
-import {createGallery,uploadWithProgress} from './whatsapp-customer-import-gallery.js?v=20261123-2';
+import {createGallery,uploadWithProgress} from './whatsapp-customer-import-gallery.js?v=20261124-4';
 const $=id=>document.getElementById(id), session=await protectInternalPage();
 const labels={imagem:'Fotos e imagens',video:'Vídeos',audio:'Áudios',pdf:'PDFs',documento:'Conversas e documentos',producao:'Arquivos de produção',outro:'Outros arquivos'};
 const gallery=createGallery(labels);
