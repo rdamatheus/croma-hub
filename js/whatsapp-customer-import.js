@@ -164,7 +164,7 @@ function renderPreview(){
  for(const m of draft.rows.slice(0,3))box.append(node('div',[m.date,m.time,m.author,m.body].join(' ')));
 }
 async function prepareFiles(){
- busy=true;controls();showProgress(0,'Descompactando e organizando arquivos');status('Lendo e categorizando arquivos…');draft=null;attempt=null;$('confirm').checked=false;
+ busy=true;controls();showProgress(0,'Separando arquivos do ZIP');status('Separando e classificando arquivos…');draft=null;attempt=null;$('confirm').checked=false;
  try{
   draft=await prepare(selected);renderPreview();
   const number=String(draft.chat.phone||'');if(!pendingView){
@@ -180,7 +180,7 @@ async function prepareFiles(){
    }catch(e){$('pendingMatches').append(node('p','Não foi possível verificar históricos pendentes: '+e.message));}
   }
   if(pendingView&&number&&pendingView.contact_phone&&phone(number)!==phone(pendingView.contact_phone))$('pendingMatches').append(node('p','Atenção: o telefone do arquivo difere do histórico selecionado. Confira antes de confirmar.'));
-  showProgress(5,'Arquivos organizados','Aguardando confirmação do contato.');status('Confira os arquivos e selecione um cliente ou mantenha o histórico sem cadastro.');
+  showProgress(5,'Arquivos separados','Conteúdo dos anexos ainda não analisado. Confira o contato.');status('Confira os arquivos e selecione um cliente ou mantenha o histórico sem cadastro.');
  }catch(e){draft=null;showProgress(0,'Falha na preparação',e.message);status(e.message,true);}finally{busy=false;controls();}
 }
 async function queryAll(table,columns,apply){
@@ -237,7 +237,7 @@ async function save(){
   const accepted=new Set(data.accepted),unused=[...attempt.uploaded.values()].map(f=>f.path).filter(p=>!accepted.has(p));
   const cleanup=unused.length?await supabase.storage.from(STORAGE_BUCKET).remove(unused):{};
   status(data.replayed?'Importação anterior confirmada.':data.messages+' novas mensagens e '+data.files+' novos arquivos registrados.'+(cleanup.error?' Alguns arquivos repetidos precisam de revisão.':''));
-  showProgress(100,'Importação concluída',data.replayed?'Importação anterior confirmada.':data.messages+' mensagens e '+data.files+' novos arquivos registrados.');
+  showProgress(100,'Arquivos e mensagens salvos',(data.replayed?'Importação anterior confirmada.':data.messages+' mensagens e '+data.files+' novos arquivos registrados.')+' A leitura do conteúdo dos anexos é uma etapa separada.');
   if(!c&&!pendingView&&data.id){pendingView={id:data.id,contact_name:attempt.contactName||'Contato sem nome',contact_phone:attempt.contactPhone};$('saveUnlinked').checked=true;}
   importOrigin=null;attempt=null;draft=null;selected=[];$('confirm').checked=false;$('files').value='';$('folder').value='';$('preview').replaceChildren();await loadHistory();await loadDirectory();await loadPending();
  }catch(e){showProgress(Number($('progressBar').value),'Importação interrompida','Tente novamente nesta mesma tela.');status('Importação não confirmada: '+e.message+'. Tente novamente com os mesmos arquivos e contato; não será criado um novo lote nesta tela.',true);}
@@ -245,18 +245,18 @@ async function save(){
 }
 async function loadHistory(){
  const c=chosen(),group=pendingView?.id||null;if(!c&&!group)return;const label=group?(pendingView.contact_name||'Contato sem nome')+' · Sem cadastro':name(c);const version=++historyVersion;history={messages:[],files:[]};gallery.reset();
- $('importForCustomer').textContent=group?'Vincular ou importar conversa':'Importar mais conversas';$('historyMeta').textContent='Carregando histórico de '+label+'…';$('messages').replaceChildren();$('attachments').replaceChildren();
+ $('importForCustomer').textContent=group?'Vincular ou importar conversa':'Importar mais conversas';$('historyMeta').textContent='Carregando histórico de '+label+'…';$('contentStatus').textContent='';$('messages').replaceChildren();$('attachments').replaceChildren();
  try{
   const batches=await queryAll('lab_whatsapp_atendimentos','id,created_at',q=>batchQuery(q,c?.id,group).order('id'));
   const messages=[],files=[];
   for(let i=0;i<batches.length;i+=50){
    const ids=batches.slice(i,i+50).map(x=>x.id);
    messages.push(...await queryAll('lab_whatsapp_mensagens','id,message_date,message_time,author,body,sequence',q=>q.in('atendimento_id',ids).order('id')));
-   files.push(...await queryAll('lab_whatsapp_anexos','id,file_name,size_bytes,storage_path,kind,mensagem_id',q=>q.in('atendimento_id',ids).order('id')));
+   files.push(...await queryAll('lab_whatsapp_anexos','id,file_name,size_bytes,storage_path,kind,mensagem_id,processing_status',q=>q.in('atendimento_id',ids).order('id')));
   }
   if(version!==historyVersion)return;
   messages.sort((a,b)=>[a.message_date,a.message_time].join(' ').localeCompare([b.message_date,b.message_time].join(' '))||a.sequence-b.sequence);
-  history={messages,files};gallery.reset(files);$('historyMeta').textContent=label+' · '+messages.length+' mensagens · '+files.length+' arquivos';renderHistory();
+  history={messages,files};gallery.reset(files);$('historyMeta').textContent=label+' · '+messages.length+' mensagens · '+files.length+' arquivos';const total=files.length;const done=files.filter(f=>f.processing_status==='concluido').length;const failed=files.filter(f=>f.processing_status==='erro').length;const running=files.filter(f=>f.processing_status==='processando').length;$('contentStatus').textContent=total?'Leitura dos anexos: '+done+' de '+total+' processados · '+(total-done-failed-running)+' pendentes · '+running+' em processamento · '+failed+' com erro.':'Nenhum anexo.';renderHistory();
  }catch(e){if(version===historyVersion)$('historyMeta').textContent=e.message;}
 }
 function openCreateContact(){if(!canCreate||busy||attempt)return;$('createName').value=pendingView?.contact_name||$('pendingName').value||draft?.chat?.name||'';$('createPhone').value=pendingView?.contact_phone||$('pendingPhone').value||draft?.chat?.phone||'';$('createType').value='';$('createStatus').textContent='';$('createContactDialog').showModal();}

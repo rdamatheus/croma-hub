@@ -25,3 +25,6 @@ Ponto de entrada obrigatório para ChatGPT (voz ou texto), Codex, agentes e mant
 - Registrar decisões e evolução nos módulos existentes, sem criar backlog paralelo. Atualizar documentação específica e histórico quando pertinente; consultar novamente para confirmar escritas.
 - Só declarar concluído após evidência adequada. Verificar publicação e uso real quando aplicável; explicitar limitações.
 - O check de conformidade é estrutural: não comprova leitura ou aprovação verdadeira. A proteção da branch e controles de acesso devem ser configurados pelo responsável. Sem acesso técnico a esses controles, informar a lacuna, não alegar bloqueio universal.
+
+## Veracidade dos estados operacionais
+- Distinguir preparação, envio, persistência, processamento de conteúdo e validação. Exibir sucesso apenas para a etapa efetivamente confirmada; falhas parciais e pendências devem permanecer visíveis, com orientação para retomada. Não declarar conteúdo processado apenas porque um arquivo foi descompactado ou salvo. Não simular progresso nem tratar ausência de erro como comprovação de resultado.
