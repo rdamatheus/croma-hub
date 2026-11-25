@@ -77,6 +77,17 @@ export function createGallery(labels){
    stage.replaceChildren(media);
   }catch(e){if(version===previewVersion)stage.replaceChildren(node('p','Não foi possível abrir a prévia: '+e.message));}
  }
+ async function readResult(f){
+  clearPreview();const version=previewVersion;
+  $('previewName').textContent=f.file_name;$('previewMeta').textContent='Leitura assistida';
+  $('previewDownload').onclick=()=>single(f);
+  if(!dialog.open)dialog.showModal();stage.append(node('p','Carregando leitura…'));
+  try{
+   const {data,error}=await supabase.from('lab_whatsapp_anexos').select('processing_status,extracted_text,transcription').eq('id',f.id).maybeSingle();
+   if(error||!data||data.processing_status!=='concluido'||!String(data.transcription||data.extracted_text||'').trim())throw Error('Leitura não confirmada.');
+   if(version===previewVersion&&dialog.open)stage.replaceChildren(node('p','Confira as informações no arquivo original antes de utilizá-las.'),node('pre',data.transcription||data.extracted_text));
+  }catch(e){if(version===previewVersion&&dialog.open)stage.replaceChildren(node('p',e.message));}
+ }
  function render(filter=''){
   observer?.disconnect();box.replaceChildren();const version=generation;
   if(typeof IntersectionObserver!=='undefined')observer=new IntersectionObserver((entries,currentObserver)=>{
@@ -103,7 +114,11 @@ export function createGallery(labels){
     }
     const heading=node('strong',f.file_name);heading.title=f.file_name;
     const actions=node('div');actions.className='row';actions.append(btn('Visualizar',()=>preview(f)),btn('Baixar',()=>single(f)));
-    card.append(check,thumbnail,heading,node('small',size(f.size_bytes)),actions);grid.append(card);
+    const states={pendente:'Leitura pendente',processando:'Em processamento',concluido:'Leitura concluída',erro:'Falha na leitura'};
+    const readLabel=node('small',states[f.processing_status]||'Sem leitura confirmada');
+    if(f.processing_error)readLabel.title=f.processing_error;
+    if(f.processing_status==='concluido')actions.append(btn('Ver leitura',()=>readResult(f)));
+    card.append(check,thumbnail,heading,node('small',size(f.size_bytes)),readLabel,actions);grid.append(card);
    }
    group.append(grid);box.append(group);
   }

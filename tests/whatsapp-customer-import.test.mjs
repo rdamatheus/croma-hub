@@ -116,3 +116,31 @@ test('importação não afirma leitura do conteúdo dos anexos',async()=>{
  assert.match(js,/processing_status==='concluido'/);
  assert.match(html,/id="contentStatus"/);
 });
+
+test('leitura oficial: separada do laboratório, RLS, integridade, recuperação e persistência',async()=>{
+ const s=await readFile(new URL('../supabase/functions/whatsapp-lab-processar/index.ts',import.meta.url),'utf8');
+ const js=await readFile(new URL('../js/whatsapp-customer-import.js',import.meta.url),'utf8');
+ const gallery=await readFile(new URL('../js/whatsapp-customer-import-gallery.js',import.meta.url),'utf8');
+ const {stripTypeScriptTypes}=await import('node:module');
+ const {createHash}=await import('node:crypto');
+ const handler=s.slice(s.indexOf('async function processOfficialAttachment'),s.indexOf('Deno.serve(async'));
+ const pure=stripTypeScriptTypes(handler);
+ const id='11111111-1111-4111-8111-111111111111',batch='22222222-2222-4222-8222-222222222222',owner='33333333-3333-4333-8333-333333333333',other='44444444-4444-4444-8444-444444444444';
+ const bytes=Buffer.from('Teste de leitura UTF-8'),digest=createHash('sha256').update(bytes).digest('hex');
+ function setup(overrides={},options={}){
+  const file={id,atendimento_id:batch,created_by:owner,kind:'documento',file_name:'teste.txt',size_bytes:bytes.length,content_sha256:digest,storage_path:'whatsapp-lab/'+owner+'/'+batch+'/documento/'+digest+'-teste.txt',processing_status:'pendente',...overrides};
+  const writes=[];
+  const client={from(table){let patch=null,lease=null;return {select(){return this},eq(k,v){if(k==='processing_token')lease=v;return this},or(){return this},update(p){patch=p;return this},async maybeSingle(){if(table==='lab_whatsapp_atendimentos')return {data:{id:batch,created_by:owner,source:options.source||'whatsapp_cliente'}};if(!patch)return {data:{...file}};if(options.conflict&&patch.processing_status==='processando')return {data:null};if(lease&&lease!==file.processing_token)return {data:null};writes.push(patch);Object.assign(file,patch);return {data:{id,processing_status:file.processing_status}};}}},storage:{from(){return {download:async()=>({data:new Blob([options.bytes||bytes])})}}}};
+  const run=new Function('createClient','Deno','UUID','json','MODEL','bytesToBase64','outputText',pure+';return processOfficialAttachment')(()=>client,{env:{get:()=>''}},/^[0-9a-f-]{36}$/i,(data,status=200)=>({data,status}),'test',()=>'',()=> '');
+  return {file,writes,call:(user=owner,role='equipe')=>run({headers:{get:()=> 'Bearer test'}},{id:user},{role},{attachment_id:id})};
+ }
+ const a=setup();assert.equal((await a.call()).data.status,'concluido');assert.equal(a.file.extracted_text,bytes.toString());assert.equal(a.writes.length,2);
+ const reused=await a.call();assert.equal(reused.data.reused,true);assert.equal(a.writes.length,2);
+ const denied=setup();assert.equal((await denied.call(other)).status,403);assert.equal(denied.writes.length,0);
+ const wrong=setup({}, {source:'manual'});assert.equal((await wrong.call()).status,404);
+ const race=setup({}, {conflict:true});assert.equal((await race.call()).status,409);
+ const corrupt=setup({}, {bytes:Buffer.alloc(bytes.length,65)});assert.equal((await corrupt.call()).data.status,'erro');assert.equal(corrupt.file.extracted_text,undefined);
+ const unsupported=setup({kind:'outro',file_name:'arte.cdr'});assert.equal((await unsupported.call()).status,422);
+ assert.match(js,/action:'process_official_attachment'/);assert.match(js,/data\?\.status!=='concluido'/);
+ assert.match(gallery,/Ver leitura/);assert.match(s,/store:false/);
+});
