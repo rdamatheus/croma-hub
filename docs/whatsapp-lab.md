@@ -27,4 +27,4 @@ O processamento depende do segredo `OPENAI_API_KEY` configurado nas Edge Functio
 
 ## Remoção futura
 
-Quando o teste terminar, remover primeiro os objetos no prefixo `whatsapp-lab/` do bucket privado e só então eliminar as tabelas, funções e políticas específicas do laboratório. O histórico de análises acompanha a exclusão do atendimento de teste. Não executar essa limpeza enquanto houver testes que devam ser preservados; limpeza depende de autorização própria.
+**Orientação anterior superada:** o prefixo `whatsapp-lab/`, as tabelas e a função agora são compartilhados com o histórico oficial. Nunca eliminar o prefixo, as tabelas ou a função como limpeza do laboratório. Qualquer futura limpeza deve identificar individualmente registros comprovadamente fictícios, excluir somente os objetos vinculados a esses registros, preservar fontes `whatsapp_cliente` e `whatsapp_pendente`, e depender de autorização própria, revisão e validação. Nenhuma limpeza foi executada.
