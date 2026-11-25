@@ -245,6 +245,7 @@ async function save(){
   showProgress(100,'Arquivos e mensagens salvos',(data.replayed?'Importação anterior confirmada.':data.messages+' mensagens e '+data.files+' novos arquivos registrados.')+' A leitura do conteúdo dos anexos é uma etapa separada.');
   if(!c&&!pendingView&&data.id){pendingView={id:data.id,contact_name:attempt.contactName||'Contato sem nome',contact_phone:attempt.contactPhone};$('saveUnlinked').checked=true;}
   importOrigin=null;attempt=null;draft=null;selected=[];$('confirm').checked=false;$('files').value='';$('folder').value='';$('preview').replaceChildren();await loadHistory();await loadDirectory();await loadPending();
+  try{await readNativeAfterImport(accepted);}catch{status('Importação confirmada. Leitura de conteúdo ainda pendente.',true);}
  }catch(e){showProgress(Number($('progressBar').value),'Importação interrompida','Tente novamente nesta mesma tela.');status('Importação não confirmada: '+e.message+'. Tente novamente com os mesmos arquivos e contato; não será criado um novo lote nesta tela.',true);}
  finally{busy=false;controls();}
 }
@@ -287,27 +288,48 @@ function eligibleFiles(){
   return supported&&size>0&&size<=(plain?1048576:f.kind==='audio'?20*1048576:10*1048576)&&(['pendente','erro'].includes(f.processing_status)||expired);
  });
 }
+async function requestReading(f,confirmAi=false){
+ const {data,error}=await supabase.functions.invoke('whatsapp-lab-processar',{body:{action:'process_official_attachment',attachment_id:f.id,confirm_ai:confirmAi}});
+ if(error||!['concluido','needs_ai'].includes(data?.status)){
+  let message=data?.error||error?.message||'Resultado não confirmado.';
+  try{if(error?.context?.clone){const details=await error.context.clone().json();message=details.error||message;}}catch{}
+  throw Error(message);
+ }
+ return data.status;
+}
+async function readNativeAfterImport(accepted){
+ const files=eligibleFiles().filter(f=>accepted.has(f.storage_path)&&((f.kind==='pdf')||(f.kind==='documento'&&/\.(txt|csv|json)$/i.test(f.file_name)))).slice(0,6);
+ let done=0;
+ for(let i=0;i<files.length;i++){
+  showProgress(100,'Importação confirmada','Extraindo texto sem IA: '+(i+1)+' de '+files.length+'.');
+  try{if(await requestReading(files[i])==='concluido')done++;}catch{}
+ }
+ if(files.length){
+  await loadHistory();
+  showProgress(100,'Arquivos e mensagens salvos',done+' de '+files.length+' leituras de texto confirmadas. Outros anexos podem exigir leitura assistida.');
+ }
+}
 async function readAttachments(){
  if(busy||readingFiles)return;
  const files=eligibleFiles().slice(0,6);
  if(!files.length)return;
- if(!window.confirm('Ler '+files.length+' arquivo(s) já armazenados? PDFs, imagens, documentos e áudios podem usar a API de IA existente e gerar cobrança por uso. Os originais serão preservados.'))return;
- readingFiles=true;controls();let ok=0;const errors=[];
+ readingFiles=true;controls();let ok=0;const errors=[],needsAI=[];
  try{
   for(let i=0;i<files.length;i++){
-   const f=files[i];$('readStatus').textContent='Lendo '+(i+1)+' de '+files.length+' arquivos…';
-   try{
-    const {data,error}=await supabase.functions.invoke('whatsapp-lab-processar',{body:{action:'process_official_attachment',attachment_id:f.id,confirm_ai:true}});
-    if(error||data?.status!=='concluido'){
-     let message=data?.error||error?.message||'Resultado não confirmado.';
-     try{if(error?.context?.clone){const details=await error.context.clone().json();message=details.error||message;}}catch{}
-     throw Error(message);
-    }
-    ok++;
-   }catch(e){errors.push(f.file_name+': '+e.message);}
+   const f=files[i];$('readStatus').textContent='Verificando '+(i+1)+' de '+files.length+' arquivos, sem IA…';
+   try{const result=await requestReading(f);if(result==='concluido')ok++;else needsAI.push(f);}
+   catch(e){errors.push(f.file_name+': '+e.message);}
+  }
+  const confirmed=needsAI.length&&window.confirm(needsAI.length+' arquivo(s) precisam de leitura com IA. Autoriza o uso da API, com possível cobrança?');
+  if(confirmed){
+   for(let i=0;i<needsAI.length;i++){
+    const f=needsAI[i];$('readStatus').textContent='Leitura com IA: '+(i+1)+' de '+needsAI.length+' arquivos…';
+    try{if(await requestReading(f,true)==='concluido')ok++;else errors.push(f.file_name+': leitura não confirmada.');}
+    catch(e){errors.push(f.file_name+': '+e.message);}
+   }
   }
   await loadHistory();
-  $('readStatus').textContent=ok+' de '+files.length+' leituras confirmadas pelo servidor.'+(errors.length?' Pendências: '+errors.join(' | '):'')+' Confira os dados nos arquivos originais.';
+  $('readStatus').textContent=ok+' de '+files.length+' leituras confirmadas.'+(!confirmed&&needsAI.length?' '+needsAI.length+' aguardam autorização para IA.':'')+(errors.length?' Falhas: '+errors.join(' | '):'')+' Confira os dados nos originais.';
  }finally{readingFiles=false;controls();}
 }
 function renderHistory(){
