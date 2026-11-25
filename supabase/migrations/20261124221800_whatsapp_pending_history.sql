@@ -79,3 +79,22 @@ begin
 end;$$;
 revoke all on function public.link_whatsapp_pending(uuid,uuid) from public,anon;
 grant execute on function public.link_whatsapp_pending(uuid,uuid) to authenticated;
+
+-- Busca paginada de contatos ainda não cadastrados, sem misturar o laboratório.
+create or replace function public.whatsapp_pending_directory(p_query text default '',p_offset integer default 0,p_limit integer default 30)
+returns table(id uuid,contact_name text,contact_phone text,last_import timestamptz,total_count bigint)
+language sql stable security invoker set search_path='' as $$
+with roots as (
+ select a.id,a.contact_name,a.contact_phone,
+ (select max(b.created_at) from public.lab_whatsapp_atendimentos b where b.source='whatsapp_pendente' and b.customer_id is null and b.raw_chat->>'pending_group'=a.id::text) as last_import
+ from public.lab_whatsapp_atendimentos a
+ where auth.uid() is not null and (select app_private.is_staff())
+ and a.source='whatsapp_pendente' and a.customer_id is null and a.raw_chat->>'pending_group'=a.id::text
+ and (trim(coalesce(p_query,''))='' or strpos(lower(a.contact_name),lower(trim(p_query)))>0 or (length(regexp_replace(coalesce(p_query,''),'[^0-9]','','g'))>=4 and strpos(coalesce(a.contact_phone,''),regexp_replace(p_query,'[^0-9]','','g'))>0))
+)
+select r.id,r.contact_name,r.contact_phone,r.last_import,count(*) over() from roots r
+order by r.last_import desc nulls last,r.id offset greatest(coalesce(p_offset,0),0) limit least(greatest(coalesce(p_limit,30),1),100);
+$$;
+revoke all on function public.whatsapp_pending_directory(text,integer,integer) from public,anon;
+grant execute on function public.whatsapp_pending_directory(text,integer,integer) to authenticated;
+create index if not exists lab_whatsapp_pending_group_idx on public.lab_whatsapp_atendimentos ((raw_chat->>'pending_group')) where source='whatsapp_pendente' and customer_id is null;
