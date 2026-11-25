@@ -98,3 +98,24 @@ $$;
 revoke all on function public.whatsapp_pending_directory(text,integer,integer) from public,anon;
 grant execute on function public.whatsapp_pending_directory(text,integer,integer) to authenticated;
 create index if not exists lab_whatsapp_pending_group_idx on public.lab_whatsapp_atendimentos ((raw_chat->>'pending_group')) where source='whatsapp_pendente' and customer_id is null;
+
+-- Comparação conservadora de telefone: não confunde números de DDDs diferentes.
+create or replace function public.whatsapp_contact_candidates(p_name text default '',p_phone text default '')
+returns table(id uuid,nome text,nome_fantasia text,telefone text,celular text,ativo boolean,bling_contact_id bigint,phone_match boolean)
+language sql stable security invoker set search_path='' as $$
+with input as (
+ select translate(lower(trim(coalesce(p_name,''))),'áàâãäéèêëíìîïóòôõöúùûüçñ','aaaaaeeeeiiiiooooouuuucn') as name,
+ regexp_replace(regexp_replace(coalesce(p_phone,''),'[^0-9]','','g'),'^55([0-9]{10,11})$','\1') as phone
+), matches as (
+ select c.id,c.nome,c.nome_fantasia,c.telefone,c.celular,c.ativo,c.bling_contact_id,
+ exists(select 1 from (values (c.telefone),(c.celular)) v(num) cross join lateral (select regexp_replace(regexp_replace(coalesce(v.num,''),'[^0-9]','','g'),'^55([0-9]{10,11})$','\1') as n) x
+ where length(i.phone)>=10 and (x.n=i.phone or (length(i.phone)=10 and length(x.n)=11 and substring(x.n,3,1)='9' and left(i.phone,2)||'9'||substring(i.phone,3)=x.n) or (length(i.phone)=11 and length(x.n)=10 and substring(i.phone,3,1)='9' and left(x.n,2)||'9'||substring(x.n,3)=i.phone))) as phone_match,
+ (length(i.name)>=2 and i.name in (translate(lower(trim(c.nome)),'áàâãäéèêëíìîïóòôõöúùûüçñ','aaaaaeeeeiiiiooooouuuucn'),translate(lower(trim(coalesce(c.nome_fantasia,''))),'áàâãäéèêëíìîïóòôõöúùûüçñ','aaaaaeeeeiiiiooooouuuucn'))) as name_match
+ from public.customer_profiles c cross join input i
+ where auth.uid() is not null and (select app_private.is_staff())
+)
+select m.id,m.nome,m.nome_fantasia,m.telefone,m.celular,m.ativo,m.bling_contact_id,m.phone_match
+from matches m where m.phone_match or m.name_match order by m.phone_match desc,m.ativo desc,lower(m.nome),m.id limit 100;
+$$;
+revoke all on function public.whatsapp_contact_candidates(text,text) from public,anon;
+grant execute on function public.whatsapp_contact_candidates(text,text) to authenticated;
