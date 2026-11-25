@@ -13,3 +13,7 @@ O catálogo público usa a taxonomia canônica `Família → Categoria → Subca
 ## Integração
 
 A integração com o Bling mantém produtos, serviços, categorias e demais entidades sincronizados por workers dedicados. Itens internos, insumos, acabamentos e componentes de composição permanecem fora da vitrine pública até sua consolidação em estruturas comerciais.
+
+## Governança de alterações
+
+Antes de qualquer intervenção, consulte a [Portaria central (AGENTS.md)](AGENTS.md), que referencia as normas oficiais e o fluxo de aprovação, execução e validação.
