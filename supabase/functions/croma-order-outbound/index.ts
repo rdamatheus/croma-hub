@@ -72,7 +72,7 @@ async function sendReceivable(ctx:any, saleDate?:string) {
   const o = ctx.o;
   if (o.status !== "aguardando_pagamento" || !o.payment_due_date) throw new Error("Confira a situação a receber e o vencimento no pedido.");
   const contactId = Number(ctx.c.bling_contact_id);
-  if (!(contactId > 0)) throw new Error("Cliente sem vínculo com o Bling.");
+  if (!(contactId > 0) || ctx.c.bling_sync_status !== "sincronizado") throw new Error("Cliente sem vínculo confirmado com o Bling.");
   const forms = await receiptForms();
   const matching = forms.filter(f => o.payment_method === "crediario"
     ? canonical(f.descricao) === "crediario" : "bling:"+f.id === o.payment_method);
@@ -92,6 +92,15 @@ async function sendReceivable(ctx:any, saleDate?:string) {
     ext = Number(matches[0]?.id);
     if (!ext) {
       if (o.checkout_reference) throw new Error("Envio pendente de conferência no Bling.");
+      // Evita também duplicatas lançadas manualmente no ERP, sem referência Croma.
+      const shift=(n:number)=>{const d=new Date(body.data+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+      for(let page=1;page<=20;page++){
+        const rows=await api("/pedidos/vendas","GET",null,{idContato:String(contactId),dataInicial:shift(-1),dataFinal:shift(1),pagina:String(page),limite:"100"});
+        if(!Array.isArray(rows))throw new Error("Falha ao conferir duplicidade.");
+        if(rows.some((r:any)=>Number(r.contato?.id)===contactId&&round(r.total)===round(o.total)))throw new Error("Existe venda de mesmo valor para este contato em data próxima; conferir antes de enviar.");
+        if(rows.length<100)break;
+        if(page===20)throw new Error("Consulta de duplicidade incompleta.");
+      }
       const {data:claim,error} = await db.from("orders").update({checkout_reference:"bling-pendente:"+o.id}).eq("id",o.id).eq("status","aguardando_pagamento").is("checkout_reference",null).select("id").maybeSingle();
       if (error || !claim) throw new Error("Pedido já em envio ou alterado. Recarregue os detalhes.");
       const result = await api("/pedidos/vendas","POST",body);
@@ -103,15 +112,20 @@ async function sendReceivable(ctx:any, saleDate?:string) {
   }
   const remote = await api("/pedidos/vendas/"+ext);
   const parcel = remote?.parcelas?.[0];
-  if (!remote?.numero || Number(remote.contato?.id)!==contactId || round(remote.total)!==round(o.total)
-    || remote?.itens?.length !== ctx.items.length || remote.parcelas?.length!==1
+  const expectedItems=body.itens.map((i:any)=>[Number(i.produto.id),Number(i.quantidade),round(i.valor,6)].join(":")).sort();
+  const actualItems=(Array.isArray(remote?.itens)?remote.itens:[]).map((i:any)=>[Number(i.produto?.id),Number(i.quantidade),round(i.valor,6)].join(":")).sort();
+  if (!remote?.numero || String(remote.numeroLoja)!==o.order_code || Number(remote.contato?.id)!==contactId || round(remote.total)!==round(o.total)
+    || JSON.stringify(expectedItems)!==JSON.stringify(actualItems) || remote.parcelas?.length!==1
     || Number(parcel?.formaPagamento?.id)!==formId || parcel.dataVencimento!==o.payment_due_date || round(parcel.valor)!==round(o.total)) {
     throw new Error("Pedido localizado no Bling. Confira cliente, itens, total, forma e vencimento antes de prosseguir.");
   }
-  const mapping = {provider:"bling",entity_type:"order",local_id:o.id,external_id:String(ext),sync_status:"synced",last_synced_at:new Date().toISOString(),metadata:{...ctx.m?.metadata,remote_order_number:remote.numero,remote_validated:true,remote_total:round(remote.total),payment_form_id:formId,due_date:o.payment_due_date}};
-  const {error} = await db.from("erp_entity_mappings").upsert(mapping,{onConflict:"provider,entity_type,external_id"});
-  if (error) throw error;
-  return {external_id:ext,number:remote.numero,item_count:remote.itens.length,total:round(remote.total)};
+  const mapping = {provider:"bling",entity_type:"order",local_id:o.id,external_id:String(ext),sync_status:"synced",last_synced_at:new Date().toISOString(),metadata:{...ctx.m?.metadata,remote_order_number:remote.numero,remote_validated:true,remote_total:round(remote.total),payment_form_id:formId,due_date:o.payment_due_date,commercial_payment_status:"receivable",financial_status:ctx.m?.metadata?.financial_status||"pending_verification"}};
+  const {data:linked,error:le}=await db.from("erp_entity_mappings").select("id,local_id").eq("provider","bling").eq("entity_type","order").eq("external_id",String(ext)).maybeSingle();
+  if(le)throw le;
+  if(linked&&linked.local_id!==o.id)throw new Error("Pedido Bling já vinculado a outro pedido local.");
+  const saved=linked?await db.from("erp_entity_mappings").update(mapping).eq("id",linked.id).eq("local_id",o.id).select("id").single():await db.from("erp_entity_mappings").insert(mapping).select("id").single();
+  if(saved.error||!saved.data)throw new Error("Vínculo não confirmado; não reenviar.");
+  return {external_id:ext,number:remote.numero,item_count:remote.itens.length,total:round(remote.total),financial_status:mapping.metadata.financial_status};
 }
 
 
@@ -134,7 +148,7 @@ async function sendReceivedPix(ctx:any, saleDate?:string, approvedJob?:any) {
   if (payments?.length) throw new Error("Pedido com registro de pagamento online: concilie pelo fluxo original.");
   const validEvent=events?.length===1 && events[0].payment_method===o.payment_method && round(events[0].amount)===round(o.total) && events[0].financial_review===true;
   // A tarefa de integração é gravada apenas por serviço autorizado; não infere recebimento de observações.
-  const validJob=approvedJob?.source==="operator_confirmed_chat" && approvedJob.order_id===o.id &&
+  const validJob=["operator_confirmed_chat","internal_sale_finalized"].includes(approvedJob?.source) && approvedJob.order_id===o.id &&
     approvedJob.payment_method===o.payment_method && approvedJob.payment_confirmed===true &&
     Number.isInteger(approvedJob.amount_cents) && approvedJob.amount_cents===Math.round(Number(o.total)*100) &&
     typeof approvedJob.confirmation_ref==="string" && approvedJob.confirmation_ref.length>=10;
@@ -241,6 +255,18 @@ async function syncOrder(orderId:string, options:{preserve_customer:boolean;sale
   return {created,external_id:ext,number:remote?.numero,total:actual,discount:remote?.desconto,contact_id:contactId,item_count:remote.itens.length};
 }
 
+// Contrato da fila: apenas origens internas autorizadas, nunca status isolado.
+function validInternalSaleJob(a:any){
+  const methods=["pix","dinheiro","credito","debito","crediario"];
+  const date=(s:any)=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+"T00:00:00Z"))&&new Date(s+"T00:00:00Z").toISOString().slice(0,10)===s;
+  if(!a||!["operator_confirmed_chat","internal_sale_finalized"].includes(a.source)||!methods.includes(a.payment_method)||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(a.order_id||""))||
+    !date(a.sale_date)||!Number.isSafeInteger(a.amount_cents)||a.amount_cents<=0||
+    typeof a.confirmation_ref!=="string"||a.confirmation_ref.trim().length<10||a.confirmation_ref.length>500)return false;
+  if(a.payment_method==="crediario")return a.source==="internal_sale_finalized"&&a.payment_confirmed===false&&date(a.due_date)&&a.due_date>=a.sale_date;
+  return a.payment_confirmed===true;
+}
+
 // Despacho administrativo em fila existente. A credencial de cron já é utilizada
 // pelos trabalhadores Bling. Não autoriza ações gerais nem fabrica sessão humana.
 async function dispatchApprovedOrder(jobId:string) {
@@ -250,11 +276,7 @@ async function dispatchApprovedOrder(jobId:string) {
     .eq("direction","croma_to_bling").eq("status","queued").maybeSingle();
   if(error||!j)throw new Error("Tarefa de envio indisponível.");
   const a=j.request_summary||{};
-  if(a.source!=="operator_confirmed_chat"||a.payment_confirmed!==true||!["pix","dinheiro","credito","debito"].includes(a.payment_method)||
-    !/^[0-9a-f-]{36}$/i.test(String(a.order_id||""))||!/^\d{4}-\d{2}-\d{2}$/.test(String(a.sale_date||""))||
-    !Number.isInteger(a.amount_cents)||a.amount_cents<=0||
-    typeof a.confirmation_ref!=="string"||a.confirmation_ref.length<10)
-    throw new Error("Tarefa sem aprovação estruturada.");
+  if(!validInternalSaleJob(a))throw new Error("Tarefa sem aprovação estruturada.");
   const claim=await db.from("erp_sync_jobs").update({status:"running",started_at:new Date().toISOString()})
     .eq("id",jobId).eq("status","queued").select("id").maybeSingle();
   if(claim.error||!claim.data)throw new Error("Tarefa já em processamento.");
@@ -262,7 +284,17 @@ async function dispatchApprovedOrder(jobId:string) {
     const ctx=await load(a.order_id);
     if(ctx.o.payment_method!==a.payment_method||Math.round(Number(ctx.o.total)*100)!==a.amount_cents)
       throw new Error("Pedido diverge da aprovação.");
-    const result=await sendReceivedPix(ctx,a.sale_date,a);
+    // Referência de checkout é reservada a pedidos públicos, não uma autorização de venda interna.
+    if(a.source==="internal_sale_finalized"&&ctx.o.checkout_reference&&!/^bling(?:-pendente)?:/.test(ctx.o.checkout_reference))
+      throw new Error("Origem de checkout incompatível com a fila de vendas internas.");
+    let result;
+    if(a.payment_method==="crediario"){
+      if(ctx.o.payment_due_date!==a.due_date||ctx.o.status!=="aguardando_pagamento")throw new Error("Crediário diverge do vencimento ou situação aprovada.");
+      const {data:online,error:oe}=await db.from("payments").select("id").eq("order_id",ctx.o.id).limit(1);
+      if(oe)throw oe;
+      if(online?.length)throw new Error("Pedido de checkout online não pode entrar no despacho interno.");
+      result=await sendReceivable(ctx,a.sale_date);
+    }else result=await sendReceivedPix(ctx,a.sale_date,a);
     const done=await db.from("erp_sync_jobs").update({status:"completed",finished_at:new Date().toISOString(),
       processed_count:1,success_count:1,result_summary:result}).eq("id",jobId).eq("status","running").select("id").single();
     if(done.error||!done.data)throw new Error("Pedido enviado; tarefa sem confirmação de encerramento. Não reenviar.");
