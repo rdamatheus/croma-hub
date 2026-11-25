@@ -165,3 +165,23 @@ test('PDF real com texto incorporado e página vazia, sem IA',async()=>{
  assert.match(await run(makePdf('Comprovante ficticio valor 450 reais')),/Comprovante ficticio valor 450 reais/);
  assert.equal(await run(makePdf('')),'');
 });
+
+test('navegação central separa histórico de testes e respeita acesso a Projetos',async()=>{
+ const nav=await readFile(new URL('../js/interno-navigation.js',import.meta.url),'utf8');
+ const {INTERNAL_GROUPS,visibleGroups,activeModuleKey,renderModuleDirectory}=await import('data:text/javascript;base64,'+Buffer.from(nav).toString('base64'));
+ const entries=INTERNAL_GROUPS.flatMap(g=>g.items);
+ assert.equal(new Set(entries.map(i=>i.key)).size,entries.length);
+ assert.equal(new Set(entries.map(i=>i.href)).size,entries.length);
+ assert.equal(activeModuleKey('/interno/whatsapp-lab/clientes/'),'whatsapp-historico');
+ assert.equal(activeModuleKey('/interno/whatsapp-lab/'),'whatsapp');
+ assert.equal(activeModuleKey('/interno/projetos/detalhe/'),'projetos');
+ for(const role of ['owner','manager','equipe']){
+  const keys=visibleGroups(role).flatMap(g=>g.items.map(i=>i.key));
+  assert.ok(keys.includes('whatsapp-historico'));assert.ok(keys.includes('whatsapp'));
+  assert.equal(keys.includes('projetos'),role!=='equipe');
+  const container={innerHTML:''};renderModuleDirectory(container,role,'Projetos');
+  assert.equal(container.innerHTML.includes('data-module-key="projetos"'),role!=='equipe');
+ }
+ const legacy=await readFile(new URL('../js/interno-projects-link.js',import.meta.url),'utf8');
+ assert.match(legacy,/querySelector\('\[data-module-key="projetos"\]'\)\)return true/);
+});
