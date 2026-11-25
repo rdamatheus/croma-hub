@@ -146,13 +146,19 @@ async function sendReceivedPix(ctx:any, saleDate?:string, approvedJob?:any) {
   ]);
   if (ee) throw ee; if (pe) throw pe;
   if (payments?.length) throw new Error("Pedido com registro de pagamento online: concilie pelo fluxo original.");
-  const validEvent=events?.length===1 && events[0].payment_method===o.payment_method && round(events[0].amount)===round(o.total) && events[0].financial_review===true;
+  // Um recebimento definitivo pode ter sido pago em mais de uma entrega de dinheiro.
+  // A soma deve corresponder integralmente ao pedido, sem misturar modalidades.
+  const receipts=events||[];
+  const receiptsMatch=receipts.length>0 &&
+    receipts.every(e=>e.payment_method===o.payment_method && Number.isFinite(Number(e.amount)) && Number(e.amount)>0) &&
+    round(receipts.reduce((sum,e)=>sum+Number(e.amount),0))===round(o.total);
+  const validEvent=receiptsMatch && receipts.every(e=>e.financial_review===true);
   // A tarefa de integração é gravada apenas por serviço autorizado; não infere recebimento de observações.
   const validJob=["operator_confirmed_chat","internal_sale_finalized"].includes(approvedJob?.source) && approvedJob.order_id===o.id &&
     approvedJob.payment_method===o.payment_method && approvedJob.payment_confirmed===true &&
     Number.isInteger(approvedJob.amount_cents) && approvedJob.amount_cents===Math.round(Number(o.total)*100) &&
     typeof approvedJob.confirmation_ref==="string" && approvedJob.confirmation_ref.length>=10;
-  if (!validEvent && (!validJob || events?.length))
+  if (!validEvent && (!validJob || (receipts.length>0 && !receiptsMatch)))
     throw new Error("Venda interna sem origem autorizada ou confirmação rastreável.");
   const contactId=Number(ctx.c.bling_contact_id);
   if (!(contactId>0) || ctx.c.bling_sync_status!=="sincronizado") throw new Error("Sincronize o contato antes de enviar.");
