@@ -114,8 +114,94 @@ async function sendReceivable(ctx:any, saleDate?:string) {
   return {external_id:ext,number:remote.numero,item_count:remote.itens.length,total:round(remote.total)};
 }
 
+
+/** Pix externo recebido: a confirmação gerencial é independente da produção.
+ * Não cria cobrança, não altera o contato, nem lança contas automaticamente.
+ * O lançamento financeiro no Bling deve ser conferido separadamente. */
+async function sendReceivedPix(ctx:any, saleDate?:string) {
+  const o=ctx.o;
+  if (!["pago","em_analise","em_producao","pronto","enviado","concluido"].includes(o.status))
+    throw new Error("Confirme o recebimento do Pix antes de enviar o pedido.");
+  const [{data:events,error:ee},{data:payments,error:pe}]=await Promise.all([
+    db.from("order_activity_events").select("amount,payment_method,financial_review").eq("order_id",o.id).eq("action","manual_payment_confirmed"),
+    db.from("payments").select("status").eq("order_id",o.id)
+  ]);
+  if (ee) throw ee; if (pe) throw pe;
+  if (payments?.length) throw new Error("Pedido com registro de pagamento online: concilie pelo fluxo original.");
+  if (events?.length!==1 || events[0].payment_method!=="pix" || round(events[0].amount)!==round(o.total) || events[0].financial_review!==true)
+    throw new Error("Falta uma confirmação gerencial única do Pix integral recebido.");
+  const contactId=Number(ctx.c.bling_contact_id);
+  if (!(contactId>0) || ctx.c.bling_sync_status!=="sincronizado") throw new Error("Sincronize o contato antes de enviar.");
+  if(!Number.isFinite(Number(o.total)) || Number(o.total)<=0)throw new Error("Total inválido.");
+  const date=saleDate || new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date(o.created_at));
+  const all:any[]=[];
+  for(let page=1;page<=20;page++){
+    const rows=await api("/formas-pagamentos","GET",null,{"tiposPagamentos[]":"20",situacao:"1",pagina:String(page),limite:"100"});
+    if(!Array.isArray(rows))throw new Error("Não foi possível consultar formas Pix.");
+    all.push(...rows);
+    if(rows.length<100)break;
+    if(page===20)throw new Error("Consulta de formas Pix incompleta.");
+  }
+  const eligible=[];
+  for(const f of all.filter(f=>Number(f.id)>0&&Number(f.situacao)===1&&Number(f.tipoPagamento)===20)){
+    const detail=await api("/formas-pagamentos/"+f.id);
+    // Não utilizar Pix dinâmico nem forma destinada a cobrança a prazo.
+    if(Number(detail?.tipoPagamento)===20&&Number(detail?.situacao)===1&&Number(detail?.destino)===2&&[2,3].includes(Number(detail?.finalidade))) eligible.push(detail);
+  }
+  if(eligible.length!==1)throw new Error("Forma Pix estático ativa, à vista (Caixas e Bancos), ausente ou ambígua. Confira a configuração no Bling. Nenhum pedido foi enviado.");
+  const formId=Number(eligible[0].id);
+  const body:any=orderBody(ctx,contactId);
+  body.data=date; body.numeroLoja=o.order_code;
+  body.parcelas=[{dataVencimento:date,valor:round(o.total),formaPagamento:{id:formId},observacoes:"Pix já recebido fora do Bling; não emitir nova cobrança."}];
+  let ext=Number(ctx.m?.external_id||String(o.checkout_reference||"").match(/^bling:(\d+)$/)?.[1]||0);
+  let created=false;
+  if(!ext){
+    const existing=await api("/pedidos/vendas","GET",null,{"numerosLojas[]":o.order_code,idContato:String(contactId)});
+    if(!Array.isArray(existing))throw new Error("Falha ao conferir referência no Bling.");
+    const matches=existing.filter((r:any)=>String(r.numeroLoja)===o.order_code&&Number(r.contato?.id)===contactId);
+    if(matches.length>1)throw new Error("Mais de um pedido com a mesma referência no Bling.");
+    ext=Number(matches[0]?.id||0);
+    if(!ext){
+      if(o.checkout_reference)throw new Error("Envio anterior ainda em conferência. Não reenviar.");
+      // Detecta também uma venda manual sem referência Croma na janela próxima à venda.
+      const shift=(n:number)=>{const d=new Date(date+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+      for(let page=1;page<=20;page++){
+        const rows=await api("/pedidos/vendas","GET",null,{idContato:String(contactId),dataInicial:shift(-1),dataFinal:shift(1),pagina:String(page),limite:"100"});
+        if(!Array.isArray(rows))throw new Error("Falha na verificação de duplicidade.");
+        if(rows.some((r:any)=>Number(r.contato?.id)===contactId&&round(r.total)===round(o.total)))
+          throw new Error("Existe venda de mesmo valor para este contato em data próxima. Confira o Bling antes de criar outro pedido.");
+        if(rows.length<100)break;
+        if(page===20)throw new Error("Consulta de duplicidade incompleta.");
+      }
+      const {data:claim,error}=await db.from("orders").update({checkout_reference:"bling-pendente:"+o.id}).eq("id",o.id).eq("status",o.status).is("checkout_reference",null).select("id").maybeSingle();
+      if(error||!claim)throw new Error("Pedido já em envio ou alterado; recarregue.");
+      const result=await api("/pedidos/vendas","POST",body);
+      ext=Number(result?.id||0);
+      if(!(ext>0))throw new Error("Envio em conferência: o Bling não retornou um ID. Não reenviar.");
+      created=true;
+    }
+    const {error}=await db.from("orders").update({checkout_reference:"bling:"+ext}).eq("id",o.id);
+    if(error)throw error;
+  }
+  const remote=await api("/pedidos/vendas/"+ext);
+  const parcel=remote?.parcelas?.[0];
+  const expectedItems=body.itens.map((i:any)=>[Number(i.produto.id),Number(i.quantidade),round(i.valor,6)].join(":")).sort();
+  const actualItems=(Array.isArray(remote?.itens)?remote.itens:[]).map((i:any)=>[Number(i.produto?.id),Number(i.quantidade),round(i.valor,6)].join(":")).sort();
+  if(!remote?.numero||Number(remote.contato?.id)!==contactId||String(remote.numeroLoja)!==o.order_code||round(remote.total)!==round(o.total)||JSON.stringify(actualItems)!==JSON.stringify(expectedItems)||remote.parcelas?.length!==1||Number(parcel?.formaPagamento?.id)!==formId||round(parcel.valor)!==round(o.total)||parcel.dataVencimento!==date)
+    throw new Error("Pedido localizado, mas dados divergem. Não criar outro; conferir no Bling.");
+  const now=new Date().toISOString();
+  const mapping={provider:"bling",entity_type:"order",local_id:o.id,external_id:String(ext),sync_status:"synced",last_synced_at:now,metadata:{...(ctx.m?.metadata||{}),remote_order_number:remote.numero,remote_validated:true,remote_total:round(remote.total),payment_form_id:formId,payment_method:"pix",financial_status:"pending_verification",source:"croma_received_pix_v1"}};
+  const {data:linked,error:linkError}=await db.from("erp_entity_mappings").select("id,local_id").eq("provider","bling").eq("entity_type","order").eq("external_id",String(ext)).maybeSingle();
+  if(linkError)throw linkError;
+  if(linked&&linked.local_id!==o.id)throw new Error("Pedido Bling já vinculado a outro pedido local.");
+  const saved=linked?await db.from("erp_entity_mappings").update(mapping).eq("id",linked.id).eq("local_id",o.id).select("id").single():await db.from("erp_entity_mappings").insert(mapping).select("id").single();
+  if(saved.error||!saved.data)throw new Error("Vínculo não confirmado; não reenviar.");
+  return {created,external_id:ext,number:remote.numero,item_count:remote.itens.length,total:round(remote.total),financial_status:"pending_verification"};
+}
+
 async function syncOrder(orderId:string, options:{preserve_customer:boolean;sale_date?:string}){
   const ctx=await load(orderId);
+  if(ctx.o.payment_method==="pix")return await sendReceivedPix(ctx,options.sale_date);
   if (ctx.o.payment_method==="crediario" || ctx.o.payment_method.startsWith("bling:")) return await sendReceivable(ctx, options.sale_date);
   const contactId=options.preserve_customer?Number(ctx.c.bling_contact_id||0):await ensureContact(ctx.c,ctx.a);
   if(!(contactId>0))throw new Error('Este pedido exige um contato já vinculado ao Bling para preservar o cadastro.');

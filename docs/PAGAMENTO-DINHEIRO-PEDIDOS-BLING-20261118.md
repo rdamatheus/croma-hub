@@ -27,3 +27,9 @@ Pedido local `CR-20261117-GILMAR-5290`, data da venda 17/11/2026, total R$ 52,90
 - Edge Functions implantadas e ativas.
 - Código-fonte da interface atualizado no GitHub (main).
 - **Pendente**: executar o envio autenticado a partir da tela de detalhes e verificar ID, número, parcelas e total no Bling; não registrar `synced` nem afirmar a criação remota antes da verificação.
+
+## Extensão: Pix externo já recebido — 25/11/2026
+- Confirmar por gestor autenticado no registro existente de ações, com referência e conferência explícita. Preservar etapa de produção, impedir confirmação duplicada e não criar transação do Mercado Pago.
+- Enviar somente com confirmação integral única, contato sincronizado, forma Pix estático ativa e única destinada a Caixas e Bancos. Reutilizar referência do pedido, conferir possíveis duplicatas, reservar envio antes do POST, validar retorno de itens, total, cliente e parcela. Se resposta incerta, não repetir criação automaticamente.
+- Sincronização do pedido não equivale a baixa financeira. Conferir lançamento existente em Caixas e Bancos antes de lançar contas. Nenhuma nova cobrança, alteração de forma de pagamento ou lançamento de contas é solicitado pela função. A configuração real da conta Bling e eventual lançamento automático permanecem sujeitos a homologação.
+- Código e migração do PR 121; testes simulados de envio e bloqueios, verificação de sintaxe e Portaria. Validar sessão autenticada e retorno real antes de declarar a venda concluída. Reversão: restaurar função e interface anteriores, preservar eventos históricos.
