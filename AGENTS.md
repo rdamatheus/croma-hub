@@ -28,3 +28,10 @@ Ponto de entrada obrigatório para ChatGPT (voz ou texto), Codex, agentes e mant
 
 ## Veracidade dos estados operacionais
 - Distinguir preparação, envio, persistência, processamento de conteúdo e validação. Exibir sucesso apenas para a etapa efetivamente confirmada; falhas parciais e pendências devem permanecer visíveis, com orientação para retomada. Não declarar conteúdo processado apenas porque um arquivo foi descompactado ou salvo. Não simular progresso nem tratar ausência de erro como comprovação de resultado.
+
+## Regra comercial obrigatória — pedidos e Bling
+- Toda venda interna definitiva e autorizada registrada no Croma Hub deve ser encaminhada automaticamente ao Bling pelo fluxo oficial existente, independentemente da forma de pagamento. Não enviar cotações ou rascunhos como vendas.
+- Nas vendas internas, Pix, Dinheiro, C.Crédito e C.Débito significam recebimento já efetuado; Crediário significa a receber. Não exigir reconfirmação manual redundante, nova cobrança ou nova modalidade no Bling. Reutilizar as formas ativas e não ambíguas existentes.
+- O checkout público segue a confirmação do provedor de pagamento; não presumir recebimento online. Preservar autorização, vínculo do pedido, idempotência, auditoria e validação do retorno remoto; divergências reais seguem para revisão sem duplicar vendas.
+- Sincronização comercial não comprova baixa financeira nem entrega. Validar cada estado separadamente. A obrigação de envio automático é a regra de negócio; homologar o gatilho geral de origem e a baixa financeira antes de declarar a automação integral concluída.
+- Decisão aprovada em 25/11/2026. Referência operacional: [Regra comercial vigente — pagamentos e Bling](docs/PAGAMENTO-DINHEIRO-PEDIDOS-BLING-20261118.md). Esta regra prevalece sobre instruções anteriores incompatíveis, mantendo o histórico.
