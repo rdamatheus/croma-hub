@@ -1,6 +1,6 @@
 # Portaria central do Croma Hub — v1
 
-Ponto de entrada obrigatório para ChatGPT (voz ou texto), Codex, agentes e mantenedores. Vale para todo o repositório e para intervenções no Supabase, Bling, integrações e automações do Hub. Não substitui permissões nem autorizações.
+Ponto de entrada obrigatório para ChatGPT (voz ou texto), Codex, agentes e mantenedores. Vale para todo o repositório e para intervenções no Supabase, Bling, integrações e automações do Hub. É também o Leia-me oficial do portal de informações: pessoas e integrações autorizadas devem consultá-lo ao iniciar o trabalho, inclusive em conversas externas ao projeto ChatGPT. É uma referência de boa-fé, não uma nova barreira de login. Não substitui permissões nem autorizações.
 
 ## Entrada — antes de qualquer alteração
 1. Ler este arquivo na branch oficial main e registrar o SHA do blob consultado. Ler [Arquitetura](docs/ARQUITETURA.md), [Projeto Vivo](docs/padrao-projeto-vivo.md) e [Evolução do Hub](docs/EVOLUCAO_CROMA_HUB.md); localizar e ler a documentação específica do módulo em docs/.
