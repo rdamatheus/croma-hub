@@ -53,3 +53,28 @@ Criado em `managed_projects`, com histórico em `project_journal` e referências
 - O histórico é cronológico, expansível, agrupado por mês e filtrável por situação/tipo. Textos narrativos extensos são divididos apenas para exibição; nenhuma reclassificação ou alteração dos registros é feita no banco.
 - A visualização permanece somente para leitura e protegida pela autenticação existente de owner/manager. Falhas de consulta devem ser exibidas explicitamente, sem declarar falsamente que não há registros.
 - Validação executada: verificação dos arquivos no GitHub, sintaxe JS, existência de IDs esperados e teste funcional de renderização com dados simulados. **A publicação e o acesso autenticado em navegador real ainda precisam de conferência.**
+
+## Extensão unificada de execução (v1.1) — projetos internos e de clientes
+
+**Decisão:** manter um único Projeto Vivo, sem módulo, tabela ou página de projeto paralela. `project_type` já aceita `internal`, `venture`, `client` e `external`. A estrutura base, as seis seções e o marcador `metadata.standard = "projeto-vivo-v1"` permanecem compatíveis. Projetos antigos não exigem migração.
+
+- Para projetos do tipo `client` (ou qualquer projeto que tenha `metadata.execution` preenchido), a **Visão geral** exibe também um painel operacional condicional, na mesma página de detalhes.
+- `metadata.execution` é **opcional** e contém apenas dados de acompanhamento específicos do projeto. Exemplo de formato, com dados fictícios (não cadastrar este exemplo):
+  ```json
+  {
+    "customer_name": "Cliente ilustrativo",
+    "order_ref": {"system": "Bling", "number": "OS-exemplo", "url": "https://exemplo.invalid/os"},
+    "deliverables": [
+      {"name": "Placa ilustrativa", "quantity": 1, "unit": "un.", "specification": "medidas a confirmar", "supplier": "a definir", "stage": "levantamento"}
+    ],
+    "pending_checks": ["Confirmar medidas antes de produzir"]
+  }
+  ```
+- `order_ref` aponta para a **OS de origem**; não cria, modifica nem sincroniza essa OS. Não inventar número, link, produto, custo, situação ou cliente. Confirmar a referência antes de preenchê-la.
+- `deliverables` apresenta o acompanhamento de produção, **não uma segunda lista comercial de itens**. Os valores de venda, pagamentos e dados oficiais da OS continuam no Bling/pedido de origem. Referenciar a origem, não duplicar dados sensíveis, arquivos ou preços sem necessidade.
+- `pending_checks` registra dúvidas do levantamento; não representa tarefas aprovadas. Tarefas reais continuam em `public.tasks`; decisões e progresso permanecem no histórico imutável `public.project_journal`; imagens e documentos ficam em `metadata.references[]` apontando para a origem.
+- A interface é somente leitura, controlada pela autenticação existente de owner/manager. As URLs externas são limitadas a HTTP(S) e abertas com `noopener noreferrer`.
+- A integração automática OS → Projeto e o cadastro do projeto dos Correios **não estão implementados** nesta etapa. Eles dependem de conferência da existência da OS, identificador estável, autorização de alterações e verificação de idempotência (não duplicar projetos).
+- Para atualizar o padrão, evoluir este documento e a mesma tela; evitar módulos de produção paralelos. Preservar proteção de dados, auditabilidade e os projetos já existentes.
+
+**Validações exigidas antes de publicar:** sintaxe, IDs de interface, acessos internos, exibição sem `execution` em projeto interno, exibição com `execution` em projeto cliente, link externo seguro e ausência de escrita no Bling/Supabase. Publicação e teste autenticado em navegador real permanecem etapas distintas.
