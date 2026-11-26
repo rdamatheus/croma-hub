@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personal OS | Croma Hub</title>
+  <link rel="stylesheet" href="/css/interno-base.css?v=20260822-1">
+  <style>
+    .shell { max-width: 1220px; padding: 26px 16px 70px; margin: 0 auto; }
+    .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .head h1 { margin: 7px 0 6px; color: var(--croma-deep); font-size: clamp(2rem, 4vw, 3.15rem); }
+    .head p { color: var(--croma-muted); max-width: 820px; line-height: 1.5; }
+    .muted { color: var(--croma-muted); }
+    .panel { background: white; border: 1px solid var(--croma-line); border-radius: 17px; padding: 20px; margin-top: 16px; }
+    .notice { border-left: 4px solid var(--croma-purple); background: #f3f1fb; border-radius: 10px; padding: 12px 15px; margin-top: 18px; line-height: 1.5; }
+    .danger { border-left-color: #b73a3a; background: #fff1f1; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+    .tabs button { background: white; color: var(--croma-purple); border: 1px solid var(--croma-line); border-radius: 11px; padding: 10px 15px; font-weight: 800; cursor: pointer; }
+    .tabs button[aria-selected="true"] { background: var(--croma-purple); color: white; }
+    .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+    .toolbar h2 { margin: 0; color: var(--croma-deep); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(265px,1fr)); gap: 14px; margin-top: 18px; }
+    .item { border: 1px solid var(--croma-line); border-radius: 13px; padding: 16px; overflow-wrap: anywhere; }
+    .item.archived { opacity: .72; }
+    .item h3 { font-size: 1.04rem; margin: 0 0 7px; color: var(--croma-deep); }
+    .item p { color: var(--croma-muted); line-height: 1.45; white-space: pre-wrap; }
+    .meta { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0; }
+    .pill { padding: 4px 8px; border-radius: 8px; background: #f3f1fb; color: var(--croma-purple); font-size: .75rem; font-weight: 700; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn { border: 1px solid var(--croma-purple); color: white; background: var(--croma-purple); padding: 9px 12px; border-radius: 10px; font: inherit; font-weight: 750; cursor: pointer; }
+    .btn.alt { border-color: var(--croma-line); color: var(--croma-purple); background: white; }
+    .btn:disabled { cursor: wait; opacity: .6; }
+    .form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 15px 0; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: .83rem; font-weight: 750; color: var(--croma-deep); }
+    .field input,.field select,.field textarea { width: 100%; border: 1px solid #ccc9dc; border-radius: 9px; padding: 10px; font: inherit; color: #29253f; background: white; }
+    .field textarea { min-height: 90px; resize: vertical; }
+    .status { min-height: 20px; margin-top: 15px; font-weight: 650; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .head { display: block; } }
+  </style>
+</head>
+<body hidden>
+  <header class="internal-header"><a href="/interno/">← Croma Hub</a><strong>Personal OS · Área privada</strong></header>
+  <main class="shell">
+    <div class="head">
+      <div>
+        <span class="internal-eyebrow">Gestão pessoal e transversal</span>
+        <h1>Personal OS</h1>
+        <p>Metas, projetos, tarefas, ideias e decisões com histórico e isolamento por usuário. As tarefas operacionais das empresas permanecem em seus módulos oficiais.</p>
+      </div>
+      <a class="btn alt" href="/interno/projetos/">Catálogo de sistemas</a>
+    </div>
+    <div class="notice">Integração progressiva: o núcleo abaixo utiliza as tabelas existentes do Personal OS. Jornadas, painel legado e agentes dependem de validação e integração posteriores; nenhuma migração do banco antigo é automática.</div>
+    <div id="message" role="status" aria-live="polite" class="status">Verificando acesso…</div>
+    <section id="activation" class="panel" hidden>
+      <h2>Inicializar ambiente pessoal</h2>
+      <p class="muted">Nenhum workspace pessoal foi localizado para sua conta atual. Se seus registros estavam em outra conta ou no banco antigo, eles ainda não foram migrados.</p>
+      <button type="button" class="btn" id="activate">Criar meu workspace pessoal</button>
+    </section>
+    <section id="workspace" hidden>
+      <div class="panel">
+        <div class="toolbar">
+          <div><span class="internal-eyebrow">Workspace privado</span><h2 id="workspaceName">—</h2></div>
+          <button type="button" id="refresh" class="btn alt">Atualizar</button>
+        </div>
+        <nav class="tabs" id="tabs" aria-label="Seções do Personal OS"></nav>
+        <div class="toolbar" style="margin-top:18px">
+          <div><h2 id="sectionName">Projetos</h2><p id="sectionInfo" class="muted"></p></div>
+          <div class="actions">
+            <label><input type="checkbox" id="showArchived"> Mostrar arquivados</label>
+            <button type="button" class="btn" id="add">Adicionar</button>
+          </div>
+        </div>
+        <div id="items" class="grid"></div>
+      </div>
+      <section class="panel" id="editor" hidden aria-label="Cadastro e edição">
+        <h2 id="editorTitle">Novo registro</h2>
+        <form id="editForm">
+          <div id="fields" class="form-grid"></div>
+          <div class="actions">
+            <button type="submit" id="save" class="btn">Salvar</button>
+            <button type="button" id="cancel" class="btn alt">Cancelar</button>
+          </div>
+        </form>
+      </section>
+    </section>
+    <p class="muted" style="font-size:.82rem;margin-top:20px">Dados pessoais não aparecem para a equipe da gráfica. Para tarefas da Croma, utilize o <a href="/interno/rotinas/">Centro Operacional</a>. A central de agentes será vinculada após validação.</p>
+  </main>
+  <script type="module" src="/js/interno-personal-os.js?v=20261116-1"></script>
+</body>
+</html>

@@ -74,6 +74,7 @@ export const INTERNAL_GROUPS=[
     {key:'vitrine-aprovacoes',label:'Central de Aprovações',href:'/interno/vitrine-aprovacoes/',description:'Propostas, previews, comentários e decisões da vitrine.',icon:ICONS.aprovacoes,roles:MANAGEMENT_ROLES}
   ]},
   {id:'sistema',label:'Conhecimento e sistema',description:'Conhecimento operacional, evolução e integrações técnicas.',tag:'Croma Hub',items:[
+    {key:'personal-os',label:'Personal OS',href:'/interno/personal-os/',description:'Metas, projetos, tarefas, ideias e decisões pessoais com acesso privado.',icon:ICONS.copiloto,roles:OWNER_ROLE},
     {key:'observabilidade',label:'Central de Incidentes e Observabilidade',href:'/interno/observabilidade/',description:'Erros, conflitos do Bling, prioridades e fila de imagens pendentes.',icon:ICONS.observabilidade,roles:MANAGEMENT_ROLES},
     {key:'projetos',label:'Projetos',href:'/interno/projetos/',description:'Projetos, decisões, histórico e próximos passos.',icon:ICONS.portfolio,roles:MANAGEMENT_ROLES},
     {key:'whatsapp',label:'Laboratório WhatsApp',href:'/interno/whatsapp-lab/',description:'Testes de atendimento assistido, separados do histórico oficial.',icon:ICONS.whatsapp},
